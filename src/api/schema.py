@@ -2,7 +2,7 @@ from pydantic import BaseModel, Field
 from typing import List
 
 
-#用户输入消息格式
+# user_Enter_mes格式
 class ChatRequest(BaseModel):
     
     """
@@ -19,3 +19,7 @@ class DocumentItem(BaseModel):
 
 class InsertRequest(BaseModel):
     documents: List[DocumentItem]
+
+class SearchRequest(BaseModel):
+    query: str = Field(..., description="用于检索的查询文本")
+    k: int = Field(default=3, description="返回的相似文档数量，默认为3")

@@ -24,17 +24,23 @@ geotrave/
 ├── .env                  # (需手动创建) 全局环境变量配置
 ├── data/
 │   └── chroma/           # ChromaDB 向量持久化目录 (自动生成)
+├── docs/                 # 项目文档与进度追踪 (STASH/PLAN)
 ├── src/
 │   ├── agent/            # 🧠 智能体大脑 (LangGraph)
-│   │   ├── nodes/        # 各个独立 Agent 员工 (如 analyzer.py 需求分析师)
+│   │   ├── nodes/        # 各个独立 Agent
 │   │   ├── graph.py      # 流水线与车间编排
+│   │   ├── router.py     # 分支流转判断逻辑 (条件路由)
 │   │   └── state.py      # 全局状态“白板”(TravelState)
 │   ├── api/              # 🔌 对外接口 (FastAPI Routers)
+│   │   ├── rag.py        # RAG 模块接口 (文本摄入、文件上传、状态统计)
+│   │   └── routes.py     # 主对话路由
 │   ├── database/         # 💾 数据库与检索逻辑 (ChromaDB)
-│   ├── utils/            # 🛠️ 通用工具 (Prompt, Config)
+│   ├── utils/            # 🛠️ 通用工具 (Prompt, Config, Logger)
 │   └── main.py           # 🚀 主程序入口
-└── pyproject.toml        # 项目依赖清单
+├── pyproject.toml        # 项目依赖清单
+└── test_rag_flow.py      # 流转异步测试沙盒
 ```
+
 
 ---
 
