@@ -10,7 +10,7 @@ router = APIRouter(tags=["Chat"])
 
 @router.post("/chat")
 async def chat_endpoint(request: ChatRequest):
-    
+
     # 构建 LangGraph 输入状态
     input_state: Dict[str, Any] = {"messages": [HumanMessage(content=request.message)]}
     
