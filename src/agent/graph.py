@@ -4,24 +4,24 @@ from langgraph.graph import StateGraph, MessagesState, START, END
 
 from utils.config import (
     OPENAI_API_KEY, 
-    DEEPSEEK_BASE_URL, 
-    DEEPSEEK_MODEL,
+    MODEL_BASE_URL, 
+    MODEL_ID,
     PLANNING_TEMPERATURE,
     MAX_TOKENS,
     TIMEOUT
 )
 
-# 1. 定义模型 (通过 config 引用配置)
 llm = ChatOpenAI(
-    model=DEEPSEEK_MODEL,
+    model=MODEL_ID,
     api_key=SecretStr(OPENAI_API_KEY), 
-    base_url=DEEPSEEK_BASE_URL, 
+    base_url=MODEL_BASE_URL, 
     
     temperature=PLANNING_TEMPERATURE,
     max_completion_tokens=MAX_TOKENS,  
     timeout=TIMEOUT,                  
     disable_streaming=True,
 )
+
 
 # 2. 定义节点逻辑：直接调用 LLM
 async def call_model(state: MessagesState):
