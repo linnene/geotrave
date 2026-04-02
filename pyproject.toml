@@ -9,5 +9,6 @@ dependencies = [
     "langchain-openai>=1.1.12",
     "langgraph>=1.1.4",
     "pydantic>=2.12.5",
+    "python-multipart>=0.0.22",
     "uvicorn[standard]>=0.42.0",
 ]

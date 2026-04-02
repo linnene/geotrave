@@ -41,3 +41,15 @@ def search_similar_documents(query: str, k: int = 3):
     vector_store = get_vector_store()
     results = vector_store.similarity_search(query, k=k)
     return results
+
+def get_document_count() -> int:
+    """
+    获取 ChromaDB 集合中的文档总数
+    """
+    vector_store = get_vector_store()
+    # 访问底层 chroma client 的集合计数
+    try:
+        return vector_store._collection.count()
+    except Exception:
+        return 0
+
