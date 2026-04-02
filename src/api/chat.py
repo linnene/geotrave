@@ -1,10 +1,10 @@
 from fastapi import APIRouter
 from .schema import ChatRequest
-from agent.graph import graph_app
 from langchain_core.messages import HumanMessage
 from langchain_core.runnables import RunnableConfig
 
 from typing import Any, Dict
+from agent.graph import graph_app
 
 router = APIRouter(tags=["Chat"])
 
