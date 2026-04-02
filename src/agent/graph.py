@@ -1,17 +1,32 @@
 from langgraph.graph import StateGraph, START, END
 
-from src.agent.state import TravelState
-from src.agent.nodes.analyzer import analyzer_node
+from agent.state import TravelState
+from agent.nodes.analyzer import analyzer_node
+from agent.nodes.researcher import researcher_node
+from agent.router import route_after_analyzer
 
-# ========== 编排工作流 ==========
+# ========== workflow ==========
 workflow = StateGraph(TravelState)
 
-# 1. 注册节点 (员工)
+# signal nodes
 workflow.add_node("analyzer", analyzer_node)
+workflow.add_node("researcher", researcher_node)
 
-# 2. 画图连线 (流程)
+# edges
 workflow.add_edge(START, "analyzer")
-workflow.add_edge("analyzer", END)
 
-# 3. 编译发布
+# 增加条件边：根据分析结果选择下一步
+workflow.add_conditional_edges(
+    "analyzer",
+    route_after_analyzer,
+    {
+        "researcher": "researcher",
+        END: END
+    }
+)
+
+# 检索完后暂时先结束（等规划师节点好了再接规划师）
+workflow.add_edge("researcher", END)
+
+# compile graph
 graph_app = workflow.compile()
