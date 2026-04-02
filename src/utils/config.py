@@ -12,10 +12,20 @@ if not OPENAI_API_KEY:
         "OPENAI_API_KEY environment variable is not set. Please configure it in your environment or .env file."
     )
 
+# LLM 模型配置
 MODEL_BASE_URL = os.getenv("MODEL_BASE_URL", "https://api.deepseek.com")
 MODEL_ID = os.getenv("MODEL_ID", "deepseek-chat")
 
-# 建议配置
+# Embedding 模型配置
+EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "models/text-embedding-004")
+EMBEDDING_MODEL_API_KEY = os.getenv("EMBEDDING_MODEL_API_KEY", "")
+EMBEDDING_MODEL_BASE_URL = os.getenv("EMBEDDING_MODEL_BASE_URL", "")
+
+# LLM 建议配置
 PLANNING_TEMPERATURE = 0.7
 MAX_TOKENS = 4096
+TIMEOUT = 60
+
+# ChromaDB 向量数据库配置
+CHROMA_DB_DIR = os.getenv("CHROMA_DB_DIR", "./data/chroma")
 TIMEOUT = 60
