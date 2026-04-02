@@ -16,7 +16,7 @@ async def chat_endpoint(request: ChatRequest):
     
     # 调用模型 (LangGraph graph_app)
     config: RunnableConfig = {"configurable": {"thread_id": "default_user"}} # 后续可根据用户 ID 区分对话
-    result = await graph_app.ainvoke(input_state, config=config)
+    result = await graph_app.ainvoke(input_state, config=config) # type: ignore
     
     # 获取模型最后一条回复（防御性处理空消息列表）
     messages = result.get("messages", [])

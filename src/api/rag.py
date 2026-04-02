@@ -1,15 +1,9 @@
 import fastapi
-from pydantic import BaseModel
-from typing import List
-from .schema import InsertRequest
-from database.vector_db import add_documents_to_db, search_similar_documents, get_document_count
 from utils.logger import logger
+from .schema import InsertRequest, SearchRequest
+from database.vector_db import add_documents_to_db, search_similar_documents, get_document_count
 
 router = fastapi.APIRouter(prefix="/rag", tags=["RAG Database"])
-
-class SearchRequest(BaseModel):
-    query: str
-    k: int = 3
 
 
 @router.post("/search/")
