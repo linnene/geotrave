@@ -15,7 +15,6 @@ workflow.add_node("researcher", researcher_node)
 # edges
 workflow.add_edge(START, "analyzer")
 
-# 增加条件边：根据分析结果选择下一步
 workflow.add_conditional_edges(
     "analyzer",
     route_after_analyzer,
@@ -25,7 +24,7 @@ workflow.add_conditional_edges(
     }
 )
 
-# 检索完后暂时先结束（等规划师节点好了再接规划师）
+# TODO:添加其他节点和边
 workflow.add_edge("researcher", END)
 
 # compile graph

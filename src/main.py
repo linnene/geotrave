@@ -9,7 +9,7 @@ app.include_router(api_router)
  
 @app.on_event("startup")
 async def startup_event():
-    logger.info("GeoTrave FastAPI Sever loading...")
+    logger.info("[GeoTrave] FastAPI Server loading...")
 
 if __name__ == "__main__":
     uvicorn.run(app, host="localhost", port=8000)
