@@ -9,10 +9,10 @@ def researcher_node(state: TravelState):
     """
     destination = state.get("destination")
     if not destination:
-        logger.info("RESEARCHING: No destination provided, retrieval skipped.")
+        logger.info("[Researcher Node] No destination provided, retrieval skipped.")
         return {"retrieval_context": "No destination provided, retrieval skipped."}
     
-    logger.info(f"RESEARCHING: 开始从知识库中检索关于 '{destination}' 的资料...")
+    logger.info(f"[Researcher Node] Querying knowledge base for '{destination}'")
     
     # Search
     search_results = search_similar_documents(query=destination, k=3)

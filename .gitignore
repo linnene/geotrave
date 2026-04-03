@@ -20,6 +20,8 @@ ENV/
 data/
 *.sqlite3
 *.db
+*.ps1
+
 
 # IDEs
 .vscode/
