@@ -16,6 +16,7 @@ def researcher_node(state: TravelState):
     
     # Search
     search_results = search_similar_documents(query=destination, k=3)
+    logger.info(f"[Researcher Node] Querying knowledge About'{destination}':{search_results}")
     
     if not search_results:
         context = "The relevant information could not be found in the knowledge base."
