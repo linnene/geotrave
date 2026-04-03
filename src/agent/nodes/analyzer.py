@@ -34,7 +34,9 @@ import datetime
 
 async def analyzer_node(state: TravelState):
 
-    last_message = state["messages"][-1].content
+    # 这里的 messages 包含了历史对话（得益于 Annotated[list, add_messages] 和 thread_id）
+    # 我们需要让分析师结合历史上下文来提取信息
+    messages = state["messages"]
     current_date = datetime.datetime.now().strftime("%Y-%m-%d")
     
     parser = PydanticOutputParser(pydantic_object=TravelInfo)
@@ -42,7 +44,7 @@ async def analyzer_node(state: TravelState):
     # prompt 注入
     prompt_value = analyzer_prompt_template.format(
         current_date=current_date,
-        last_message=last_message,
+        history=messages,
         format_instructions=parser.get_format_instructions()
     )
     
@@ -58,4 +60,5 @@ async def analyzer_node(state: TravelState):
         "budget": result.budget,
         "date": result.date,
         "people": result.people,
+        "tags": result.tags,
     }

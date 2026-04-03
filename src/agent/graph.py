@@ -1,4 +1,5 @@
 from langgraph.graph import StateGraph, START, END
+from langgraph.checkpoint.memory import MemorySaver
 
 from agent.state import TravelState
 from agent.nodes.analyzer import analyzer_node
@@ -27,5 +28,8 @@ workflow.add_conditional_edges(
 # TODO:添加其他节点和边
 workflow.add_edge("researcher", END)
 
+# Initializing in-memory checkpointer
+memory = MemorySaver()
+
 # compile graph
-graph_app = workflow.compile()
+graph_app = workflow.compile(checkpointer=memory)
