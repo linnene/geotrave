@@ -30,6 +30,6 @@ class TravelInfo(BaseModel):
     )
     
     budget: int | None = Field(default=None, description="旅行总预算")
-    peoples: int | None = Field(default= 1, description="旅行总人数，默认一个人")
+    people: int | None = Field(default= 1, description="旅行总人数，默认一个人")
 
     reply: str = Field(description="如果信息不全，请客气地像导游一样追问缺失的信息。")

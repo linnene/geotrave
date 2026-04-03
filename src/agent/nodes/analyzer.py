@@ -30,14 +30,18 @@ llm = ChatOpenAI(
 )
 
 # Analyzer Node
+import datetime
+
 async def analyzer_node(state: TravelState):
 
     last_message = state["messages"][-1].content
+    current_date = datetime.datetime.now().strftime("%Y-%m-%d")
     
     parser = PydanticOutputParser(pydantic_object=TravelInfo)
     
     # prompt 注入
     prompt_value = analyzer_prompt_template.format(
+        current_date=current_date,
         last_message=last_message,
         format_instructions=parser.get_format_instructions()
     )
@@ -52,4 +56,6 @@ async def analyzer_node(state: TravelState):
         "destination": result.destination,
         "days": result.days,
         "budget": result.budget,
+        "date": result.date,
+        "people": result.people,
     }
