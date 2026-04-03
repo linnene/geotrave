@@ -2,15 +2,17 @@ from langgraph.graph import END
 from agent.state import TravelState
 from utils.logger import logger
 
-# 根据 Anaslyzer result 选择下一步
+# 根据 Analyzer result 选择下一步
 def route_after_analyzer(state: TravelState):
     
     destination = state.get("destination")
+    days = state.get("days")
+    budget = state.get("budget")
     
-    # Print routing decisions for debugging
-    if destination:
-        logger.info(f"[Router] Destination found: '{destination}', routing to 'researcher'.")
+    # 必须要包含核心要素才允许流转到下一级
+    if destination and days and budget:
+        logger.info(f"[Router] All requirements extracted (Dest: {destination}, Days: {days}, Budget: {budget}), routing to 'researcher'.")
         return "researcher"
     
-    logger.info("[Router] No destination found, ending graph.")
+    logger.info("[Router] Requirements incomplete, waiting for user response.")
     return END
