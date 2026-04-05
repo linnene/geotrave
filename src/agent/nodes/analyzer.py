@@ -57,8 +57,8 @@ async def analyzer_node(state: TravelState):
         "messages": [AIMessage(content=result.reply)],
         "destination": result.destination,
         "days": result.days,
-        "budget": result.budget,
         "date": result.date,
-        "people": result.people,
+        "hard_constraints": result.hard_constraints,
+        "soft_preferences": result.soft_preferences,
         "tags": result.tags,
     }
