@@ -15,9 +15,14 @@ def researcher_node(state: TravelState):
     logger.info(f"[Researcher Node] Querying knowledge base for '{destination}'")
     
     # Search
-    search_results = search_similar_documents(query=destination, k=3)
-    logger.info(f"[Researcher Node] Querying knowledge About'{destination}':{search_results}")
-    
+    search_results = []
+    # search
+    try:
+        search_results = search_similar_documents(query=destination, k=3)
+        logger.info(f"[Researcher Node] Querying knowledge About'{destination}':{search_results}")
+    except Exception as e:
+        logger.error(f"[Researcher Node] Network or Database error during retrieval: {str(e)}")
+
     if not search_results:
         context = "The relevant information could not be found in the knowledge base."
     else:
