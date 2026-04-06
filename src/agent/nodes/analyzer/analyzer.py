@@ -12,19 +12,19 @@ from utils.prompt import analyzer_prompt_template
 from utils.logger import logger
 
 from utils.config import (
-    OPENAI_API_KEY, 
-    MODEL_BASE_URL, 
-    MODEL_ID,
+    ANALYZER_MODEL_API_KEY, 
+    ANALYZER_MODEL_BASE_URL, 
+    ANALYZER_MODEL_ID,
     PLANNING_TEMPERATURE,
     MAX_TOKENS,
     LLM_TIMEOUT
 )
 
-# Init Analyzer's LLM
+# Init Analyzer's LLM with dedicated config
 llm = ChatOpenAI(
-    model=MODEL_ID,
-    api_key=SecretStr(OPENAI_API_KEY), 
-    base_url=MODEL_BASE_URL, 
+    model=ANALYZER_MODEL_ID,
+    api_key=SecretStr(ANALYZER_MODEL_API_KEY), 
+    base_url=ANALYZER_MODEL_BASE_URL, 
     temperature=PLANNING_TEMPERATURE,
     max_completion_tokens=MAX_TOKENS,  
     timeout=LLM_TIMEOUT,                  

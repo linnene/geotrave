@@ -78,7 +78,6 @@ class ResearcherTools:
             logger.info(f"[Researcher Tools] Web search (DDG) for: {query}")
             with DDGS() as ddgs:
                 results = list(ddgs.text(query, max_results=max_results))
-            logger.info(f"[Researcher Tools] Web search (DDG) found {len(results)} results for: {query}")
 
             if not results:
                 return f"No web results found for '{query}'."
