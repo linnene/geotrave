@@ -9,16 +9,16 @@ from pydantic import BaseModel, Field
 class HardConstraints(BaseModel):
     """硬约束集合：具有一票否决权的信息"""
     budget_limit: Optional[int] = Field(None, description="预算绝对上限")
-    allergies: List[str] = Field(default_factory=list, description="明确的过敏史（如：花生、海鲜）")
-    visa_restrictions: List[str] = Field(default_factory=list, description="签证或证件限制")
-    locked_resources: List[Dict] = Field(default_factory=list, description="已锁定的机票/酒店时间和地点")
     max_walk_km: Optional[float] = Field(None, description="每日最大步行距离（km）")
+    visa_restrictions: List[str] = Field(default_factory=list, description="签证或证件限制")
+    allergies: List[str] = Field(default_factory=list, description="明确的过敏史（如：花生、海鲜）")
+    locked_resources: List[Dict] = Field(default_factory=list, description="已锁定的机票/酒店时间和地点")
 
 class SoftPreferences(BaseModel):
     """软偏好集合：用于加权评分的信息"""
+    travel_pace: Optional[str] = Field(None, description="旅行节奏（紧凑、适中、休闲）")
     interests: List[str] = Field(default_factory=list, description="偏好主题（历史人文、自然风光等）")
     dietary_pref: List[str] = Field(default_factory=list, description="餐饮偏好（当地特色、街头小吃等）")
-    travel_pace: Optional[str] = Field(None, description="旅行节奏（紧凑、适中、休闲）")
     accommodation_type: List[str] = Field(default_factory=list, description="住宿偏好（民宿、酒店、青旅）")
 
 # ----------------- Con Modle -----------------
@@ -41,7 +41,7 @@ class TravelState(TypedDict):
 
     # 过程变量
     tags: list[str] | None  # 自动识别的增强标签
-    retrieval_context: str | None # RAG 检索上下文
+    retrieval_context: str | None # 研究员节点提供的检索上下文
 
 # ----------------- Shared State -----------------
 

@@ -18,7 +18,7 @@ from utils.config import (
 
 from utils.prompt import analyzer_prompt_template
 
-# Init Analyzer`s LLM
+# Init Analyzer's LLM
 llm = ChatOpenAI(
     model=MODEL_ID,
     api_key=SecretStr(OPENAI_API_KEY), 
@@ -35,7 +35,6 @@ import datetime
 async def analyzer_node(state: TravelState):
 
     # 这里的 messages 包含了历史对话（得益于 Annotated[list, add_messages] 和 thread_id）
-    # 我们需要让分析师结合历史上下文来提取信息
     messages = state["messages"]
     current_date = datetime.datetime.now().strftime("%Y-%m-%d")
     
