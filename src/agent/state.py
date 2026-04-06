@@ -5,7 +5,7 @@ from typing import Annotated, TypedDict, List, Dict, Optional
 from pydantic import BaseModel, Field
 
 # ----------------- Con Modle -----------------
-
+#改进一下tag数量，有些没必要现在就做了
 class HardConstraints(BaseModel):
     """硬约束集合：具有一票否决权的信息"""
     budget_limit: Optional[int] = Field(None, description="预算绝对上限")
@@ -34,6 +34,7 @@ class TravelState(TypedDict):
     days: int | None        # 游玩天数
     date: list[str] | None  # 日期范围 [开始, 结束]
     people: list[str] | None # 旅客构成:「"老人一位"、"儿童两位"、"一对情侣"」
+    budget_limit: int | None # 预算上限（元）
 
     # 约束与偏好重构
     hard_constraints: HardConstraints
@@ -52,12 +53,14 @@ class TravelInfo(BaseModel):
     destination: Optional[str] = Field(None, description="目的地")
     days: Optional[int] = Field(None, description="天数")
     date: Optional[List[Optional[str]]] = Field(None, min_length=2, max_length=2, description="日期范围")
-    people_count: int = Field(default=1, description="总人数")
-    
+    people_count: Optional[int] = Field(default=1, description="总人数")
+    budget_limit: Optional[int] = Field(default=0, description="预算上限")
+
     # 映射到硬约束
-    hard_constraints: HardConstraints = Field(default_factory=HardConstraints)
+    hard_constraints: HardConstraints = Field(default_factory=HardConstraints) # type: ignore
     # 映射到软偏好
-    soft_preferences: SoftPreferences = Field(default_factory=SoftPreferences)
+    soft_preferences: SoftPreferences = Field(default_factory=SoftPreferences) # type: ignore
+    # 映射到软偏好
     
     tags: List[str] = Field(default_factory=list, description="风格标签")
     reply: str = Field(description="话术回复（追问或分析结果）")
@@ -65,11 +68,11 @@ class TravelInfo(BaseModel):
 # ----------------- Analyzer node -----------------
 
 # ----------------- Researcher node -----------------
+#TODO：改进一下研究员结构体
 class ResearchPlan(BaseModel):
     """
     研究员生成的检索计划
     """
-    reasoning: str = Field(description="生成此查询的思考过程/逻辑")
     local_query: Optional[str] = Field(description="用于本地知识库检索的关键词")
     web_queries: List[str] = Field(default_factory=list, description="用于在线搜索的 1-2 个精准关键词")
     need_weather: bool = Field(default=False, description="是否需要查询实时天气")

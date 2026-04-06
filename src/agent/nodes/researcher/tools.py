@@ -29,7 +29,11 @@ class ResearcherTools:
         # 变量准备
         prompt = research_query_prompt_template.format(
             destination=destination,
+            days=state.get("days"),
+            people_count=state.get("people_count"),
+            date=state.get("date"),
             tags=state.get("tags", []),
+            budget_limit=state.get("budget_limit", 0),
             hard_constraints=state.get("hard_constraints", {}),
             soft_preferences=state.get("soft_preferences", {}),
             format_instructions=parser.get_format_instructions()
@@ -38,14 +42,13 @@ class ResearcherTools:
         try:
             logger.info(f"[Researcher Tools] Thinking about research plan for: {destination}")
             response = llm.invoke(prompt)
-            plan = parser.parse(response.content)
+            plan = parser.parse(response.content) # type: ignore
             logger.info(f"[Researcher Tools] Plan generated: {plan}")
             return plan
         except Exception as e:
             logger.error(f"[Researcher Tools] Plan generation failed: {str(e)}")
             # 降级方案：返回最基础的检索
             return ResearchPlan(
-                reasoning="LLM generation failed, falling back to basic query.",
                 local_query=destination,
                 web_queries=[f"{destination} 旅游攻略"]
             )
@@ -75,7 +78,8 @@ class ResearcherTools:
             logger.info(f"[Researcher Tools] Web search (DDG) for: {query}")
             with DDGS() as ddgs:
                 results = list(ddgs.text(query, max_results=max_results))
-                
+            logger.info(f"[Researcher Tools] Web search (DDG) found {len(results)} results for: {query}")
+
             if not results:
                 return f"No web results found for '{query}'."
             

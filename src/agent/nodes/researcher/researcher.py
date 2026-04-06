@@ -39,13 +39,13 @@ def researcher_node(state: TravelState):
     logger.info(f"[Researcher Node] Starting multi-source research logic for '{destination}'")
     
     # 1. 产生检索计划 (LLM 推理层)
-    plan = ResearcherTools.generate_research_plan(state, llm)
+    plan = ResearcherTools.generate_research_plan(state, llm) # type: ignore
+    # 映射到软偏好
     if not plan:
         # 如果计划生成失败，进行基础检索降级
         local_info = ResearcherTools.search_local_kt(destination)
         return {"retrieval_context": f"### Local Knowledge Base (Fallback):\n{local_info}"}
     
-    logger.info(f"[Researcher Node] Plan: {plan.reasoning}")
     
     # 2. 本地知识库检索
     local_info = ""
