@@ -4,17 +4,25 @@ from dotenv import load_dotenv
 # 加载 .env 环境变量
 load_dotenv()
 
-# LLM 配置
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY","")
+# --- 核心/分析师 (Analyzer) 模型配置 ---
+ANALYZER_MODEL_API_KEY = os.getenv("ANALYZER_MODEL_API_KEY", "")
+ANALYZER_MODEL_BASE_URL = os.getenv("ANALYZER_MODEL_BASE_URL", "https://api.deepseek.com")
+ANALYZER_MODEL_ID = os.getenv("ANALYZER_MODEL_ID", "deepseek-chat")
 
-if not OPENAI_API_KEY:
-    raise RuntimeError(
-        "OPENAI_API_KEY environment variable is not set. Please configure it in your environment or .env file."
-    )
+# --- 研究员 (Researcher) 专属模型配置 ---
+RESEARCHER_MODEL_API_KEY = os.getenv("RESEARCHER_MODEL_API_KEY", "")
+RESEARCHER_MODEL_BASE_URL = os.getenv("RESEARCHER_MODEL_BASE_URL", "https://generativelanguage.googleapis.com/v1beta/openai")
+RESEARCHER_MODEL_ID = os.getenv("RESEARCHER_MODEL_ID", "gemini-1.5-flash")
 
-# LLM 模型配置
-MODEL_BASE_URL = os.getenv("MODEL_BASE_URL", "https://api.deepseek.com")
-MODEL_ID = os.getenv("MODEL_ID", "deepseek-chat")
+# --- 规划师 (Planner) 专属模型配置 (预留) ---
+PLANNER_MODEL_API_KEY = os.getenv("PLANNER_MODEL_API_KEY", "")
+PLANNER_MODEL_BASE_URL = os.getenv("PLANNER_MODEL_BASE_URL", "https://api.openai.com/v1")
+PLANNER_MODEL_ID = os.getenv("PLANNER_MODEL_ID", "gpt-4o")
+
+# --- 通用 API KEY 校验 ---
+if not (ANALYZER_MODEL_API_KEY or RESEARCHER_MODEL_API_KEY):
+    # 如果核心 API Key 全都缺失，则报错
+    pass # 暂时不强制中断，允许用户在 .env 中分别配置
 
 # Embedding 模型配置
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "models/text-embedding-004")

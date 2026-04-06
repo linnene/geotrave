@@ -7,19 +7,19 @@ from langchain_openai import ChatOpenAI
 from pydantic import SecretStr
 
 from utils.config import (
-    OPENAI_API_KEY, 
-    MODEL_BASE_URL, 
-    MODEL_ID,
+    RESEARCHER_MODEL_ID,
+    RESEARCHER_MODEL_BASE_URL,
+    RESEARCHER_MODEL_API_KEY,
     PLANNING_TEMPERATURE,
     MAX_TOKENS,
     LLM_TIMEOUT
 )
 
-#Init Researcher Node's LLM (if needed for advanced retrieval or query reformulation in the future)
-llm = ChatOpenAI(
-    model=MODEL_ID,
-    api_key=SecretStr(OPENAI_API_KEY), 
-    base_url=MODEL_BASE_URL, 
+# 使用配置中特定的 Researcher 模型
+researcher_llm = ChatOpenAI(
+    model=RESEARCHER_MODEL_ID,
+    api_key=SecretStr(RESEARCHER_MODEL_API_KEY), 
+    base_url=RESEARCHER_MODEL_BASE_URL, 
     temperature=PLANNING_TEMPERATURE,
     max_completion_tokens=MAX_TOKENS,  
     timeout=LLM_TIMEOUT,                  
@@ -29,17 +29,17 @@ llm = ChatOpenAI(
 
 def researcher_node(state: TravelState):
     """
-    检索节点：解耦后的研究员节点，使用 ResearcherTools 多维度检索
+    检索节点：解耦后的研究员节点，使用独立模型配置。
     """
     destination = state.get("destination")
     if not destination:
         logger.info("[Researcher Node] No destination provided, retrieval skipped.")
         return {"retrieval_context": "No destination provided, retrieval skipped."}
     
-    logger.info(f"[Researcher Node] Starting multi-source research logic for '{destination}'")
+    logger.info(f"[Researcher Node] Starting research logic with model: {RESEARCHER_MODEL_ID}")
     
-    # 1. 产生检索计划 (LLM 推理层)
-    plan = ResearcherTools.generate_research_plan(state, llm) # type: ignore
+    # 1. 产生检索计划 (传递特定 LLM)
+    plan = ResearcherTools.generate_research_plan(state, researcher_llm) # type: ignore
     # 映射到软偏好
     if not plan:
         # 如果计划生成失败，进行基础检索降级
@@ -60,8 +60,7 @@ def researcher_node(state: TravelState):
             web_infos.append(f"Q: {q}\nA: {info}")
     
     # 4. 汇总
-    final_context = f"### Researcher Analysis:\n{plan.reasoning}\n\n"
-    final_context += f"### Local Knowledge Base:\n{local_info}\n\n"
+    final_context = f"### Local Knowledge Base:\n{local_info}\n\n"
     final_context += "### Web Search Results:\n" + ("\n---\n".join(web_infos) if web_infos else "No web results.")
     
     return {"retrieval_context": final_context}
