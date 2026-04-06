@@ -29,3 +29,6 @@ LLM_TIMEOUT = 60
 # ChromaDB 向量数据库配置
 CHROMA_DB_DIR = os.getenv("CHROMA_DB_DIR", "./data/chroma")
 DB_TIMEOUT = 60
+
+# 日志配置
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper() # 可选：DEBUG, INFO, WARNING, ERROR

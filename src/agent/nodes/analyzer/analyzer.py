@@ -58,16 +58,18 @@ async def analyzer_node(state: TravelState):
         chain = llm | parser
         result = await chain.ainvoke(prompt_value)
         
-        logger.info(f"[Analyzer Node] Analysis complete. Destination: {result.destination}, Days: {result.days}")
+        logger.info(f"[Analyzer Node] Analysis complete.result: {result}")
         if result.tags:
             logger.info(f"[Analyzer Node] Identified Tags: {result.tags}")
         
-        # 回写至全局状态
+        # 回写至全局状态 (注意字段名需与 TravelState 定义严格对齐)
         return {
             "messages": [AIMessage(content=result.reply)],
             "destination": result.destination,
             "days": result.days,
             "date": result.date,
+            "people": result.people_count, # 映射到 state 中的 people
+            "budget_limit": result.budget_limit, # 映射到 state 中的 budget_limit
             "hard_constraints": result.hard_constraints,
             "soft_preferences": result.soft_preferences,
             "tags": result.tags,

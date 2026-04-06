@@ -1,5 +1,6 @@
 import logging
 import sys
+from utils.config import LOG_LEVEL
 
 def get_logger(name: str):
     """
@@ -7,12 +8,15 @@ def get_logger(name: str):
     """
     logger = logging.getLogger(name)
     
+    # 转换为 logging 内部枚举值
+    numeric_level = getattr(logging, LOG_LEVEL, logging.INFO)
+    
     if not logger.handlers:
-        logger.setLevel(logging.INFO)
+        logger.setLevel(numeric_level)
         
         # 终端输出 Handler
         console_handler = logging.StreamHandler(sys.stdout)
-        console_handler.setLevel(logging.INFO)
+        console_handler.setLevel(numeric_level)
         
         # 定义日志格式：[时间] [级别] [名称] - 消息内容
         formatter = logging.Formatter(
