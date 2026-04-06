@@ -3,6 +3,7 @@ from agent.state import TravelState
 from utils.logger import logger
 
 # 根据 Analyzer result 选择下一步
+# TODO: 添加更丰富的逻辑，是否转向检索节点
 def route_after_analyzer(state: TravelState):
     
     destination = state.get("destination")

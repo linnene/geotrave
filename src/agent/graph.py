@@ -2,8 +2,8 @@ from langgraph.graph import StateGraph, START, END
 from langgraph.checkpoint.memory import MemorySaver
 
 from agent.state import TravelState
-from agent.nodes.analyzer import analyzer_node
-from agent.nodes.researcher import researcher_node
+from agent.nodes.analyzer.analyzer import analyzer_node
+from agent.nodes.researcher.researcher import researcher_node
 from agent.router import route_after_analyzer
 
 # ========== workflow ==========
