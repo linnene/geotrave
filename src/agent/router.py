@@ -2,18 +2,21 @@ from langgraph.graph import END
 from agent.state import TravelState
 from utils.logger import logger
 
-# 根据 Analyzer result 选择下一步
-# TODO: 添加更丰富的逻辑，是否转向检索节点
 def route_after_analyzer(state: TravelState):
+    """
+    路由逻辑：基于 Analyzer 提取的状态决定流程。
     
+    1. 必须要包含核心要素 (目的地、天数) 才允许流转到 Researcher 节点。
+    2. 如果核心信息不全，则留在 END (由 API 层根据 Analyzer 的 reply 返回追问)。
+    """
     destination = state.get("destination")
     days = state.get("days")
-    budget = state.get("budget")
     
-    # 必须要包含核心要素才允许流转到下一级
-    if destination and days and budget:
-        logger.info(f"[Router] All requirements extracted (Dest: {destination}, Days: {days}, Budget: {budget}), routing to 'researcher'.")
+    # 目的地和天数是启动 RAG 和规划的最小必要集
+    # 预算设定为软约束或有默认值的情况，不作为强制阻断
+    if destination and days:
+        logger.info(f"[Router] Core requirements detected (Dest: {destination}, Days: {days}), routing to 'researcher'.")
         return "researcher"
     
-    logger.info("[Router] Requirements incomplete, waiting for user response.")
+    logger.info("[Router] Key information (destination/days) missing, waiting for user further input.")
     return END

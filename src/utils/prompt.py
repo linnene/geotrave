@@ -46,3 +46,28 @@ analyzer_prompt_template = PromptTemplate(
 )
 # ----------------分析师节点 Prompt ----------------
 
+# ----------------研究员节点 Prompt ----------------
+_RESEARCH_QUERY_TEMPLATE = """你是一位精明的研究员，负责为旅行规划生成精准的搜索查询。
+你的目标是分析用户的当前状态（目的地、约束、偏好），并决定通过哪些维度来检索最有价值的信息。
+
+### 输入上下文：
+目的地: {destination}
+标签: {tags}
+硬约束: {hard_constraints}
+软偏好: {soft_preferences}
+
+### 任务指南：
+1. **分析需求**：结合目的地和用户的特殊约束（如过敏、体能、预算）。
+2. **生成 Query**：
+   - 为本地知识库 (Local RAG) 生成一个概括性的查询词。
+   - 为搜索引擎 (Web Search) 生成 1-2 个具体的、针对痛点的查询词（例如“北京 避开花生的餐厅”、“杭州 适合腿脚不便者的路线”）。
+3. **判断必要性**：如果目的地缺失，请明确表示不需要检索。
+
+{format_instructions}"""
+
+research_query_prompt_template = PromptTemplate(
+    template=_RESEARCH_QUERY_TEMPLATE,
+    input_variables=["destination", "tags", "hard_constraints", "soft_preferences", "format_instructions"]
+)
+# ----------------研究员节点 Prompt ----------------
+

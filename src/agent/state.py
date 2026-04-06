@@ -63,3 +63,16 @@ class TravelInfo(BaseModel):
     reply: str = Field(description="话术回复（追问或分析结果）")
 
 # ----------------- Analyzer node -----------------
+
+# ----------------- Researcher node -----------------
+class ResearchPlan(BaseModel):
+    """
+    研究员生成的检索计划
+    """
+    reasoning: str = Field(description="生成此查询的思考过程/逻辑")
+    local_query: Optional[str] = Field(description="用于本地知识库检索的关键词")
+    web_queries: List[str] = Field(default_factory=list, description="用于在线搜索的 1-2 个精准关键词")
+    need_weather: bool = Field(default=False, description="是否需要查询实时天气")
+    need_api: List[str] = Field(default_factory=list, description="需要调用的其他特定 API 标识(如: exchange_rate, train_tickets)")
+
+# ----------------- Researcher node -----------------
