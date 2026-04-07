@@ -74,5 +74,26 @@
             "budget_limit": 12000
         },
         "description": "多轮对话逻辑测试：验证 Analyzer 能否跨多轮消息累积上下文信息。"
+    },
+    {
+        "id": "case_007_session_isolation",
+        "session_tests": [
+            {
+                "session_id": "session_A",
+                "input": "我想去西藏玩，一个人。",
+                "expected_state": { "destination": "西藏" }
+            },
+            {
+                "session_id": "session_B",
+                "input": "我想去新疆，四个人。",
+                "expected_state": { "destination": "新疆", "people_count": 4 }
+            },
+            {
+                "session_id": "session_A",
+                "input": "打算玩10天左右。",
+                "expected_state": { "destination": "西藏", "days": 10 }
+            }
+        ],
+        "description": "Session 隔离性与连续性测试：验证不同 ID 的上下文是否独立，且相同 ID 能否跨过干扰项保持连续。"
     }
 ]
