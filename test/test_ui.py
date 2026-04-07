@@ -2,6 +2,7 @@ import streamlit as st
 import uuid
 import sys
 import os
+import asyncio
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
@@ -95,7 +96,6 @@ if prompt := st.chat_input("输入你的旅行需求 (例如: 我想去大理，
                 # 注意：这里只发送最新的一条消息，MemorySaver 会自动根据 thread_id 补偿历史
                 inputs = {"messages": [("user", prompt)]}
                 
-                import asyncio
                 # 显式传递 config 确保 thread_id 被 MemorySaver 识别
                 result = asyncio.run(graph_app.ainvoke(inputs, config=config))# type:ignore
                 
@@ -120,7 +120,6 @@ if prompt := st.chat_input("输入你的旅行需求 (例如: 我想去大理，
             except Exception as e:
                 st.error(f"执行出错: {str(e)}")
                 import traceback
-                st.code(traceback.format_exc())
-
+                
     # 强制刷新侧边栏状态，并保持页面位置
     st.rerun()
