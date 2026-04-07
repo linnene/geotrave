@@ -32,7 +32,6 @@
   - `LOG_LEVEL`: 设置为 `DEBUG` 可在控制台看到完整的 LLM Prompt 交互。
 
 ### 3. 安装依赖与启动服务
-![alt text](assets/image.png)
 
 ```bash
 git clone https://github.com/linnene/geotrave.git
@@ -45,6 +44,7 @@ uv sync
 # --- 方式 B: 启动 Streamlit 可视化测试 UI (推荐用于调试) ---
 uv run streamlit run test/test_ui.py
 ```
+![alt text](assets/image.png)
 
 ### 4. 自动化评估与测试
 
