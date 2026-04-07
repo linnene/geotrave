@@ -3,10 +3,9 @@ import uuid
 import sys
 import os
 
-# 将 src 目录添加到路径，以便导入项目模块
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "src")))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from agent.graph import graph_app
+from src.agent.graph import graph_app
 
 st.set_page_config(page_title="GeoTrave Debug UI", layout="wide")
 
@@ -62,7 +61,7 @@ with st.sidebar:
 
     # 新增：展示研究员检索内容
     st.markdown("---")
-    st.subheader("🔍 研究员检索上下文")
+    st.subheader("Researcher result")
     if st.session_state.travel_state.get("retrieval_context"):
         with st.expander("查看完整检索内容", expanded=False):
             st.write(st.session_state.travel_state.get("retrieval_context"))
