@@ -1,99 +1,57 @@
-[
+{
+  "workflow_cases": [
     {
-        "id": "case_001_basic_demand",
-        "input": "我想去大理，两个人，十月份去，打卡洱海，预算五千。",
-        "expected_state": {
-            "destination": "大理",
-            "days": null,
-            "people_count": 2,
-            "budget_limit": 5000,
-            "tags": ["大理", "洱海"]
-        },
-        "description": "基础需求提取：目的地、人数、预算、关键词标签。"
+      "id": "workflow_001_basic_extraction",
+      "description": "单轮基本需求提取测试",
+      "input": "我想去大理玩3天，预算大概5000元，2个人",
+      "expected_state": {
+        "destination": "大理",
+        "days": 3,
+        "budget_limit": "5000"
+      }
     },
     {
-        "id": "case_002_hard_constraint",
-        "input": "去北京玩5天，四个人，我家里人对海鲜严重过敏，预算一万五，不要太累。",
-        "expected_state": {
-            "destination": "北京",
-            "days": 5,
-            "budget_limit": 15000,
-            "hard_constraints": {
-                "allergies": ["海鲜"]
-            },
-            "soft_preferences": {
-                "travel_pace": "休闲"
-            }
-        },
-        "description": "核心约束提取：严重过敏史 (Hard) 和 旅行节奏 (Soft)。"
+      "id": "workflow_002_session_A",
+      "description": "并发会话 A - 西藏需求",
+      "input": "1个人去西藏玩10天",
+      "update_input": "预算一万",
+      "expected_state": {
+        "destination": "西藏",
+        "people": 1,
+        "budget_limit": "10000"
+      }
     },
     {
-        "id": "case_003_implicit_budget",
-        "input": "计划去上海迪士尼三天，带着两岁小孩，希望住得稍微好一点。预算在6000左右。",
-        "expected_state": {
-            "destination": "上海",
-            "days": 3,
-            "tags": ["迪士尼", "亲子"],
-            "budget_limit": 6000
-        },
-        "description": "隐含画像提取：亲子出游及对应的住宿偏好。"
+      "id": "workflow_003_session_B",
+      "description": "并发会话 B - 新疆需求",
+      "input": "我们4个人要去新疆",
+      "update_input": "预计玩7天",
+      "expected_state": {
+        "destination": "新疆",
+        "days": 7
+      }
     },
     {
-        "id": "case_004_noise_rejection",
-        "input": "听说最近去西安的人很多，不过我其实更想去成都。我们三个人打算玩一周。对了，我朋友说成都的火锅很辣，但我无所谓。预算大概八千吧，千万别给我推大连的票，我不去大连。",
-        "expected_state": {
-            "destination": "成都",
-            "days": 7,
-            "people_count": 3,
-            "budget_limit": 8000,
-            "tags": ["成都", "火锅"]
-        },
-        "description": "噪音排除测试：用户提到了西安和大连作为对比，模型必须确保 Destination 是成都。"
-    },
-    {
-        "id": "case_005_researcher_recall",
-        "input": "我们要去日本京都玩4天，两个人，总预算一万。希望能看到有关于‘清水寺’的开放时间和‘岚山’的游玩建议数据。",
-        "expected_state": {
-            "destination": "京都",
-            "days": 4,
-            "check_retrieval": ["清水寺", "岚山", "开放时间"]
-        },
-        "description": "研究员召回质量测试：验证 retrieval_context 是否包含特定的地标信息。"
-    },
-    {
-        "id": "case_006_multi_turn_history",
-        "multi_turn": [
-            "我想去三亚玩。",
-            "三个人，打算玩四天吧。",
-            "预算一万二，下周出发。"
-        ],
-        "expected_state": {
-            "destination": "三亚",
-            "days": 4,
-            "people_count": 3,
-            "budget_limit": 12000
-        },
-        "description": "多轮对话逻辑测试：验证 Analyzer 能否跨多轮消息累积上下文信息。"
-    },
-    {
-        "id": "case_007_session_isolation",
-        "session_tests": [
-            {
-                "session_id": "session_A",
-                "input": "我想去西藏玩，一个人。",
-                "expected_state": { "destination": "西藏" }
-            },
-            {
-                "session_id": "session_B",
-                "input": "我想去新疆，四个人。",
-                "expected_state": { "destination": "新疆", "people_count": 4 }
-            },
-            {
-                "session_id": "session_A",
-                "input": "打算玩10天左右。",
-                "expected_state": { "destination": "西藏", "days": 10 }
-            }
-        ],
-        "description": "Session 隔离性与连续性测试：验证不同 ID 的上下文是否独立，且相同 ID 能否跨过干扰项保持连续。"
+      "id": "workflow_004_multi_turn",
+      "description": "多轮对话历史继承测试",
+      "turns": [
+        "我要去三亚玩",
+        "大概玩4天，我们一家3口",
+        "下周一出发，预算一万二"
+      ],
+      "expected_state": {
+        "destination": "三亚",
+        "days": 4,
+        "people": 3,
+        "budget_limit": "12000"
+      }
     }
-]
+  ],
+  "rag_cases": [
+    {
+      "id": "rag_001_sanya_weather",
+      "query": "2026年4月三亚天气",
+      "expected_keywords": ["晴", "雨", "气温", "度"]
+    }
+  ]
+}

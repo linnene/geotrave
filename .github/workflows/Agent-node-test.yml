@@ -1,0 +1,43 @@
+name: GeoTrave-base-test-CI (uv)
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. pull code
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. install uv
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      # 3. set up Python
+      - name: Set up Python
+        run: uv python install
+
+      # 4. 安装项目依赖 (包含 dev 依赖如 pytest)
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      # 5. 运行全维度 Agent 评估测试 (Dimension 2: Workflow)
+      - name: Run Agent Workflow Evaluation
+        env:
+          ANALYZER_MODEL_API_KEY: ${{ secrets.ANALYZER_MODEL_API_KEY }}
+          ANALYZER_MODEL_BASE_URL: ${{ secrets.ANALYZER_MODEL_BASE_URL }}
+          ANALYZER_MODEL_ID: ${{ secrets.ANALYZER_MODEL_ID }}
+          RESEARCHER_MODEL_API_KEY: ${{ secrets.RESEARCHER_MODEL_API_KEY }}
+          RESEARCHER_MODEL_BASE_URL: ${{ secrets.RESEARCHER_MODEL_BASE_URL }}
+          RESEARCHER_MODEL_ID: ${{ secrets.RESEARCHER_MODEL_ID }}
+          TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+        run: uv run pytest test/eval/test_agent_workflow.py -v
