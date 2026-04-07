@@ -48,18 +48,27 @@ uv run streamlit run test/test_ui.py
 
 ### 4. 自动化评估与测试
 
-自动化评估，已集成至 **CI** 工作流中。
+自动化评估方案，并已集成至 **CI** 工作流中。
 
+####  测试架构
 *   **测试框架**：基于 `pytest` + `pytest-asyncio` 实现对 LangGraph 异步工作流的非阻塞断言。
-*   **评测维度**：
-    *   **Dimension 2 (Workflow)**: 验证 `TravelState` 字段提取准确率、多轮对话记忆累积及 Session 隔离性。
-*   **结果要求**：要求测试用例 95% 通过（PASS）。若出现 `FAIL`，通常意味着 LLM 提取逻辑偏差或状态机转移异常。
+*   **评测维度**：验证 `TravelState` 字段提取准确度、多轮对话记忆累积及 Session 隔离性 (Dimension 2)。
+*   **本地运行**：
+    ```powershell
+    # Windows (PowerShell)
+    ./script/run_eval.ps1
+    # Linux/macOS (Bash)
+    ./script/run_eval.sh
+    ```
 
-**运行评测脚本：**
-```powershell
-# Windows (PowerShell)
-./script/run_eval.ps1
+#### GitHub CI 部署与密钥配置
+若要在你的 GitHub 仓库中启用全自动 CI 评测，请在仓库的 **Settings > Secrets and variables > Actions** 中添加以下 **Repository Secrets**：
 
-# Linux/macOS (Bash)
-./script/run_eval.sh
-```
+| Secret 名称 | 描述 |
+| :--- | :--- |
+| `ANALYZER_MODEL_API_KEY` | Analyzer 节点使用的 API Key |
+| `RESEARCHER_MODEL_API_KEY` | Researcher 节点使用的 API Key |
+| `TAVILY_API_KEY` | Tavily 搜索服务 API Key (用于 Research 节点) |
+| `GOOGLE_API_KEY` | Google AI API Key (用于 Embedding 向量模型) |
+| `ANALYZER_MODEL_BASE_URL` | (可选) 自定义模型 Base URL |
+| `ANALYZER_MODEL_ID` | (可选) 自定义模型 ID (如 gemini-1.5-flash) |
