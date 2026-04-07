@@ -73,26 +73,46 @@ class ResearcherTools:
     def search_web_ddg(query: str, max_results: int = 5) -> str:
         """
         使用 DuckDuckGo 进行在线搜索，获取最新的网页摘要。
+        增加了超时和重试逻辑以应对网络不稳定。
         """
-        try:
-            logger.info(f"[Researcher Tools] Web search (DDG) for: {query}")
-            with DDGS() as ddgs:
-                results = list(ddgs.text(query, max_results=max_results))
+        import time
+        from ddgs import DDGS
+        
+        # 针对网络波动设置重试次数和超时
+        max_retries = 2
+        timeout = 10  # 秒
+        
+        for attempt in range(max_retries + 1):
+            try:
+                logger.info(f"[Researcher Tools] Web search (DDG) for: {query} (Attempt {attempt + 1})")
+                
+                # DDGS 本身在初始化时支持 timeout
+                with DDGS(timeout=timeout) as ddgs:
+                    # 使用 list() 强制等待迭代完成，触发可能的超时
+                    results = list(ddgs.text(query, max_results=max_results))
 
-            if not results:
-                return f"No web results found for '{query}'."
+                if not results:
+                    return f"No web results found for '{query}'."
+                
+                formatted_results = []
+                for res in results:
+                    title = res.get("title", "No Title")
+                    snippet = res.get("body", "No Content")
+                    link = res.get("href", "#")
+                    formatted_results.append(f"Title: {title}\nContent: {snippet}\nLink: {link}")
+                
+                return "\n\n".join(formatted_results)
             
-            formatted_results = []
-            for res in results:
-                title = res.get("title", "No Title")
-                snippet = res.get("body", "No Content")
-                link = res.get("href", "#")
-                formatted_results.append(f"Title: {title}\nContent: {snippet}\nLink: {link}")
-            
-            return "\n\n".join(formatted_results)
-        except Exception as e:
-            logger.error(f"[Researcher Tools] Web search failed: {str(e)}")
-            return f"Error during web search: {str(e)}"
+            except Exception as e:
+                logger.warning(f"[Researcher Tools] DDG Attempt {attempt + 1} failed: {str(e)}")
+                if attempt < max_retries:
+                    time.sleep(1) # 短暂等待后重试
+                    continue
+                else:
+                    logger.error(f"[Researcher Tools] Web search exhausted retries: {str(e)}")
+                    return f"Error during web search (timed out or network issue): {str(e)}"
+
+        return "Search failed after multiple attempts."
 
     @staticmethod
     def call_external_api(api_name: str, params: dict) -> str:
