@@ -4,7 +4,10 @@ import sys
 import os
 import asyncio
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+root_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+sys.path.append(os.path.join(root_path, "src"))
+sys.path.append(root_path)
 
 from src.agent.graph import graph_app
 
