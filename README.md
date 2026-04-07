@@ -1,16 +1,16 @@
-<div align="center">
+<p align="center">
+  <img src="assets/GeoTrave.png"/>
+</p>
 
-# GeoTrave
-
-</div>
+###  基于 LangGragh 的多智能体协作旅行规划师「GeoTrave」![alt text](assets/GeoTrave.ico)
 
 ## CORE  
-![alt text](assets/image.png)
-- **智能对话引擎**：基于 **LangGraph** 构建的多Agent协作机，以期实现较为复杂的自然语言需求分析与任务拆解。
-- **检索增强生成 (RAG)**：使用 **ChromaDB** 本地向量数据库支持RAG，提供行业知识检索与实时的旅行方案生成。
-- **大模型支持**：支持LangGragh支持的主流模型，包括分析、搜索规划与 Embedding 编码。
+- **对话引擎**：基于 **LangGraph** 构建的多Agent协作机，以期实现较为复杂的自然语言需求分析与任务拆解。
+- **RAG**：使用 **ChromaDB** 本地向量数据库支持RAG，提供行业知识检索与实时的旅行方案生成。
+- **大模型支持**：LangGragh支持的主流模型，任务分配包括分析、搜索规划与 Embedding 编码。
 - **高性能后端**：使用 **FastAPI** 作为后端框架来构建对话接口，保障高并发场景下的会话隔离与响应速度。
 
+![alt text](assets/image.png)
 ## Getting Started
 
 ### 环境准备
