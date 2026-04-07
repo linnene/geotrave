@@ -10,7 +10,7 @@ from agent.graph import graph_app
 
 st.set_page_config(page_title="GeoTrave Debug UI", layout="wide")
 
-st.title("🌍 GeoTrave Agent 测试终端")
+st.title("GeoTrave Agent 测试")
 st.markdown("---")
 
 # 初始化 Session State
@@ -23,7 +23,7 @@ if "travel_state" not in st.session_state:
 
 # 侧边栏：显示内部状态
 with st.sidebar:
-    st.header("📊 内部状态 (TravelState)")
+    st.header("TravelState")
     st.info(f"Thread ID: `{st.session_state.thread_id}`")
     
     # 辅助函数：显示字典
@@ -34,18 +34,18 @@ with st.sidebar:
         else:
             st.write(f"*{label} 尚无数据*")
 
-    display_state_field("🔒 硬约束 (HardConstraints)", st.session_state.travel_state.get("hard_constraints"))
-    display_state_field("🎨 软偏好 (SoftPreferences)", st.session_state.travel_state.get("soft_preferences"))
+    display_state_field("HardConstraints", st.session_state.travel_state.get("hard_constraints"))
+    display_state_field("SoftPreferences", st.session_state.travel_state.get("soft_preferences"))
     
     # 新增：展示白板中的所有其他关键信息
     st.markdown("---")
-    st.subheader("📝 核心白板信息")
+    st.subheader("Core State")
     col1, col2 = st.columns(2)
     with col1:
-        st.metric("核心目的地", st.session_state.travel_state.get("destination") or "未确定")
-        st.metric("游玩天数", st.session_state.travel_state.get("days") or "未知")
+        st.metric("Destination", st.session_state.travel_state.get("destination") or "未确定")
+        st.metric("Days", st.session_state.travel_state.get("days") or "未知")
     with col2:
-        st.metric("预算上限", f"¥{st.session_state.travel_state.get('budget_limit')}" if st.session_state.travel_state.get('budget_limit') else "未设置")
+        st.metric("BudgetLimit", f"¥{st.session_state.travel_state.get('budget_limit')}" if st.session_state.travel_state.get('budget_limit') else "未设置")
         # 兼容处理：people 可能是 list 也可能是 int
         people_val = st.session_state.travel_state.get("people")
         display_people = 0
@@ -53,11 +53,11 @@ with st.sidebar:
             display_people = len(people_val)
         elif isinstance(people_val, (int, float)):
             display_people = int(people_val)
-        st.metric("人数构成", display_people)
+        st.metric("People", display_people)
 
     # 展示标签
     if st.session_state.travel_state.get("tags"):
-        st.write("**识别标签:**")
+        st.write("**TAG:**")
         st.write(", ".join([f"`{tag}`" for tag in st.session_state.travel_state.get("tags")]))# type:ignore
 
     # 新增：展示研究员检索内容
@@ -69,7 +69,7 @@ with st.sidebar:
     else:
         st.write("*暂无检索内容*")
 
-    if st.button("🔄 重置会话"):
+    if st.button("RESET"):
         st.session_state.messages = []
         st.session_state.thread_id = str(uuid.uuid4())
         st.session_state.travel_state = {}
