@@ -16,12 +16,12 @@ def route_after_analyzer(state: TravelState):
     date = state.get("date")
     budget = state.get("budget_limit")    # TravelState 中定义为 'budget_limit'
     
-    logger.info(f"[Router] Decision checking: Dest={destination}, Days={days}, Date={date}, People={people}, Budget={budget}")
+    logger.debug(f"[Router] Decision checking: Dest={destination}, Days={days}, Date={date}, People={people}, Budget={budget}")
     
     # 基础信息闭环判断：目的地、天数、人数、日期
     if destination and days and people and date:
-        logger.info(f"[Router] Base requirements satisfied. Routing to 'researcher'.")
+        logger.info(f"[Router] Routing to 'researcher' for: {destination}")
         return "researcher"
     
-    logger.info(f"[Router] Base information incomplete. Waiting for user response.")
+    logger.debug(f"[Router] Base information incomplete. Waiting for user response.")
     return END

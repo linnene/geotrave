@@ -40,10 +40,10 @@ class ResearcherTools:
         )
         
         try:
-            logger.info(f"[Researcher Tools] Thinking about research plan for: {destination}")
+            logger.debug(f"[Researcher Tools] Thinking about research plan for: {destination}")
             response = llm.invoke(prompt)
             plan = parser.parse(response.content) # type: ignore
-            logger.info(f"[Researcher Tools] Plan generated: {plan}")
+            logger.debug(f"[Researcher Tools] Plan generated: {plan}")
             return plan
         except Exception as e:
             logger.error(f"[Researcher Tools] Plan generation failed: {str(e)}")
@@ -59,7 +59,7 @@ class ResearcherTools:
         从本地向量知识库(ChromaDB)中检索信息
         """
         try:
-            logger.info(f"[Researcher Tools] Local RAG search for: {query}")
+            logger.debug(f"[Researcher Tools] Local RAG search for: {query}")
             search_results = search_similar_documents(query=query, k=k)
             if not search_results:
                 return "No relevant information found in local KB."
@@ -84,9 +84,9 @@ class ResearcherTools:
         
         for attempt in range(max_retries + 1):
             try:
-                logger.info(f"[Researcher Tools] Web search (DDG) for: {query} (Attempt {attempt + 1})")
+                logger.debug(f"[Researcher Tools] Web search (DDG) for: {query} (Attempt {attempt + 1})")
                 
-                # DDGS 本身在初始化时支持 timeout
+                # DDGS 本身下初始化时支持 timeout
                 with DDGS(timeout=timeout) as ddgs:
                     # 使用 safesearch='on' 开启安全搜索，过滤成人/违禁内容
                     results = list(ddgs.text(query, max_results=max_results, safesearch='on'))
