@@ -12,7 +12,7 @@ async def search_rag_data(request: SearchRequest):
     """
     快速的文本检索测试，用于验证 ChromaDB 内容写入
     """
-    logger.info(f"[RAG API] Search query: {request.query}")
+    logger.debug(f"[RAG API] Search query: {request.query}")
     try:
         results = search_similar_documents(query=request.query, k=request.k)
         if not results:
@@ -38,7 +38,7 @@ async def get_rag_stats():
     """
     try:
         count = get_document_count()
-        logger.info(f"[RAG API] DB Stats count: {count}")
+        logger.debug(f"[RAG API] DB Stats count: {count}")
         return {"status": "success", "document_count": count}
     except Exception as e:
         logger.error(f"[RAG API] Stats error: {str(e)}")

@@ -33,10 +33,10 @@ def researcher_node(state: TravelState):
     """
     destination = state.get("destination")
     if not destination:
-        logger.info("[Researcher Node] No destination provided, retrieval skipped.")
+        logger.debug("[Researcher Node] No destination provided, retrieval skipped.")
         return {"retrieval_context": "No destination provided, retrieval skipped."}
     
-    logger.info(f"[Researcher Node] Starting research logic with model: {RESEARCHER_MODEL_ID}")
+    logger.info(f"[Researcher Node] Start research for: {destination}")
     
     # 1. 产生检索计划 (传递特定 LLM)
     plan = ResearcherTools.generate_research_plan(state, researcher_llm) # type: ignore

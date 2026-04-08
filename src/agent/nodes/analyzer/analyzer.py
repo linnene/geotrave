@@ -35,13 +35,13 @@ async def analyzer_node(state: TravelState):
     """
     分析师节点：从聊天历史中提取结构化的旅行需求。
     """
-    logger.info("[Analyzer Node] Start processing message history...")
+    logger.debug("[Analyzer Node] Start processing message history...")
     
     # 获取对话历史并设置当前日期
     messages = state["messages"]
     current_date = datetime.datetime.now().strftime("%Y-%m-%d")
     
-    logger.info(f"[Analyzer Node] Extracting info for date: {current_date}")
+    logger.debug(f"[Analyzer Node] Extracting info for date: {current_date}")
     
     try:
         parser = PydanticOutputParser(pydantic_object=TravelInfo)
@@ -54,13 +54,13 @@ async def analyzer_node(state: TravelState):
         )
         
         # 调用 LLM 进行分析
-        logger.info("[Analyzer Node] Invoking LLM for demand modeling...")
+        logger.debug("[Analyzer Node] Invoking LLM for demand modeling...")
         chain = llm | parser
         result = await chain.ainvoke(prompt_value)
         
-        logger.info(f"[Analyzer Node] Analysis complete.result: {result}")
+        logger.info(f"[Analyzer Node] Analysis complete: {result.destination} for {result.days} days.")
         if result.tags:
-            logger.info(f"[Analyzer Node] Identified Tags: {result.tags}")
+            logger.debug(f"[Analyzer Node] Identified Tags: {result.tags}")
         
         # 回写至全局状态 (注意字段名需与 TravelState 定义严格对齐)
         return {
