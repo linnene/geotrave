@@ -40,3 +40,10 @@ DB_TIMEOUT = 60
 
 # 日志配置
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper() # 可选：DEBUG, INFO, WARNING, ERROR
+
+def update_log_level(new_level: str):
+    """
+    动态更新全局 LOG_LEVEL。
+    """
+    global LOG_LEVEL
+    LOG_LEVEL = new_level.upper()
