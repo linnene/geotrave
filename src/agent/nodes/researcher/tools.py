@@ -88,18 +88,30 @@ class ResearcherTools:
                 
                 # DDGS 本身在初始化时支持 timeout
                 with DDGS(timeout=timeout) as ddgs:
-                    # 使用 list() 强制等待迭代完成，触发可能的超时
-                    results = list(ddgs.text(query, max_results=max_results))
+                    # 使用 safesearch='on' 开启安全搜索，过滤成人/违禁内容
+                    results = list(ddgs.text(query, max_results=max_results, safesearch='on'))
 
                 if not results:
                     return f"No web results found for '{query}'."
+                
+                # 定义敏感词黑名单逻辑，进一步增强安全性
+                safety_blacklist = ["sex", "porn", "gamble", "赌博", "色情", "成人", "违禁"]
                 
                 formatted_results = []
                 for res in results:
                     title = res.get("title", "No Title")
                     snippet = res.get("body", "No Content")
                     link = res.get("href", "#")
+                    
+                    # 检查标题和摘要是否包含敏感词
+                    content_to_check = (title + snippet + link).lower()
+                    if any(word in content_to_check for word in safety_blacklist):
+                        continue
+                        
                     formatted_results.append(f"Title: {title}\nContent: {snippet}\nLink: {link}")
+                
+                if not formatted_results:
+                    return f"Web results for '{query}' were filtered for safety."
                 
                 return "\n\n".join(formatted_results)
             
