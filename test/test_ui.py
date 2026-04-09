@@ -72,14 +72,6 @@ with st.sidebar:
     else:
         st.write("*暂无检索内容*")
 
-    # 新增：展示被过滤的检索内容
-    st.subheader("Filtered result")
-    if st.session_state.travel_state.get("filtered_context"):
-        with st.expander("查看被过滤的内容 (DEBUG)", expanded=True):
-            st.error(st.session_state.travel_state.get("filtered_context"))
-    else:
-        st.write("*暂无合规/相关性过滤项*")
-
     if st.button("RESET"):
         st.session_state.messages = []
         st.session_state.thread_id = str(uuid.uuid4())

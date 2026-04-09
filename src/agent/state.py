@@ -43,7 +43,6 @@ class TravelState(TypedDict):
     # 过程变量
     tags: list[str] | None  # 自动识别的增强标签
     retrieval_context: str | None # 研究员节点提供的检索上下文
-    filtered_context: str | None  # 被过滤掉的检索内容（调试用）
 
 # ----------------- Shared State -----------------
 
