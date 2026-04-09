@@ -65,11 +65,27 @@ with st.sidebar:
 
     # 新增：展示研究员检索内容
     st.markdown("---")
-    st.subheader("Researcher result")
+    st.subheader("Researcher Result")
+    
+    # 获取新的结构化数据
+    retrieval_results = st.session_state.travel_state.get("retrieval_results")
+    if retrieval_results:
+        with st.expander(f"查看结构化检索结果 ({len(retrieval_results)}条)", expanded=False):
+            for i, item in enumerate(retrieval_results):
+                # 如果是 Pydantic 对象或 Dict，尝试友好展示
+                source_tag = f"[{item.get('source', 'unknown').upper()}]" if isinstance(item, dict) else f"[{item.source.upper()}]"
+                title = item.get('title') if isinstance(item, dict) else item.title
+                content = item.get('content') if isinstance(item, dict) else item.content
+                
+                st.markdown(f"**{i+1}. {source_tag} {title}**")
+                st.text(content[:200] + "..." if len(content) > 200 else content)
+                st.markdown("---")
+    
+    # 保留旧的文本显示用于对比
     if st.session_state.travel_state.get("retrieval_context"):
-        with st.expander("查看完整检索内容", expanded=False):
+        with st.expander("查看原始检索文本", expanded=False):
             st.write(st.session_state.travel_state.get("retrieval_context"))
-    else:
+    elif not retrieval_results:
         st.write("*暂无检索内容*")
 
     if st.button("RESET"):
