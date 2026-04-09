@@ -22,7 +22,7 @@ researcher_llm = ChatOpenAI(
     base_url=RESEARCHER_MODEL_BASE_URL, 
     temperature=PLANNING_TEMPERATURE,
     max_completion_tokens=MAX_TOKENS,  
-    timeout=LLM_TIMEOUT,                  
+    timeout=LLM_TIMEOUT,
     disable_streaming=True,
 )
 
@@ -34,33 +34,44 @@ def researcher_node(state: TravelState):
     destination = state.get("destination")
     if not destination:
         logger.debug("[Researcher Node] No destination provided, retrieval skipped.")
-        return {"retrieval_context": "No destination provided, retrieval skipped."}
-    
+        return {
+            "retrieval_context": "No destination provided, retrieval skipped.",
+            "retrieval_results": []
+        }
+
     logger.info(f"[Researcher Node] Start research for: {destination}")
-    
+
+    # 存储所有结构化结果
+    all_results = []
+
     # 1. 产生检索计划 (传递特定 LLM)
     plan = ResearcherTools.generate_research_plan(state, researcher_llm) # type: ignore
-    # 映射到软偏好
+    
     if not plan:
         # 如果计划生成失败，进行基础检索降级
-        local_info = ResearcherTools.search_local_kt(destination)
-        return {"retrieval_context": f"### Local Knowledge Base (Fallback):\n{local_info}"}
+        fallback_results = ResearcherTools.search_local_kt(destination)
+        all_results.extend(fallback_results)
+    else:
+        # 2. 从本地知识库检索
+        if plan.local_query:
+            all_results.extend(ResearcherTools.search_local_kt(plan.local_query))
+
+        # 3. 网络搜索 (循环多条 Web Queries)
+        if plan.web_queries:
+            for q in plan.web_queries:
+                all_results.extend(ResearcherTools.search_web_ddg(query=q, max_results=5))
+
+    # 4. 汇总 (为了向下兼容 Planner 节点)
+    context_parts = []
+    for item in all_results:
+        part = f"[{item.source.upper()}] {item.title}\n{item.content}"
+        if item.link and item.link != "#":
+            part += f"\nSource: {item.link}"
+        context_parts.append(part)
     
+    final_context = "\n\n---\n\n".join(context_parts) if context_parts else "No relevant information found."
     
-    # 2. 本地知识库检索
-    local_info = ""
-    if plan.local_query:
-        local_info = ResearcherTools.search_local_kt(plan.local_query)
-    
-    # 3. 网络搜索 (多 Query)
-    web_infos = []
-    if plan.web_queries:
-        for q in plan.web_queries:
-            info = ResearcherTools.search_web_ddg(query=q, max_results=5)
-            web_infos.append(f"Q: {q}\nA: {info}")
-    
-    # 4. 汇总
-    final_context = f"### Local Knowledge Base:\n{local_info}\n\n"
-    final_context += "### Web Search Results:\n" + ("\n---\n".join(web_infos) if web_infos else "No web results.")
-    
-    return {"retrieval_context": final_context}
+    return {
+        "retrieval_context": final_context,
+        "retrieval_results": all_results
+    }

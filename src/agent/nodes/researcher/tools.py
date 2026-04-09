@@ -1,12 +1,14 @@
 from typing import Optional, Dict, List
 from langchain_core.output_parsers import PydanticOutputParser
 from langchain_openai import ChatOpenAI
+import time
 from ddgs import DDGS
+
 
 from database.vector_db import search_similar_documents
 from utils.logger import logger
 from utils.prompt import research_query_prompt_template
-from agent.state import ResearchPlan
+from agent.state import ResearchPlan, RetrievalItem
 
 class ResearcherTools:
     """
@@ -54,29 +56,34 @@ class ResearcherTools:
             )
 
     @staticmethod
-    def search_local_kt(query: str, k: int = 3) -> str:
+    def search_local_kt(query: str, k: int = 3) -> List[RetrievalItem]:
         """
-        从本地向量知识库(ChromaDB)中检索信息
+        从本地向量知识库(ChromaDB)中检索信息，返回结构化列表
         """
         try:
             logger.debug(f"[Researcher Tools] Local RAG search for: {query}")
             search_results = search_similar_documents(query=query, k=k)
-            if not search_results:
-                return "No relevant information found in local KB."
             
-            return "\n---\n".join([doc.page_content for doc in search_results])
+            items = []
+            for doc in search_results:
+                items.append(RetrievalItem(
+                    source="local",
+                    link=None,
+                    title="Knowledge Base Snippet",
+                    content=doc.page_content,
+                    metadata={"query": query}
+                ))
+            return items
         except Exception as e:
             logger.error(f"[Researcher Tools] Local search failed: {str(e)}")
-            return f"Error during local search: {str(e)}"
+            return []
 
     @staticmethod
-    def search_web_ddg(query: str, max_results: int = 5) -> str:
+    def search_web_ddg(query: str, max_results: int = 10) -> List[RetrievalItem]:
         """
         使用 DuckDuckGo 进行在线搜索，获取最新的网页摘要。
-        增加了超时和重试逻辑以应对网络不稳定。
+        返回结构化的 RetrievalItem 列表。
         """
-        import time
-        from ddgs import DDGS
         
         # 针对网络波动设置重试次数和超时
         max_retries = 2
@@ -92,12 +99,12 @@ class ResearcherTools:
                     results = list(ddgs.text(query, max_results=max_results, safesearch='on'))
 
                 if not results:
-                    return f"No web results found for '{query}'."
+                    return []
                 
                 # 定义敏感词黑名单逻辑，进一步增强安全性
                 safety_blacklist = ["sex", "porn", "gamble", "赌博", "色情", "成人", "违禁"]
                 
-                formatted_results = []
+                formatted_items = []
                 for res in results:
                     title = res.get("title", "No Title")
                     snippet = res.get("body", "No Content")
@@ -108,12 +115,15 @@ class ResearcherTools:
                     if any(word in content_to_check for word in safety_blacklist):
                         continue
                         
-                    formatted_results.append(f"Title: {title}\nContent: {snippet}\nLink: {link}")
+                    formatted_items.append(RetrievalItem(
+                        source="web",
+                        title=title,
+                        content=snippet,
+                        link=link,
+                        metadata={"query": query}
+                    ))
                 
-                if not formatted_results:
-                    return f"Web results for '{query}' were filtered for safety."
-                
-                return "\n\n".join(formatted_results)
+                return formatted_items
             
             except Exception as e:
                 logger.warning(f"[Researcher Tools] DDG Attempt {attempt + 1} failed: {str(e)}")
@@ -122,9 +132,9 @@ class ResearcherTools:
                     continue
                 else:
                     logger.error(f"[Researcher Tools] Web search exhausted retries: {str(e)}")
-                    return f"Error during web search (timed out or network issue): {str(e)}"
+                    return []
 
-        return "Search failed after multiple attempts."
+        return []
 
     @staticmethod
     def call_external_api(api_name: str, params: dict) -> str:

@@ -38,9 +38,6 @@ uv sync
 
 # 默认启动
 uv run python src/main.py
-
-# debug热更新 + 调试日志）
-uv run python src/main.py --reload --debug
 ```
 ### StreamLit 测试页面
 

@@ -1,40 +1,55 @@
-# GeoTrave project Plan
+# GeoTrave Project PLAN
 
-## 迭代重点
-- Planner 节点：实现核心生成节点，负责将约束条件（TravelState）和检索到的上下文综合成结构化的行程。
-- 输出对齐：确保规划器严格遵守硬性约束（如：过敏史、预算、步行距离限制）。
+## 核心愿景
+构建一个**协作式**旅游规划 Agent，从“黑箱检索”转向“人工干预（Human-in-the-loop）”，让用户参与到景点、美食和住宿的选择过程中，最终生成高度定制化的行程。
 
-## PLAN
+## 迭代路线图
 
-### 状态管理与核心节点
-- [x] Analyzer 节点（意图提取与状态更新）
-- [ ] Researcher 节点能力扩充（基础 Web/RAG 已完成，待接入天气、机票、酒店等更多外部 API）
-- [ ] **Researcher 输出结构化**：优化研究员节点的输出格式，为后续 Filter 节点提供更好的处理基础
-- [ ] Filter 节点 (Temporarily Removed): 待 Researcher 输出结构化完成后重新实装
-- [ ] TravelState 状态白板完善（当前仅实现基础字段，需进一步深入剖析旅行需求以增强约束与偏好的精细度）
-- [ ] 优化 Researcher 节点提示词逻辑（目前检索词优化效果不好，需进一步提升模型推理框架与检索策略的制定能力）
-- [ ] Planner 节点（最终行程生成）
+### 第一阶段：结构化与交互重构 (当前重点)
+- [x] **研究员输出结构化**：将 Researcher 输出从纯文本改为 \`RetrievalItem\` 对象列表。
+- [ ] **状态机扩展**：在 \`TravelState\` 中增加 \`recommendations\`（待选池）和 \`selected_items\`（确认池）。
+- [ ] **推荐节点 (Recommender) 实现**：新增节点，负责从检索结果中提取精华供用户挑选。
+- [ ] **交互式路由 (Router) 升级**：
+    - 分析师需识别用户是在“提供需求”、“挑选结果”还是“要求生成计划”。
+    - 实现从 Recommender 返回用户输入的等待机制（通过 Graph 中断实现）。
+- [ ] **Planner 节点实现**：基于用户最终确认的 \`selected_items\` 生成详细行程。
 
-### 基础设施与持久化
-- [x] LangGraph DAG 图构建
-- [x] 基于内存的会话隔离与状态管理
-- [ ] 会话记忆的长效本地持久化（将记忆序列化至本地 SQLite 或文件，支持服务重启后恢复历史）
+### 第二阶段：检索质量与数据源优化
+- [ ] **多源聚合检索**：集成 Google Search API 或 SearXNG 替代 DuckDuckGo。
+- [ ] **特定领域工具链**：
+    - 天气插件：实时查询目的地气温与降水。
+    - 交通插件：查询机票/高铁价格趋势。
+    - 酒店插件：获取实时住宿评价与价格。
+- [ ] **本地 RAG 扩充**：编写爬虫获取主流旅游平台（小红书、携程）的深度攻略并向量化。
 
-### 评估框架
-- [ ] 完善测试框架底层架构结构
-- [ ] 维度 1：RAG 召回精度（事实一致性、上下文召回率）
-- [ ] 维度 2：工作流与协作（当前仅搭建基础，需为后续 Planner 预留并添加相应的测试用例与逻辑）
-- [ ] 维度 3：复杂推理与规划验证
-- [ ] 维度 4：端到端用户体验（延迟、容错性）
-- [ ] 设计并实现多维度数据分数总结算法
+### 第三阶段：工程化与评价体系
+- [ ] **长效记忆持久化**：将 \`Checkpoint\` 存储至 SQLite，支持跨 Web 服务重启恢复会话。
+- [ ] **评估框架 (Eval)**：
+    - 维度 1：RAG 召回精度（事实一致性）。
+    - 维度 2：约束满足率（是否遵守了用户的硬性条件）。
+    - 维度 3：规划合理性（地理位置闭环、时间分配）。
+- [ ] **性能优化**：引入本地 Embedding 模型（如 \`BGE-small\`）降低 API 开销。
 
-### 技术优化与数据爬取
-- [x] Streamlit 调试 UI
-- [x] 多模型隔离（允许不同节点使用不同模型）
-- [ ] 替换原生 Web 检索 API 数据源（当前 DuckDuckGo 质量过低。过渡方案：优先集成 Google Search API；最终目标：部署并接入 SearXNG 以实现更强大的聚合检索控制）
-- [ ] 针对 Web 检索结果的有害内容过滤（解决外部搜索引擎带来的违禁内容风险，增强结果安全性）
-- [ ] 优化 Web 检索逻辑：实现多组参数/关键词绑定检索，提高检索结果覆盖面与单次检索数量（Max Results 提升）
-- [ ] README 主文档的持续完善与美化
-- [ ] 各大旅游平台攻略数据爬虫的编写（扩充本地 RAG 知识库）
-- [ ] 本地 Embedding 模型迁移（sentence-transformers）
-- [ ] ChromaDB 高级文档解析器（支持 PDF/Markdown）
+---
+
+## 任务列表 (逐步实施)
+
+### 1. 协议与状态层 (Protocols & State)
+- [ ] 在 \`src/agent/state.py\` 定义 \`TravelState\` 新字段：\`recommendations\`, \`selected_items\`, \`user_decision\`。
+
+### 2. 节点开发 (Nodes Development)
+- [ ] **Recommender Node**: 逻辑：\`retrieval_results\` -> 筛选 Top N -> 更新 \`recommendations\`。
+- [ ] **Analyzer Node Update**: 逻辑：判断 \`user_decision\` 状态，更新 \`selected_items\`。
+- [ ] **Planner Node**: 逻辑：\`selected_items\` + \`constraints\` -> 固定格式行程。
+
+### 3. 图拓扑调整 (Graph Topology)
+- [ ] 修改 \`src/agent/graph.py\` 连线：
+    - \`Analyzer\` -> \`Researcher\` (需要更多信息时)
+    - \`Researcher\` -> \`Recommender\` (检索完成展示结果)
+    - \`Recommender\` -> \`END\` (等待用户选择)
+    - \`Analyzer\` -> \`Planner\` (用户确认后生成)
+
+### 4. 提示词工程 (Prompt Engineering)
+- [ ] 更新 \`src/utils/prompt.py\`：
+    - 为 Analyzer 增加意图识别逻辑。
+    - 为 Planner 增加基于结构化列表的生成逻辑。
