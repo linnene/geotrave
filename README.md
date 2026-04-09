@@ -26,7 +26,6 @@
 为了AGENT的正常运转，请将这几个Agent Node的LLM完成
   - `ANALYZER_MODEL`: 需求提取。
   - `RESEARCHER_MODEL`: 规划搜索词与资料整理。
-  - `FILTER_MODEL`: (可选) 检索结果审计与过滤。
 
 ### 启动服务
 

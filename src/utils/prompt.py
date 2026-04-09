@@ -84,23 +84,4 @@ research_query_prompt_template = PromptTemplate(
 )
 # ----------------研究员节点 Prompt ----------------
 
-# ----------------过滤器节点 Prompt ----------------
-_FILTER_TEMPLATE = """你是一名专业的旅游信息内容审核员。
-你的任务是评估给定的“检索结果上下文”是否满足以下标准：
-1. **合规性 (Safety)**：严禁包含任何色情、暴力、赌博、违禁药物或政治敏感信息。
-2. **相关性 (Relevance)**：内容必须与用户计划前往的旅游目的地、景点、交通或酒店信息强相关。
-
-请针对输入的每一个检索小节进行独立判定。若该小节包含多个来源，请综合评估。
-你必须严格输出 JSON 格式。
-
-待审核的检索上下文：
-{retrieval_context}
-
-{format_instructions}"""
-
-filter_prompt_template = PromptTemplate(
-    template=_FILTER_TEMPLATE,
-    input_variables=["retrieval_context", "format_instructions"]
-)
-# ----------------过滤器节点 Prompt ----------------
 
