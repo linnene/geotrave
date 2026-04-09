@@ -43,6 +43,7 @@ class TravelState(TypedDict):
     # 过程变量
     tags: list[str] | None  # 自动识别的增强标签
     retrieval_context: str | None # 研究员节点提供的检索上下文
+    filtered_context: str | None  # 被过滤掉的检索内容（调试用）
 
 # ----------------- Shared State -----------------
 
@@ -79,3 +80,10 @@ class ResearchPlan(BaseModel):
     need_api: List[str] = Field(default_factory=list, description="需要调用的其他特定 API 标识(如: exchange_rate, train_tickets)")
 
 # ----------------- Researcher node -----------------
+
+# ----------------- Filter node -----------------
+class EvaluationResult(BaseModel):
+    """单条检索结果的判定模型"""
+    is_safe: bool = Field(..., description="内容是否合规、无违禁信息、无色情/暴力内容")
+    is_relevant: bool = Field(..., description="内容是否与原始检索词及旅行目的地相关")
+# ----------------- Filter node -----------------
