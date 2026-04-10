@@ -1,28 +1,27 @@
-# 归档
+﻿# 归档
 
 ## 概述
 本文档用于归档已完成的里程碑、架构决策和已定型的功能。
 
 ## 已完成的里程碑
 
-### 2026-04-09: 内容安全与合规审计 (Filter Node) [Deprecated - Re-planning]
-- **Filter 节点初步实现**：曾实装用于检索结果审计的节点，后因 Researcher 输出非结构化导致误杀严重而被移除。
-- **架构决策**：决定优先进行 Researcher 输出结构化改造，再重新引入更精准的内容过滤机制。
+### 2026-04-10: 协作规划架构深化 - 决策权边界与动态交互 [In Progress]
+- **决策权边界确立 (Architectural Decision)**：
+    - **用户参与决定**：景点、美食、住宿、节奏。
+    - **Agent 独立决定**：路线规划优化、时间分配、推荐项扩充（池生成）。
+- **动态选择机制定型 (Logical Design)**：
+    - 引入 \
+eeds_selection\ 标志位。
+    - 逻辑：核心需求（目的地/偏好）更新 -> 重新检索 -> 标记为 \True\ -> 强制进入 Recommender 节点展示新结果。
+    - 若需求未变，则 Researcher 后可直接跳过 Recommender（基于状态流转）。
+
+### 2026-04-09: 架构重构 - 从黑箱 RAG转向协作交互 [Completed]
+- **研究员输出结构化**：\RetrievalItem\ 对象化改造完成，支持 Pydantic 解析。
+- **系统简化**：清除 \main.py\ 冗余逻辑，强制 \DEBUG\ 日志，删除旧版失效 Filter 节点。
 
 ### 2026-04-07: 评估与测试子系统
-- 利用 Pytest 和 pytest-asyncio 实现了一个初步的测试框架，用于 LangGraph 的状态断言。
-- 将测试用例数据与测试逻辑解耦，数据统一存放于 dataset.json。
-- 会话隔离性和多轮对话状态转换（维度 2：工作流）。
-- 将 Streamlit UI 迁移至 test 目录，并修复了模块的导入路径。
-- 通过 shell/powershell 脚本和 GitHub Actions CI 集成了自动化测试执行。
+- 实现了流程自动化测试框架，支持 \Analyzer -> Researcher\ 端到端流转。
 
-### 2026-04-06: 智能与搜索集成
-- 构建了推理型的 Researcher 节点，支持 Web 和 RAG 查询。
-- 集成了 DuckDuckGo 搜索引擎，实现无需外部 API Key 的实时数据检索。
-- 配置了多模型隔离机制，允许不同的图节点使用独立的模型或服务商。
-- 搭建了 Streamlit 沙盒，用于可视化 LangGraph 状态机变化。
-
-### 早期基础: 核心状态机与记忆
-- 定义了 TravelState 基础的数据模板（目的地、天数、预算、人数、约束条件）。
-- 搭建了结合 MemorySaver 的 LangGraph 框架，支持多轮对话状态的累积但是由于只存在与内存中所以有「**时效性**」。
-- Analyzer 节点完成，支持上下文感知的意图提取。
+### 早期里程碑
+- 2026-04-06: 智能搜索集成，接入 DuckDuckGo。
+- 早期基础: 核心状态机与 LangGraph 内存记忆机制。
