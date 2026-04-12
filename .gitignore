@@ -25,3 +25,4 @@ data/
 # IDEs
 .vscode/
 .idea/
+docs/*.md

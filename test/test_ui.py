@@ -68,7 +68,8 @@ with st.sidebar:
     st.subheader("Researcher Result")
     
     # 获取新的结构化数据
-    retrieval_results = st.session_state.travel_state.get("retrieval_results")
+    search_data = st.session_state.travel_state.get("search_data") or {}
+    retrieval_results = search_data.get("retrieval_results")
     if retrieval_results:
         with st.expander(f"查看结构化检索结果 ({len(retrieval_results)}条)", expanded=False):
             for i, item in enumerate(retrieval_results):
@@ -82,9 +83,10 @@ with st.sidebar:
                 st.markdown("---")
     
     # 保留旧的文本显示用于对比
-    if st.session_state.travel_state.get("retrieval_context"):
+    retrieval_context = search_data.get("retrieval_context")
+    if retrieval_context:
         with st.expander("查看原始检索文本", expanded=False):
-            st.write(st.session_state.travel_state.get("retrieval_context"))
+            st.write(retrieval_context)
     elif not retrieval_results:
         st.write("*暂无检索内容*")
 

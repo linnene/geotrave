@@ -31,6 +31,17 @@ class RetrievalItem(BaseModel):
 
 # ----------------- Shared State -----------------
 
+class SearchState(TypedDict):
+    """解耦的私有搜索状态，仅在检索、推荐和计划节点流转"""
+    query_history: list[str] | None
+    retrieval_context: str | None
+    retrieval_results: list[RetrievalItem] | None
+
+class RecommenderState(TypedDict):
+    """解耦的私有推荐状态，仅由推荐和计划节点维护"""
+    recommended_items: list[dict] | None
+    user_selected_items: list[dict] | None
+
 class TravelState(TypedDict):
     """全局状态白板"""
     messages: Annotated[list[BaseMessage], add_messages]
@@ -42,8 +53,10 @@ class TravelState(TypedDict):
     hard_constraints: HardConstraints
     soft_preferences: SoftPreferences
     tags: list[str] | None
-    retrieval_context: str | None
-    retrieval_results: list[RetrievalItem] | None
+    
+    # 使用独立的属性存储子图或节点专用的私有状态，不污染公共白板
+    search_data: SearchState | None
+    recommender_data: RecommenderState | None
 
 # ----------------- Analyzer node -----------------
 
