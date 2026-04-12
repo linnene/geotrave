@@ -35,8 +35,11 @@ def researcher_node(state: TravelState):
     if not destination:
         logger.debug("[Researcher Node] No destination provided, retrieval skipped.")
         return {
-            "retrieval_context": "No destination provided, retrieval skipped.",
-            "retrieval_results": []
+            "search_data": {
+                "query_history": [],
+                "retrieval_context": "No destination provided, retrieval skipped.",
+                "retrieval_results": []
+            }
         }
 
     logger.info(f"[Researcher Node] Start research for: {destination}")
@@ -72,6 +75,9 @@ def researcher_node(state: TravelState):
     final_context = "\n\n---\n\n".join(context_parts) if context_parts else "No relevant information found."
     
     return {
-        "retrieval_context": final_context,
-        "retrieval_results": all_results
+        "search_data": {
+            "query_history": plan.web_queries if plan else [],
+            "retrieval_context": final_context,
+            "retrieval_results": all_results
+        }
     }
