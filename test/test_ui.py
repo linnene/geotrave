@@ -100,8 +100,12 @@ with st.sidebar:
 
 # 聊天界面
 for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
+    if message.get("is_trace"):
+        with st.status(message.get("label", "Agent 处理轨迹"), state="complete", expanded=False):
+            st.markdown(message["content"])
+    else:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
 
 if prompt := st.chat_input("输入你的旅行需求 (例如: 我想去大理，预算5000)"):
     # 用户消息
@@ -113,36 +117,68 @@ if prompt := st.chat_input("输入你的旅行需求 (例如: 我想去大理，
     config = {"configurable": {"thread_id": st.session_state.thread_id}}
     
     with st.chat_message("assistant"):
-        with st.spinner("Agent 正在思考并执行任务..."):
-            try:
-                # 获取当前最新的状态，或者基于历史执行
-                # 注意：这里只发送最新的一条消息，MemorySaver 会自动根据 thread_id 补偿历史
-                inputs = {"messages": [("user", prompt)]}
-                
-                # 显式传递 config 确保 thread_id 被 MemorySaver 识别
-                result = asyncio.run(graph_app.ainvoke(inputs, config=config))# type:ignore
-                
-                # 更新状态显示
-                st.session_state.travel_state = result
-                
-                # 获取最后一条 AI 消息作为回复
-                if result.get("messages"):
-                    last_msg = result["messages"][-1]
-                    # 兼容 BaseMessage 或 dict
-                    if hasattr(last_msg, 'content'):
-                        content = last_msg.content
-                    elif isinstance(last_msg, dict):
-                        content = last_msg.get("content", str(last_msg))
-                    else:
-                        content = str(last_msg)
-                    
-                    st.markdown(content)
-                    st.session_state.messages.append({"role": "assistant", "content": content})
+        try:
+            inputs = {"messages": [("user", prompt)]}
+            
+            status_container = st.status("Agent 处理轨迹...", expanded=True)
+            trace_logs = []
+            
+            async def run_graph():
+                async for event in graph_app.astream(inputs, config=config, stream_mode="updates"):
+                    for node_name, node_state in event.items():
+                        log_msg = f"✅ 执行节点: **{node_name}**\n"
+                        status_container.write(f"✅ 执行节点: **{node_name}**")
+                        
+                        # 提取节点中的关键信息进行展示
+                        if node_name == "router" and "latest_intent" in node_state:
+                            intent = node_state["latest_intent"]
+                            if hasattr(intent, "intent"):
+                                sub_msg = f"    ↳ 识别意图: `{intent.intent}`  *(置信度: {intent.confidence})*\n"
+                                status_container.write(f"&nbsp;&nbsp;&nbsp;&nbsp;↳ 识别意图: `{intent.intent}`  *(置信度: {intent.confidence})*")
+                                log_msg += sub_msg
+                        
+                        if node_name == "analyzer" and "needs_research" in node_state:
+                            needs_research = node_state["needs_research"]
+                            sub_msg = f"    ↳ 需要联网检索: `{needs_research}`\n"
+                            status_container.write(f"&nbsp;&nbsp;&nbsp;&nbsp;↳ 需要联网检索: `{needs_research}`")
+                            log_msg += sub_msg
+                        
+                        trace_logs.append(log_msg)
+
+            asyncio.run(run_graph())
+            status_container.update(label="处理完成!", state="complete", expanded=False)
+            
+            # 记录轨迹到历史
+            if trace_logs:
+                st.session_state.messages.append({"role": "assistant", "is_trace": True, "label": "Agent 处理轨迹", "content": "\n".join(trace_logs)})
+            
+            # 获取最终的完整状态
+            result_state = graph_app.get_state(config)
+            result = result_state.values
+            
+            # 更新状态显示
+            st.session_state.travel_state = result
+            
+            # 获取最后一条消息作为回复
+            messages = result.get("messages", [])
+            if messages:
+                last_msg = messages[-1]
+                # 兼容 BaseMessage 或 dict
+                if hasattr(last_msg, 'content'):
+                    content = last_msg.content
+                elif isinstance(last_msg, dict):
+                    content = last_msg.get("content", str(last_msg))
                 else:
-                    st.error("Agent 返回了空消息。")
-            except Exception as e:
-                st.error(f"执行出错: {str(e)}")
-                import traceback
+                    content = str(last_msg)
                 
+                st.markdown(content)
+                st.session_state.messages.append({"role": "assistant", "content": content})
+            else:
+                st.error("Agent 返回了空消息。")
+        except Exception as e:
+            st.error(f"执行出错: {str(e)}")
+            import traceback
+            st.code(traceback.format_exc())
+            
     # 强制刷新侧边栏状态，并保持页面位置
     st.rerun()

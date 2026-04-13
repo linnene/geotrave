@@ -35,23 +35,30 @@ def route_after_analyzer(state: TravelState):
     """
     路由逻辑：基于 Analyzer 提取的状态决定流程。
     
-    1. 必须要包含核心基础信息 (目的地、天数、人数、日期) 才允许流转到 Researcher 节点。
-    2. 如果基础信息不全，则留在 END (由 API 层根据 Analyzer 的 reply 返回追问)。
+    1. 必须要包含核心基础信息 (目的地、天数、人数、日期) 才允许进行后续节点。
+    2. 如果基础信息不全，则留在 END 等待用户补充。
+    3. 取消被动的状态快照对比，而是听从分析师大模型的自主决断(needs_research)，决定是否主动进入 researcher 节点。
     """
-    # 从 state 中读取字段，注意应与 state.py 中定义的 TravelState 键名保持一致
     core_req = state.get("core_requirements") or {}
     destination = core_req.get("destination")
     days = core_req.get("days")
-    people = core_req.get("people")          # CoreRequirementState 中定义为 'people'
+    people = core_req.get("people")          
     date = core_req.get("date")
-    budget = core_req.get("budget_limit")    # CoreRequirementState 中定义为 'budget_limit'
+    budget = core_req.get("budget_limit")    
+    needs_research = state.get("needs_research", False)
     
-    logger.debug(f"[Router] Decision checking: Dest={destination}, Days={days}, Date={date}, People={people}, Budget={budget}")
+    logger.debug(f"[Router Rule] Decision checking: Dest={destination}, Days={days}, Date={date}, People={people}, Budget={budget}, NeedsResearch={needs_research}")
     
-    # 基础信息闭环判断：目的地、天数、人数、日期
-    if destination and days and people and date:
-        logger.info(f"[Router] Routing to 'researcher' for: {destination}")
+    # 1. 基础信息不全
+    if not (destination and days and people and date):
+        logger.debug(f"[Router Rule] Base information incomplete. Waiting for user response.")
+        return END
+
+    # 2. 分析师判断需要重搜（例如：刚收集完/核心要素发生变更）
+    if needs_research:
+        logger.info(f"[Router Rule] Analyzer explicitly requested research. Routing to 'researcher' for: {destination}")
         return "researcher"
-    
-    logger.debug(f"[Router] Base information incomplete. Waiting for user response.")
+
+    # 3. 基础信息全，且无需搜索（可能是闲聊，或者一些不需要重新搜的微小改动）
+    logger.info(f"[Router Rule] Base info complete, but Analyzer decided no research needed. Ending turn.")
     return END

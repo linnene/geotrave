@@ -63,14 +63,20 @@ def researcher_node(state: TravelState):
         # 3. 网络搜索 (循环多条 Web Queries)
         if plan.web_queries:
             for q in plan.web_queries:
-                all_results.extend(ResearcherTools.search_web_ddg(query=q, max_results=5))
+                all_results.extend(ResearcherTools.search_web_ddg(query=q, max_results=10))
 
     # 4. 汇总 (为了向下兼容 Planner 节点)
     context_parts = []
     for item in all_results:
-        part = f"[{item.source.upper()}] {item.title}\n{item.content}"
-        if item.link and item.link != "#":
-            part += f"\nSource: {item.link}"
+        # 因为 item 现在是 TypedDict (即字典)，需要用类似 item["source"] 的方式取值
+        source_val = item.get("source", "unknown").upper()
+        title_val = item.get("title", "No Title")
+        content_val = item.get("content", "")
+        link_val = item.get("link")
+        
+        part = f"[{source_val}] {title_val}\n{content_val}"
+        if link_val and link_val != "#":
+            part += f"\nSource: {link_val}"
         context_parts.append(part)
     
     final_context = "\n\n---\n\n".join(context_parts) if context_parts else "No relevant information found."
