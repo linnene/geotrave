@@ -31,7 +31,8 @@ def researcher_node(state: TravelState):
     """
     检索节点：解耦后的研究员节点，使用独立模型配置。
     """
-    destination = state.get("destination")
+    core_req = state.get("core_requirements") or {}
+    destination = core_req.get("destination")
     if not destination:
         logger.debug("[Researcher Node] No destination provided, retrieval skipped.")
         return {

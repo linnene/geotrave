@@ -42,9 +42,8 @@ class RecommenderState(TypedDict):
     recommended_items: list[dict] | None
     user_selected_items: list[dict] | None
 
-class TravelState(TypedDict):
-    """全局状态白板"""
-    messages: Annotated[list[BaseMessage], add_messages]
+class CoreRequirementState(TypedDict):
+    """用户核心旅游需求（解耦后的基础信息）"""
     destination: str | None
     days: int | None
     date: list[str] | None
@@ -53,8 +52,16 @@ class TravelState(TypedDict):
     hard_constraints: HardConstraints
     soft_preferences: SoftPreferences
     tags: list[str] | None
+
+class TravelState(TypedDict):
+    """全局状态白板"""
+    messages: Annotated[list[BaseMessage], add_messages]
     
-    # 使用独立的属性存储子图或节点专用的私有状态，不污染公共白板
+    # 意图路由节点识别出来的最新用户意图，用于条件边分发
+    latest_intent: str | None
+    
+    # 彻底解耦的各个模块数据
+    core_requirements: CoreRequirementState | None
     search_data: SearchState | None
     recommender_data: RecommenderState | None
 
@@ -70,7 +77,7 @@ class TravelInfo(BaseModel):
     hard_constraints: HardConstraints = Field(default_factory=HardConstraints)
     soft_preferences: SoftPreferences = Field(default_factory=SoftPreferences)
     tags: List[str] = Field(default_factory=list)
-    reply: str = Field(description="话术回复")
+    reply: str = Field(description="追问User")
 
 # ----------------- Researcher node -----------------
 
@@ -80,9 +87,3 @@ class ResearchPlan(BaseModel):
     web_queries: List[str] = Field(default_factory=list, description="在线搜索关键词")
     need_weather: bool = Field(default=False)
     need_api: List[str] = Field(default_factory=list)
-
-# ----------------- Filter node -----------------
-class EvaluationResult(BaseModel):
-    """单条检索结果的判定模型"""
-    is_safe: bool = Field(..., description="内容是否合规")
-    is_relevant: bool = Field(..., description="内容是否相关")

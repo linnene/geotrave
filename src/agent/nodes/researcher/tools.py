@@ -20,7 +20,8 @@ class ResearcherTools:
         """
         根据当前 TravelState 产生结构化的检索方案
         """
-        destination = state.get("destination")
+        core_req = state.get("core_requirements") or {}
+        destination = core_req.get("destination")
         if not destination:
             return None
         
@@ -31,13 +32,13 @@ class ResearcherTools:
         # 变量准备
         prompt = research_query_prompt_template.format(
             destination=destination,
-            days=state.get("days"),
-            people_count=state.get("people_count"),
-            date=state.get("date"),
-            tags=state.get("tags", []),
-            budget_limit=state.get("budget_limit", 0),
-            hard_constraints=state.get("hard_constraints", {}),
-            soft_preferences=state.get("soft_preferences", {}),
+            days=core_req.get("days"),
+            people_count=core_req.get("people"),
+            date=core_req.get("date"),
+            tags=core_req.get("tags") or [],
+            budget_limit=core_req.get("budget_limit") or 0,
+            hard_constraints=core_req.get("hard_constraints", {}),
+            soft_preferences=core_req.get("soft_preferences", {}),
             format_instructions=parser.get_format_instructions()
         )
         

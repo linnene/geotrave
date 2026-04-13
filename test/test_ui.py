@@ -37,20 +37,22 @@ with st.sidebar:
         else:
             st.write(f"*{label} 尚无数据*")
 
-    display_state_field("HardConstraints", st.session_state.travel_state.get("hard_constraints"))
-    display_state_field("SoftPreferences", st.session_state.travel_state.get("soft_preferences"))
+    core_req = st.session_state.travel_state.get("core_requirements") or {}
+
+    display_state_field("HardConstraints", core_req.get("hard_constraints"))
+    display_state_field("SoftPreferences", core_req.get("soft_preferences"))
     
     # 新增：展示白板中的所有其他关键信息
     st.markdown("---")
     st.subheader("Core State")
     col1, col2 = st.columns(2)
     with col1:
-        st.metric("Destination", st.session_state.travel_state.get("destination") or "未确定")
-        st.metric("Days", st.session_state.travel_state.get("days") or "未知")
+        st.metric("Destination", core_req.get("destination") or "未确定")
+        st.metric("Days", core_req.get("days") or "未知")
     with col2:
-        st.metric("BudgetLimit", f"¥{st.session_state.travel_state.get('budget_limit')}" if st.session_state.travel_state.get('budget_limit') else "未设置")
+        st.metric("BudgetLimit", f"¥{core_req.get('budget_limit')}" if core_req.get('budget_limit') else "未设置")
         # 兼容处理：people 可能是 list 也可能是 int
-        people_val = st.session_state.travel_state.get("people")
+        people_val = core_req.get("people")
         display_people = 0
         if isinstance(people_val, list):
             display_people = len(people_val)
@@ -59,16 +61,16 @@ with st.sidebar:
         st.metric("People", display_people)
 
     # 展示标签
-    if st.session_state.travel_state.get("tags"):
+    if core_req.get("tags"):
         st.write("**TAG:**")
-        st.write(", ".join([f"`{tag}`" for tag in st.session_state.travel_state.get("tags")]))# type:ignore
+        st.write(", ".join([f"`{tag}`" for tag in core_req.get("tags")]))# type:ignore
 
     # 新增：展示研究员检索内容
     st.markdown("---")
     st.subheader("Researcher Result")
     
     # 获取新的结构化数据
-    search_data = st.session_state.travel_state.get("search_data") or {}
+    search_data = st.session_state.travel_state.get("search_data", {})
     retrieval_results = search_data.get("retrieval_results")
     if retrieval_results:
         with st.expander(f"查看结构化检索结果 ({len(retrieval_results)}条)", expanded=False):
