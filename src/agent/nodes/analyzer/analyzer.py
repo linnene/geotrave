@@ -65,14 +65,15 @@ async def analyzer_node(state: TravelState):
         # 回写至全局状态的 core_requirements 子字典
         return {
             "messages": [AIMessage(content=result.reply)],
+            "needs_research": result.needs_research,
             "core_requirements": {
                 "destination": result.destination,
                 "days": result.days,
                 "date": result.date,
                 "people": result.people_count,
                 "budget_limit": result.budget_limit,
-                "hard_constraints": result.hard_constraints,
-                "soft_preferences": result.soft_preferences,
+                "hard_constraints": result.hard_constraints.model_dump() if hasattr(result.hard_constraints, 'model_dump') else dict(result.hard_constraints),
+                "soft_preferences": result.soft_preferences.model_dump() if hasattr(result.soft_preferences, 'model_dump') else dict(result.soft_preferences),
                 "tags": result.tags
             }
         }
@@ -80,5 +81,6 @@ async def analyzer_node(state: TravelState):
         logger.error(f"[Analyzer Node] Failed to extract user info: {str(e)}")
         # 错误时保证最基本的回复，不中断工作流
         return {
-            "messages": [AIMessage(content="抱歉，在理解您的需求时遇到了一点小麻烦，能请您再详细说明一下吗？")]
+            "messages": [AIMessage(content="抱歉，在理解您的需求时遇到了一点小麻烦，能请您再详细说明一下吗？")],
+            "needs_research": False
         }

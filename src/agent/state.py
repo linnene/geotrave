@@ -1,7 +1,7 @@
 ﻿from langgraph.graph.message import add_messages
 from langchain_core.messages import BaseMessage
 
-from typing import Annotated, TypedDict, List, Dict, Optional
+from typing import Annotated, TypedDict, List, Dict, Optional, Any
 from pydantic import BaseModel, Field
 
 # ----------------- Con Models -----------------
@@ -21,13 +21,13 @@ class SoftPreferences(BaseModel):
     dietary_pref: List[str] = Field(default_factory=list, description="餐饮偏好")
     accommodation_type: List[str] = Field(default_factory=list, description="住宿偏好")
 
-class RetrievalItem(BaseModel):
-    """单条检索结果项"""
-    source: str = Field(..., description="来源标识: local, web, weather 等")
-    title: str = Field(..., description="标题")
-    content: str = Field(..., description="具体内容/摘要")
-    link: Optional[str] = Field(None, description="原始链接")
-    metadata: Dict = Field(default_factory=dict, description="额外元数据")
+class RetrievalItem(TypedDict):
+    """单条检索结果项（改为 TypedDict 避免 checkpointer msgpack 序列化报错）"""
+    source: str
+    title: str
+    content: str
+    link: Optional[str]
+    metadata: Dict[str, Any]
 
 # ----------------- Shared State -----------------
 
@@ -36,6 +36,7 @@ class SearchState(TypedDict):
     query_history: list[str] | None
     retrieval_context: str | None
     retrieval_results: list[RetrievalItem] | None
+    last_searched_req: dict | None  # 记录上一次检索时的全局需求特征快照
 
 class RecommenderState(TypedDict):
     """解耦的私有推荐状态，仅由推荐和计划节点维护"""
@@ -49,8 +50,8 @@ class CoreRequirementState(TypedDict):
     date: list[str] | None
     people: list[str] | None
     budget_limit: int | None
-    hard_constraints: HardConstraints
-    soft_preferences: SoftPreferences
+    hard_constraints: dict
+    soft_preferences: dict
     tags: list[str] | None
 
 class TravelState(TypedDict):
@@ -59,6 +60,9 @@ class TravelState(TypedDict):
     
     # 意图路由节点识别出来的最新用户意图，用于条件边分发
     latest_intent: str | None
+    
+    # 分析师判定的标志位，决定是否唤起检索节点
+    needs_research: bool | None
     
     # 彻底解耦的各个模块数据
     core_requirements: CoreRequirementState | None
@@ -78,6 +82,7 @@ class TravelInfo(BaseModel):
     soft_preferences: SoftPreferences = Field(default_factory=SoftPreferences)
     tags: List[str] = Field(default_factory=list)
     reply: str = Field(description="追问User")
+    needs_research: bool = Field(default=False, description="是否需要主动唤起检索节点（比如核心需求刚凑全、或者发生了关键变更使得旧信息不再适用时设为True）")
 
 # ----------------- Researcher node -----------------
 
