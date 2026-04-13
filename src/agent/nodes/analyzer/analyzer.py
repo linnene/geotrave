@@ -46,10 +46,16 @@ async def analyzer_node(state: TravelState):
     try:
         parser = PydanticOutputParser(pydantic_object=TravelInfo)
         
+        # 提取当前的全局核心需求状态，作为大模型增量更新的基底
+        current_state = state.get("core_requirements") or {}
+        
+        import json
+        
         # 准备提示词并注入
         prompt_value = analyzer_prompt_template.format(
             current_date=current_date,
             history=messages,
+            current_state=json.dumps(current_state, ensure_ascii=False, indent=2),
             format_instructions=parser.get_format_instructions()
         )
         
