@@ -17,22 +17,18 @@
 
 ## 迭代路线图
 
-### 第一阶段：结构化与交互重构 (当前重点)
-- [x] **研究员输出结构化**：将 Researcher 输出从纯文本改为 \RetrievalItem\ 对象列表。
-- [ ] **状态机扩展**：
-    - 在 \TravelState\ 中增加 \
-ecommendations\（备选池）和 \selected_items\（确认池）。
-    - 增加 \
-eeds_selection\ 标志位，由分析师根据用户需求变更和检索结果更新情况动态设置。
-- [ ] **推荐与收集节点 (Recommender) 实现**：
-    - **职责**：整理 Researcher 产出的原始数据，归类为景点/美食/住宿推荐给用户。
-    - **逻辑**：只有当 \
-eeds_selection=True\ 时才触发展示，并收集用户决策。
-- [ ] **交互式路由 (Router) 升级**：
-    - 分析师需识别用户是在提供需求、修改白板、挑选结果还是要求生成计划。
-    - **关键逻辑**：若用户修改了目的地或关键约束，自动重置 \
-eeds_selection\ 引导重新检索与挑选。
-- [ ] **Planner 节点实现**：基于用户最终确认的 \selected_items\ 生成详细行程。
+### 第一阶段：结构化与交互重构 (当前阶段)
+- [x] **状态结构重构 (State Decoupling)**：将全局巨大的 `TravelState` 解耦为 `SearchState`, `RecommenderState`, `CoreRequirementState`。使用原生 `TypedDict` 替代 Pydantic 的 `BaseModel` 以彻底解决 LangGraph Checkpointer (`MemorySaver`) 的 `msgpack` 序列化报错问题。
+- [x] **交互式路由 (Router Node)**：
+    - 新增独立意图网关节点，前置拦截恶意注入 (Prompt Injection) 和无关闲聊，提取 `RouterIntent`。
+    - 根据识别到的 `latest_intent` 动态决定是否放行至 Analyzer。
+- [x] **分析师动态唤起 (Analyzer Autonomy)**：
+    - 废弃被动的字典 diff 快照对比，赋予 Analyzer 专属标志位 `needs_research`。
+    - 改造 `prompt.py` 中 Analyzer 的提示词基底，支持传入 `{current_state}`，确保大模型拥有记忆继承能力，能根据当前基底进行增量更新。
+- [x] **Streamlit 轨迹监视器优化**：在 UI 界面中通过 `st.status` 获取 `graph_app.astream` 的流式事件，实时展示节点流转路径与大模型给出的内部参数（如意图、置信度、是否检索）。
+- [ ] **推荐系统搭建 (Recommender Node)**：
+    - **职责**：整理 Researcher 产出的结构化数据，归类为景点/美食/住宿推荐给用户筛选。
+- [ ] **Planner 节点实现**：基于用户最终确认的选中项生成详细行程安排。
 
 ### 第二阶段：检索质量与数据源优化
 - [ ] **多源聚合检索**：集成 Google Search API 或 SearXNG。
