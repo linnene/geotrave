@@ -14,6 +14,11 @@ RESEARCHER_MODEL_API_KEY = os.getenv("RESEARCHER_MODEL_API_KEY", "")
 RESEARCHER_MODEL_BASE_URL = os.getenv("RESEARCHER_MODEL_BASE_URL", "https://generativelanguage.googleapis.com/v1beta/openai")
 RESEARCHER_MODEL_ID = os.getenv("RESEARCHER_MODEL_ID", "gemini-1.5-flash")
 
+# --- 路由网关 (Router) 专属模型配置 ---
+ROUTER_MODEL_API_KEY = os.getenv("ROUTER_MODEL_API_KEY", "")
+ROUTER_MODEL_BASE_URL = os.getenv("ROUTER_MODEL_BASE_URL", "https://api.deepseek.com")
+ROUTER_MODEL_ID = os.getenv("ROUTER_MODEL_ID", "deepseek-chat")
+
 # --- 规划师 (Planner) 专属模型配置 (预留) ---
 PLANNER_MODEL_API_KEY = os.getenv("PLANNER_MODEL_API_KEY", "")
 PLANNER_MODEL_BASE_URL = os.getenv("PLANNER_MODEL_BASE_URL", "https://api.openai.com/v1")
