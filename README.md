@@ -4,12 +4,12 @@
 
 ###  基于 LangGragh 的多智能体协作旅行规划师「GeoTrave」![alt text](assets/GeoTrave.ico)
 ## CORE  
-- **对话引擎**：基于 **LangGraph** 构建的多Agent协作机，以期实现较为复杂的自然语言需求分析与任务拆解。
-- **RAG**：使用 **ChromaDB** 本地向量数据库支持RAG，提供行业知识检索与实时的旅行方案生成。
-- **大模型支持**：LangGragh支持的主流模型，任务分配包括分析、搜索规划与 Embedding 编码。
-- **高性能后端**：使用 **FastAPI** 作为后端框架来构建对话接口，保障高并发场景下的会话隔离与响应速度。
+- **对话引擎**：基于 **LangGraph** 构建的多Agent协作机，以期实现较为复杂的自然语言需求分析与任务拆解。包含独立的网关路由节点(Router)用于意图分类与拦截、分析师节点(Analyzer)负责需求提取与合并记忆、研究员节点(Researcher)进行多维度的数据获取。
+- **RAG & DuckDuckGo**：整合本地 **ChromaDB** 向量数据库与云端互联网检索，提供结构化的旅游信息与决策支撑点。
+- **动态状态白板**：精巧解耦的 `TravelState`，融合持久化记忆节点 (`MemorySaver`) 支持基于会话 (Session) 的多轮渐进式对话机制。
+- **轻量前端**：基于 **Streamlit** 的测试面板，能够通过折叠菜单实时查阅状态树变化与大模型运行轨迹节点流转。
 
-![alt text](assets/image.png)
+![alt text](assets/Gragh.png)
 
 ## Getting Started
 
@@ -40,14 +40,15 @@ uv sync
 uv run python src/main.py
 ```
 ### StreamLit 测试页面
-
+![alt text](assets/test.png)
 ```bash
 uv run streamlit run test/test_ui.py
 ```
-![alt text](assets/test.png)
+> UI 界面经过重构，目前支持完整的流式实时输出和折叠式的状态推理路径（包括意图分类、置信度以及模型判断的检索标志）。
+
 ###  测试架构
 *   **测试框架**：基于 `pytest` + `pytest-asyncio` 实现对 LangGraph 异步工作流的非阻塞断言。
-*   **评测维度**：验证 `TravelState` 字段提取准确度、多轮对话记忆累积及 Session 隔离性 (Dimension 2)。
+*   **评测维度**：验证 `TravelState` 字段提取准确度、多轮对话记忆累积及 Session 隔离性、Router 拦截逻辑、特定场景下的 `needs_research` 唤起。
 *   **本地运行**：
     ```powershell
     # Windows (PowerShell)
