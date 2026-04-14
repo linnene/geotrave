@@ -2,9 +2,9 @@ name: GeoTrave-base-test-CI (uv)
 
 on:
   push:
-    branches: [ "master" ]
+    branches: [ "master", "dev" ]
   pull_request:
-    branches: [ "master" ]
+    branches: [ "master", "dev" ]
 
 jobs:
   test:
@@ -32,12 +32,9 @@ jobs:
       # 5. 运行全维度 Agent 评估测试 (Dimension 2: Workflow)
       - name: Run Agent Workflow Evaluation
         env:
-          ANALYZER_MODEL_API_KEY: ${{ secrets.ANALYZER_MODEL_API_KEY }}
-          ANALYZER_MODEL_BASE_URL: ${{ secrets.ANALYZER_MODEL_BASE_URL }}
-          ANALYZER_MODEL_ID: ${{ secrets.ANALYZER_MODEL_ID }}
-          RESEARCHER_MODEL_API_KEY: ${{ secrets.RESEARCHER_MODEL_API_KEY }}
-          RESEARCHER_MODEL_BASE_URL: ${{ secrets.RESEARCHER_MODEL_BASE_URL }}
-          RESEARCHER_MODEL_ID: ${{ secrets.RESEARCHER_MODEL_ID }}
-          TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
-          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          GLOBAL_MODEL_API_KEY: ${{ secrets.GLOBAL_MODEL_API_KEY }}
+          GLOBAL_MODEL_BASE_URL: ${{ secrets.GLOBAL_MODEL_BASE_URL }}
+          GLOBAL_MODEL_ID: ${{ secrets.GLOBAL_MODEL_ID }}
+          EMBEDDING_MODEL: ${{ secrets.EMBEDDING_MODEL }}
+          EMBEDDING_MODEL_API_KEY: ${{ secrets.EMBEDDING_MODEL_API_KEY }}
         run: uv run pytest test/eval/test_agent_workflow.py -v

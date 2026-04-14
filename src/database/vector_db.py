@@ -12,7 +12,7 @@ from utils.config import(
 # INIT Google`s Embedding MODEL
 embeddings = GoogleGenerativeAIEmbeddings(
     model = EMBEDDING_MODEL,
-    api_key = SecretStr(EMBEDDING_MODEL_API_KEY),
+    api_key = SecretStr(EMBEDDING_MODEL_API_KEY or "dummy_api_key_for_testing"),
 )
 
 def get_vector_store(collection_name: str = "geotrave_guides"):
