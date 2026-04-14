@@ -8,7 +8,8 @@ from ddgs import DDGS
 from database.vector_db import search_similar_documents
 from utils.logger import logger
 from utils.prompt import research_query_prompt_template
-from agent.state import ResearchPlan, RetrievalItem
+from agent.state import RetrievalItem
+from agent.schema import ResearchPlan
 
 class ResearcherTools:
     """
@@ -35,8 +36,8 @@ class ResearcherTools:
             days=core_req.get("days"),
             people_count=core_req.get("people"),
             date=core_req.get("date"),
-            tags=core_req.get("tags") or [],
             budget_limit=core_req.get("budget_limit") or 0,
+            secondary_preferences=state.get("secondary_preferences", {}),
             conversation_summary=state.get("conversation_summary", {}),
             format_instructions=parser.get_format_instructions()
         )

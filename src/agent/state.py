@@ -2,7 +2,6 @@
 from langchain_core.messages import BaseMessage
 
 from typing import Annotated, TypedDict, List, Dict, Optional, Any
-from pydantic import BaseModel, Field
 
 # ----------------- Con Models -----------------
 
@@ -35,13 +34,19 @@ class CoreRequirementState(TypedDict):
     date: list[str] | None
     people: list[str] | None
     budget_limit: int | None
-    tags: list[str] | None
+
+class SecondaryPreferencesState(TypedDict):
+    """用户次要需求/偏好（细粒度的结构化分类，避免重叠冲突）"""
+    accommodation: str | None
+    dining: str | None
+    transportation: str | None
+    pace: str | None  # 游玩节奏，例如"休闲", "紧凑/特种兵"
+    activities: list[str] | None  # 兴趣活动，例如"看海", "购物", "博物馆"
 
 class ConversationSummaryState(TypedDict):
-    """对话总结与约束维护：由分析师维护的细粒度偏好池"""
-    core_constraints: list[str]
-    temp_preferences: list[str]
-    rejected_items: list[str]
+    """对话总结与约束维护：由分析师维护的细粒度偏好池（解决重叠问题，简化为正面偏好和负面避雷）"""
+    preferences: list[str]
+    avoidances: list[str]
 
 class TravelState(TypedDict):
     """全局状态白板"""
@@ -55,35 +60,7 @@ class TravelState(TypedDict):
     
     # 彻底解耦的各个模块数据
     core_requirements: CoreRequirementState | None
+    secondary_preferences: SecondaryPreferencesState | None
     conversation_summary: ConversationSummaryState | None
     search_data: SearchState | None
     recommender_data: RecommenderState | None
-
-# ----------------- Analyzer node -----------------
-
-class ConversationSummary(BaseModel):
-    """分析师输出的总结数据，用于转换为 TypedDict"""
-    core_constraints: List[str] = Field(default_factory=list, description="用户提到的核心硬性约束/要求")
-    temp_preferences: List[str] = Field(default_factory=list, description="用户的临时偏好或随口一提的兴趣")
-    rejected_items: List[str] = Field(default_factory=list, description="用户已明确否定/不喜欢/拒绝的选项")
-
-class TravelInfo(BaseModel):
-    """分析师输出的结构化数据"""
-    destination: List[str] = Field(default_factory=list, description="目的地列表(支持多个)")
-    days: Optional[int] = Field(None, description="天数")
-    date: Optional[List[Optional[str]]] = Field(None, min_length=2, max_length=2)
-    people_count: Optional[int] = Field(default=1)
-    budget_limit: Optional[int] = Field(default=0)
-    tags: List[str] = Field(default_factory=list)
-    conversation_summary: ConversationSummary = Field(default_factory=ConversationSummary)
-    needs_research: bool = Field(default=False, description="是否需要主动唤起检索节点（比如核心需求刚凑全、或者发生了关键变更使得旧信息不再适用时设为True）")
-    reply: str = Field(description="追问User")
-
-# ----------------- Researcher node -----------------
-
-class ResearchPlan(BaseModel):
-    """研究员生成的检索计划"""
-    local_query: Optional[str] = Field(description="知识库检索关键词")
-    web_queries: List[str] = Field(default_factory=list, description="在线搜索关键词")
-    need_weather: bool = Field(default=False)
-    need_api: List[str] = Field(default_factory=list)

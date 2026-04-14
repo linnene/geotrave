@@ -7,7 +7,8 @@ from pydantic import SecretStr
 from langchain_core.output_parsers import PydanticOutputParser
 
 
-from agent.state import TravelState, TravelInfo
+from agent.state import TravelState
+from agent.schema import TravelInfo
 from utils.prompt import analyzer_prompt_template
 from utils.logger import logger
 
@@ -48,6 +49,7 @@ async def analyzer_node(state: TravelState):
         
         # 提取当前的全局核心需求状态，作为大模型增量更新的基底
         current_state = state.get("core_requirements") or {}
+        current_sec_pref = state.get("secondary_preferences") or {}
         current_summary = state.get("conversation_summary") or {}
         
         import json
@@ -57,6 +59,7 @@ async def analyzer_node(state: TravelState):
             current_date=current_date,
             history=messages,
             current_state=json.dumps(current_state, ensure_ascii=False, indent=2),
+            current_sec_pref=json.dumps(current_sec_pref, ensure_ascii=False, indent=2),
             current_summary=json.dumps(current_summary, ensure_ascii=False, indent=2),
             format_instructions=parser.get_format_instructions()
         )
@@ -67,21 +70,19 @@ async def analyzer_node(state: TravelState):
         result = await chain.ainvoke(prompt_value)
         
         logger.info(f"[Analyzer Node] Analysis complete: {result.destination} for {result.days} days.")
-        if result.tags:
-            logger.debug(f"[Analyzer Node] Identified Tags: {result.tags}")
         
         # 回写至全局状态的 core_requirements 子字典
         return {
             "messages": [AIMessage(content=result.reply)],
             "needs_research": result.needs_research,
+            "secondary_preferences": result.secondary_preferences.model_dump() if hasattr(result.secondary_preferences, 'model_dump') else dict(result.secondary_preferences),
             "conversation_summary": result.conversation_summary.model_dump() if hasattr(result.conversation_summary, 'model_dump') else dict(result.conversation_summary),
             "core_requirements": {
                 "destination": result.destination,
                 "days": result.days,
                 "date": result.date,
                 "people": result.people_count,
-                "budget_limit": result.budget_limit,
-                "tags": result.tags
+                "budget_limit": result.budget_limit
             }
         }
     except Exception as e:

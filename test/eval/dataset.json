@@ -5,7 +5,7 @@
       "description": "单轮基本需求提取测试",
       "input": "我想去大理玩3天，预算大概5000元，2个人",
       "expected_state": {
-        "destination": "大理",
+        "destination": ["大理"],
         "days": 3,
         "budget_limit": "5000"
       }
@@ -16,7 +16,7 @@
       "input": "1个人去西藏玩10天",
       "update_input": "预算一万",
       "expected_state": {
-        "destination": "西藏",
+        "destination": ["西藏"],
         "people": 1,
         "budget_limit": "10000"
       }
@@ -27,7 +27,7 @@
       "input": "我们4个人要去新疆",
       "update_input": "预计玩7天",
       "expected_state": {
-        "destination": "新疆",
+        "destination": ["新疆"],
         "days": 7
       }
     },
@@ -40,7 +40,7 @@
         "下周一出发，预算一万二"
       ],
       "expected_state": {
-        "destination": "三亚",
+        "destination": ["三亚"],
         "days": 4,
         "people": 3,
         "budget_limit": "12000"

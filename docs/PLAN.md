@@ -26,6 +26,9 @@
     - 废弃被动的字典 diff 快照对比，赋予 Analyzer 专属标志位 `needs_research`。
     - 改造 `prompt.py` 中 Analyzer 的提示词基底，支持传入 `{current_state}`，确保大模型拥有记忆继承能力，能根据当前基底进行增量更新。
 - [x] **Streamlit 轨迹监视器优化**：在 UI 界面中通过 `st.status` 获取 `graph_app.astream` 的流式事件，实时展示节点流转路径与大模型给出的内部参数（如意图、置信度、是否检索）。
+- [ ] **全局状态模型深度重构 (Deep State Refactoring)**：
+    - **当前痛点**：`state.py` 里的 `TravelState` 以及各个子模块的 TypedDict 虽然解耦了一次，但是整体层级仍然杂乱冗余，节点之间流转的信息和业务字段耦合过深。
+    - **下一步优化方向**：重新梳理 Agent 全局的节点流转信息模板（State Schema），精简状态树层级，确保每一级数据的边界清晰，减少开发认知负担和调试难度。
 - [ ] **推荐系统搭建 (Recommender Node)**：
     - **职责**：整理 Researcher 产出的结构化数据，归类为景点/美食/住宿推荐给用户筛选。
 - [ ] **Planner 节点实现**：基于用户最终确认的选中项生成详细行程安排。
