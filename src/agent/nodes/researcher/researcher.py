@@ -53,7 +53,8 @@ def researcher_node(state: TravelState):
     
     if not plan:
         # 如果计划生成失败，进行基础检索降级
-        fallback_results = ResearcherTools.search_local_kt(destination)
+        fallback_query = ",".join(destination) if isinstance(destination, list) else str(destination)
+        fallback_results = ResearcherTools.search_local_kt(fallback_query)
         all_results.extend(fallback_results)
     else:
         # 2. 从本地知识库检索
