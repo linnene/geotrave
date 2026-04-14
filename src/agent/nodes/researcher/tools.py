@@ -50,10 +50,11 @@ class ResearcherTools:
             return plan
         except Exception as e:
             logger.error(f"[Researcher Tools] Plan generation failed: {str(e)}")
+            dest_str = ",".join(destination) if isinstance(destination, list) else str(destination)
             # 降级方案：返回最基础的检索
             return ResearchPlan(
-                local_query=destination,
-                web_queries=[f"{destination} 旅游攻略"]
+                local_query=dest_str,
+                web_queries=[f"{dest_str} 旅游攻略"]
             )
 
     @staticmethod

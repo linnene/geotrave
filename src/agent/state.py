@@ -45,7 +45,7 @@ class RecommenderState(TypedDict):
 
 class CoreRequirementState(TypedDict):
     """用户核心旅游需求（解耦后的基础信息）"""
-    destination: str | None
+    destination: list[str] | None
     days: int | None
     date: list[str] | None
     people: list[str] | None
@@ -73,7 +73,7 @@ class TravelState(TypedDict):
 
 class TravelInfo(BaseModel):
     """分析师输出的结构化数据"""
-    destination: Optional[str] = Field(None, description="目的地")
+    destination: List[str] = Field(default_factory=list, description="目的地列表(支持多个)")
     days: Optional[int] = Field(None, description="天数")
     date: Optional[List[Optional[str]]] = Field(None, min_length=2, max_length=2)
     people_count: Optional[int] = Field(default=1)
