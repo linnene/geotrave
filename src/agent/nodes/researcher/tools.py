@@ -105,14 +105,23 @@ class ResearcherTools:
             try:
                 logger.debug(f"[Researcher Tools] Web search (DDG) for: {query} (Attempt {attempt + 1})")
                 
-                from duckduckgo_search import DDGS
+                from ddgs import DDGS
                 
-                # Duckduckgo >= 7.0/8.0 uses sync-looking methods for atext by awaiting asyncio.to_thread 
-                # or native httpx async inside if needed. Alternatively we wrap the sync call in to_thread entirely.
+                # We wrap the sync call in to_thread entirely to prevent event loop blocking. 
+                # We also explicitly ensure connections are closed or managed by the context manager.
                 def _sync_ddgs():
-                    with DDGS(timeout=timeout) as ddgs:
-                        return list(ddgs.text(query, max_results=max_results, safesearch='on'))
-                        
+                    # Python 3.12 asyncio under Windows can sometimes loudly complain about unclosed socket transports from HTTP libraries.
+                    # As a preventative measure during tests we can ignore ResourceWarnings locally.
+                    import warnings
+                    with warnings.catch_warnings():
+                        warnings.simplefilter("ignore", ResourceWarning)
+                        with DDGS(timeout=timeout) as ddgs:
+                            try:
+                                # explicitly cast to list before leaving context
+                                return list(ddgs.text(query, max_results=max_results, safesearch='on'))
+                            finally:
+                                pass
+                            
                 results = await asyncio.to_thread(_sync_ddgs)
 
                 if not results:
