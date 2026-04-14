@@ -6,21 +6,6 @@ from pydantic import BaseModel, Field
 
 # ----------------- Con Models -----------------
 
-class HardConstraints(BaseModel):
-    """硬约束集合：具有一票否决权的信息"""
-    budget_limit: Optional[int] = Field(None, description="预算绝对上限")
-    max_walk_km: Optional[float] = Field(None, description="每日最大步行距离（km）")
-    visa_restrictions: List[str] = Field(default_factory=list, description="签证或证件限制")
-    allergies: List[str] = Field(default_factory=list, description="明确的过敏史")
-    locked_resources: List[Dict] = Field(default_factory=list, description="已锁定的资源")
-
-class SoftPreferences(BaseModel):
-    """软偏好集合：用于加权评分的信息"""
-    travel_pace: Optional[str] = Field(None, description="旅行节奏")
-    interests: List[str] = Field(default_factory=list, description="偏好主题")
-    dietary_pref: List[str] = Field(default_factory=list, description="餐饮偏好")
-    accommodation_type: List[str] = Field(default_factory=list, description="住宿偏好")
-
 class RetrievalItem(TypedDict):
     """单条检索结果项（改为 TypedDict 避免 checkpointer msgpack 序列化报错）"""
     source: str
@@ -50,9 +35,13 @@ class CoreRequirementState(TypedDict):
     date: list[str] | None
     people: list[str] | None
     budget_limit: int | None
-    hard_constraints: dict
-    soft_preferences: dict
     tags: list[str] | None
+
+class ConversationSummaryState(TypedDict):
+    """对话总结与约束维护：由分析师维护的细粒度偏好池"""
+    core_constraints: list[str]
+    temp_preferences: list[str]
+    rejected_items: list[str]
 
 class TravelState(TypedDict):
     """全局状态白板"""
@@ -66,10 +55,17 @@ class TravelState(TypedDict):
     
     # 彻底解耦的各个模块数据
     core_requirements: CoreRequirementState | None
+    conversation_summary: ConversationSummaryState | None
     search_data: SearchState | None
     recommender_data: RecommenderState | None
 
 # ----------------- Analyzer node -----------------
+
+class ConversationSummary(BaseModel):
+    """分析师输出的总结数据，用于转换为 TypedDict"""
+    core_constraints: List[str] = Field(default_factory=list, description="用户提到的核心硬性约束/要求")
+    temp_preferences: List[str] = Field(default_factory=list, description="用户的临时偏好或随口一提的兴趣")
+    rejected_items: List[str] = Field(default_factory=list, description="用户已明确否定/不喜欢/拒绝的选项")
 
 class TravelInfo(BaseModel):
     """分析师输出的结构化数据"""
@@ -78,11 +74,10 @@ class TravelInfo(BaseModel):
     date: Optional[List[Optional[str]]] = Field(None, min_length=2, max_length=2)
     people_count: Optional[int] = Field(default=1)
     budget_limit: Optional[int] = Field(default=0)
-    hard_constraints: HardConstraints = Field(default_factory=HardConstraints)
-    soft_preferences: SoftPreferences = Field(default_factory=SoftPreferences)
     tags: List[str] = Field(default_factory=list)
-    reply: str = Field(description="追问User")
+    conversation_summary: ConversationSummary = Field(default_factory=ConversationSummary)
     needs_research: bool = Field(default=False, description="是否需要主动唤起检索节点（比如核心需求刚凑全、或者发生了关键变更使得旧信息不再适用时设为True）")
+    reply: str = Field(description="追问User")
 
 # ----------------- Researcher node -----------------
 

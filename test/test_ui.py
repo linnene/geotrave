@@ -38,9 +38,11 @@ with st.sidebar:
             st.write(f"*{label} 尚无数据*")
 
     core_req = st.session_state.travel_state.get("core_requirements") or {}
+    conv_summary = st.session_state.travel_state.get("conversation_summary") or {}
 
-    display_state_field("HardConstraints", core_req.get("hard_constraints"))
-    display_state_field("SoftPreferences", core_req.get("soft_preferences"))
+    display_state_field("Core Constraints", conv_summary.get("core_constraints"))
+    display_state_field("Temp Preferences", conv_summary.get("temp_preferences"))
+    display_state_field("Rejected Items", conv_summary.get("rejected_items"))
     
     # 新增：展示白板中的所有其他关键信息
     st.markdown("---")
