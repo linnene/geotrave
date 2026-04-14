@@ -37,13 +37,14 @@ async def researcher_node(state: TravelState):
     destination = core_req.get("destination")
     if not destination:
         logger.debug("[Researcher Node] No destination provided, retrieval skipped.")
-        return {
+        yield {
             "search_data": {
                 "query_history": [],
                 "retrieval_context": "No destination provided, retrieval skipped.",
                 "retrieval_results": []
             }
         }
+        return
 
     logger.info(f"[Researcher Node] Start async research for: {destination}")
 
@@ -66,52 +67,56 @@ async def researcher_node(state: TravelState):
             for q in plan.web_queries:
                 tasks.append(ResearcherTools.search_web_ddg(query=q, max_results=10))
 
-    # 并发执行所有检索任务
+    # 并发执行所有检索任务，使用 as_completed 使得哪条检索先完成就先写入哪条
     logger.debug(f"[Researcher Node] Concurrently executing {len(tasks)} retrieval tasks...")
-    gathered_results = await asyncio.gather(*tasks, return_exceptions=True)
     
-    # 压平并过滤结果
     all_results = []
-    for res in gathered_results:
-        if isinstance(res, Exception):
-            logger.error(f"[Researcher Node] A retrieval task failed: {res}")
-            continue
-        if isinstance(res, list):
-            all_results.extend(res)
+    plan_web_queries = plan.web_queries if plan else []
 
-    # 4. 汇总 (为了向下兼容 Planner 节点)
-    context_parts = []
-    
+    # 遍历只要有任何一个 task 完成就立即处理并 yield 出来 (流式写入)
+    for completed_task in asyncio.as_completed(tasks):
+        try:
+            res = await completed_task
+            if isinstance(res, list):
+                all_results.extend(res)
+            
+            # 构建中间累加的文本
+            context_parts = []
+            for item in all_results:
+                source_val = item.get("source", "unknown").upper() if isinstance(item, dict) else getattr(item, "source", "unknown").upper()
+                title_val = item.get("title", "No Title") if isinstance(item, dict) else getattr(item, "title", "No Title")
+                content_val = item.get("content", "") if isinstance(item, dict) else getattr(item, "content", "")
+                link_val = item.get("link") if isinstance(item, dict) else getattr(item, "link", None)
+                
+                part = f"[{source_val}] {title_val}\n{content_val}"
+                if link_val and link_val != "#":
+                    part += f"\nSource: {link_val}"
+                context_parts.append(part)
+
+            final_context = "\n\n---\n\n".join(context_parts) if context_parts else "No relevant information found."
+            
+            # 流式递增 Yield 当前收集到的总进度
+            yield {
+                "needs_research": False,
+                "search_data": {
+                    "query_history": plan_web_queries,
+                    "retrieval_context": final_context,
+                    "retrieval_results": all_results.copy()
+                }
+            }
+            
+        except Exception as e:
+            logger.error(f"[Researcher Node] A retrieval task failed: {e}")
+            continue
+
+    # 当没有任何结果时兜底 yield 一次
     if not all_results:
         logger.debug("[Researcher Node] Empty results. Return with needs_research reset.")
-        return {
+        yield {
             "needs_research": False,
             "search_data": {
-                "query_history": plan.web_queries if plan else [],
+                "query_history": plan_web_queries,
                 "retrieval_context": "No relevant information found.",
                 "retrieval_results": []
             }
         }
-        
-    for item in all_results:
-        # 因为 item 现在是 TypedDict (即字典)，需要用类似 item["source"] 的方式取值
-        source_val = item.get("source", "unknown").upper() if isinstance(item, dict) else getattr(item, "source", "unknown").upper()
-        title_val = item.get("title", "No Title") if isinstance(item, dict) else getattr(item, "title", "No Title")
-        content_val = item.get("content", "") if isinstance(item, dict) else getattr(item, "content", "")
-        link_val = item.get("link") if isinstance(item, dict) else getattr(item, "link", None)
-        
-        part = f"[{source_val}] {title_val}\n{content_val}"
-        if link_val and link_val != "#":
-            part += f"\nSource: {link_val}"
-        context_parts.append(part)
-    
-    final_context = "\n\n---\n\n".join(context_parts) if context_parts else "No relevant information found."
-    
-    return {
-        "needs_research": False,  # 检索完毕后重置标志位，避免状态树遗留被后续节点误用
-        "search_data": {
-            "query_history": plan.web_queries if plan else [],
-            "retrieval_context": final_context,
-            "retrieval_results": all_results
-        }
-    }

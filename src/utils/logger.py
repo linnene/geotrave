@@ -9,8 +9,8 @@ def get_logger(name: str):
     """
     logger = logging.getLogger(name)
     
-    # 默认 DEBUG 级别
-    numeric_level = logging.DEBUG
+    # 动态获取配置的日志级别，缺省为 INFO
+    numeric_level = getattr(logging, LOG_LEVEL.upper(), logging.INFO)
     
     if not logger.handlers:
         logger.setLevel(numeric_level)

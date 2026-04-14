@@ -47,12 +47,15 @@ def _getCachedSearchResults(query: str, k: int):
     return results
 
 #TODO：完善RAG检索接口，增加检索参数query,异步查询逻辑完善
-def search_similar_documents(query: str, k: int = 3):
+async def search_similar_documents(query: str, k: int = 3):
     """
-    search similar txts from vector db
+    search similar txts from vector db asynchronously
     """
-    # 如果 query 和 k 相同，直接从内存缓存返回结果，不再调用远程 API 进行向量化
-    return _getCachedSearchResults(query, k)
+    import asyncio
+    # 利用 to_thread 将阻塞的 requests API （Embedding 动作等）丢到后台真线程里执行
+    # 如果 query 和 k 相同，也照样可以通过被 lru_cache 装饰的底层函数利用到内存缓存
+    results = await asyncio.to_thread(_getCachedSearchResults, query, k)
+    return results
 
 
 def get_document_count() -> int:
