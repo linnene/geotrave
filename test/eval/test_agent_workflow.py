@@ -42,9 +42,12 @@ class TestAgentWorkflow:
         expected = case["expected_state"]
         for key, val in expected.items():
             if result is not None:
-                if key in ["core_constraints", "temp_preferences", "rejected_items"]:
+                if key in ["preferences", "avoidances"]:
                     summary = result.get("conversation_summary") or {}
                     actual = summary.get(key)
+                elif key in ["accommodation", "dining", "transportation", "pace", "activities"]:
+                    sec_pref = result.get("secondary_preferences") or {}
+                    actual = sec_pref.get(key)
                 else:
                     core_req = result.get("core_requirements") or {}
                     actual = core_req.get(key)
