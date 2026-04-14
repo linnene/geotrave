@@ -1,9 +1,7 @@
+import asyncio
 from typing import Optional, Dict, List
 from langchain_core.output_parsers import PydanticOutputParser
 from langchain_openai import ChatOpenAI
-import time
-from ddgs import DDGS
-
 
 from database.vector_db import search_similar_documents
 from utils.logger import logger
@@ -17,7 +15,7 @@ class ResearcherTools:
     """
     
     @staticmethod
-    def generate_research_plan(state: Dict,LLM :ChatOpenAI) -> Optional[ResearchPlan]:
+    async def generate_research_plan(state: Dict,LLM :ChatOpenAI) -> Optional[ResearchPlan]:
         """
         根据当前 TravelState 产生结构化的检索方案
         """
@@ -29,6 +27,12 @@ class ResearcherTools:
         # 初始化模型与解析器
         llm = LLM
         parser = PydanticOutputParser(pydantic_object=ResearchPlan)
+        
+        # 获取最近K条对话（这里提取最近3条）
+        messages = state.get("messages", [])
+        # 取最后3条消息并转成文本，让研究员理解当下的语境
+        recent_k_messages = messages[-3:] if len(messages) >= 3 else messages
+        recent_context_str = "\n".join([f"{msg.type}: {msg.content}" for msg in recent_k_messages]) if recent_k_messages else "No recent context."
         
         # 变量准备
         prompt = research_query_prompt_template.format(
@@ -44,12 +48,13 @@ class ResearcherTools:
             activities=user_profile.get("activities", []),
             preferences=user_profile.get("preferences", []),
             avoidances=user_profile.get("avoidances", []),
+            recent_context=recent_context_str,
             format_instructions=parser.get_format_instructions()
         )
         
         try:
             logger.debug(f"[Researcher Tools] Thinking about research plan for: {destination}")
-            response = llm.invoke(prompt)
+            response = await llm.ainvoke(prompt)
             plan = parser.parse(response.content) # type: ignore
             logger.debug(f"[Researcher Tools] Plan generated: {plan}")
             return plan
@@ -63,13 +68,13 @@ class ResearcherTools:
             )
 
     @staticmethod
-    def search_local_kt(query: str, k: int = 3) -> List[RetrievalItem]:
+    async def search_local_kt(query: str, k: int = 3) -> List[RetrievalItem]:
         """
         从本地向量知识库(ChromaDB)中检索信息，返回结构化列表
         """
         try:
             logger.debug(f"[Researcher Tools] Local RAG search for: {query}")
-            search_results = search_similar_documents(query=query, k=k)
+            search_results = await asyncio.to_thread(search_similar_documents, query, k)
             
             items = []
             for doc in search_results:
@@ -86,7 +91,7 @@ class ResearcherTools:
             return []
 
     @staticmethod
-    def search_web_ddg(query: str, max_results: int = 10) -> List[RetrievalItem]:
+    async def search_web_ddg(query: str, max_results: int = 10) -> List[RetrievalItem]:
         """
         使用 DuckDuckGo 进行在线搜索，获取最新的网页摘要。
         返回结构化的 RetrievalItem 列表。
@@ -100,10 +105,15 @@ class ResearcherTools:
             try:
                 logger.debug(f"[Researcher Tools] Web search (DDG) for: {query} (Attempt {attempt + 1})")
                 
-                # DDGS 本身下初始化时支持 timeout
-                with DDGS(timeout=timeout) as ddgs:
-                    # 使用 safesearch='on' 开启安全搜索，过滤成人/违禁内容
-                    results = list(ddgs.text(query, max_results=max_results, safesearch='on'))
+                from duckduckgo_search import DDGS
+                
+                # Duckduckgo >= 7.0/8.0 uses sync-looking methods for atext by awaiting asyncio.to_thread 
+                # or native httpx async inside if needed. Alternatively we wrap the sync call in to_thread entirely.
+                def _sync_ddgs():
+                    with DDGS(timeout=timeout) as ddgs:
+                        return list(ddgs.text(query, max_results=max_results, safesearch='on'))
+                        
+                results = await asyncio.to_thread(_sync_ddgs)
 
                 if not results:
                     return []
@@ -135,7 +145,7 @@ class ResearcherTools:
             except Exception as e:
                 logger.warning(f"[Researcher Tools] DDG Attempt {attempt + 1} failed: {str(e)}")
                 if attempt < max_retries:
-                    time.sleep(1) # 短暂等待后重试
+                    await asyncio.sleep(1) # 短暂等待后重试
                     continue
                 else:
                     logger.error(f"[Researcher Tools] Web search exhausted retries: {str(e)}")

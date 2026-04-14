@@ -5,6 +5,9 @@ import os
 import asyncio
 
 
+from streamlit.runtime.scriptrunner import add_script_run_ctx, get_script_run_ctx
+from threading import current_thread
+
 root_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.append(os.path.join(root_path, "src"))
 sys.path.append(root_path)
@@ -53,6 +56,8 @@ with st.sidebar:
     # 新增：展示白板中的所有其他关键信息
     st.markdown("---")
     st.subheader("Core State")
+    st.info(f"Latest Intent: `{st.session_state.travel_state.get('latest_intent', 'None')}`")
+    st.info(f"Needs Research: `{st.session_state.travel_state.get('needs_research', False)}`")
     col1, col2 = st.columns(2)
     with col1:
         dest_val = user_profile.get("destination")
@@ -71,7 +76,13 @@ with st.sidebar:
     
     # 获取新的结构化数据
     search_data = st.session_state.travel_state.get("search_data", {})
-    retrieval_results = search_data.get("retrieval_results")
+    queries = search_data.get("query_history", [])
+    if queries:
+        st.write("**本次由大模型生成的检索词 (Queries):**")
+        for q in queries:
+            st.caption(f"- `{q}`")
+            
+    retrieval_results = search_data.get("retrieval_results") or []
     if retrieval_results:
         with st.expander(f"查看结构化检索结果 ({len(retrieval_results)}条)", expanded=False):
             for i, item in enumerate(retrieval_results):
@@ -120,11 +131,20 @@ if prompt := st.chat_input("输入你的旅行需求 (例如: 我想去大理，
         try:
             inputs = {"messages": [("user", prompt)]}
             
+            # 使用两个容器：上面放回复（立刻显示），下面放轨迹
+            reply_container = st.empty()
             status_container = st.status("Agent 处理轨迹...", expanded=True)
             trace_logs = []
             
+            # 抓取当前的上下文
+            ctx = get_script_run_ctx()
+            
             async def run_graph():
-                async for event in graph_app.astream(inputs, config=config, stream_mode="updates"):
+                # 内部显式重新挂载
+                add_script_run_ctx(ctx=ctx)
+                
+                async for event in graph_app.astream(inputs, config=config, stream_mode="updates"): # type: ignore
+                    
                     for node_name, node_state in event.items():
                         log_msg = f"✅ 执行节点: **{node_name}**\n"
                         status_container.write(f"✅ 执行节点: **{node_name}**")
@@ -137,11 +157,18 @@ if prompt := st.chat_input("输入你的旅行需求 (例如: 我想去大理，
                                 status_container.write(f"&nbsp;&nbsp;&nbsp;&nbsp;↳ 识别意图: `{intent.intent}`  *(置信度: {intent.confidence})*")
                                 log_msg += sub_msg
                         
-                        if node_name == "analyzer" and "needs_research" in node_state:
-                            needs_research = node_state["needs_research"]
-                            sub_msg = f"    ↳ 需要联网检索: `{needs_research}`\n"
-                            status_container.write(f"&nbsp;&nbsp;&nbsp;&nbsp;↳ 需要联网检索: `{needs_research}`")
-                            log_msg += sub_msg
+                        if node_name == "analyzer":
+                            # 分析师有结果了，立刻把回复上屏，不被 Researcher 的网络耗时阻塞
+                            if "messages" in node_state and node_state["messages"]:
+                                last_msg = node_state["messages"][-1]
+                                content = last_msg.content if hasattr(last_msg, 'content') else (last_msg.get("content") if isinstance(last_msg, dict) else str(last_msg))
+                                reply_container.markdown(content)
+                                
+                            if "needs_research" in node_state:
+                                needs_research = node_state["needs_research"]
+                                sub_msg = f"    ↳ 需要联网检索: `{needs_research}`\n"
+                                status_container.write(f"&nbsp;&nbsp;&nbsp;&nbsp;↳ 需要联网检索: `{needs_research}`")
+                                log_msg += sub_msg
                         
                         trace_logs.append(log_msg)
 
@@ -153,25 +180,17 @@ if prompt := st.chat_input("输入你的旅行需求 (例如: 我想去大理，
                 st.session_state.messages.append({"role": "assistant", "is_trace": True, "label": "Agent 处理轨迹", "content": "\n".join(trace_logs)})
             
             # 获取最终的完整状态
-            result_state = graph_app.get_state(config)
+            result_state = graph_app.get_state(config) # type: ignore
             result = result_state.values
-            
-            # 更新状态显示
             st.session_state.travel_state = result
             
-            # 获取最后一条消息作为回复
+            # 以从状态图中提取的最终回复落盘到历史中
             messages = result.get("messages", [])
             if messages:
                 last_msg = messages[-1]
-                # 兼容 BaseMessage 或 dict
-                if hasattr(last_msg, 'content'):
-                    content = last_msg.content
-                elif isinstance(last_msg, dict):
-                    content = last_msg.get("content", str(last_msg))
-                else:
-                    content = str(last_msg)
-                
-                st.markdown(content)
+                content = last_msg.content if hasattr(last_msg, 'content') else (last_msg.get("content") if isinstance(last_msg, dict) else str(last_msg))
+                # 因为刚刚通过 reply_container 实时渲染过了，所以这里不仅更新历史，同时为了保险起见重新填充一下
+                reply_container.markdown(content)
                 st.session_state.messages.append({"role": "assistant", "content": content})
             else:
                 st.error("Agent 返回了空消息。")
