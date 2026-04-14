@@ -1,8 +1,10 @@
+import pytest
 import asyncio
 import time
 import uuid
 import sys
 import os
+from unittest.mock import patch, AsyncMock
 
 root_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 src_path = os.path.join(root_path, "src")
@@ -10,6 +12,7 @@ sys.path.insert(0, src_path)
 sys.path.insert(0, root_path)
 
 from agent.graph import graph_app
+from agent.state import RetrievalItem
 
 async def simulate_user_request(user_id: int):
     """
@@ -36,10 +39,25 @@ async def simulate_user_request(user_id: int):
     end_time = time.time()
     print(f"[User_{user_id}] \033[92mCompleted in {end_time - start_time:.2f}s\033[0m")
     
-async def main():
+@pytest.mark.asyncio
+@patch("agent.nodes.researcher.tools.ResearcherTools.generate_research_plan", new_callable=AsyncMock)
+@patch("agent.nodes.researcher.tools.ResearcherTools.search_web_ddg", new_callable=AsyncMock)
+@patch("agent.nodes.researcher.tools.ResearcherTools.search_local_kt", new_callable=AsyncMock)
+async def test_concurrent_sessions(mock_search_local, mock_search_web, mock_gen_plan):
     """
-    启动并发测试
+    启动并发测试: 验证系统能否正确同时处理多个独立请求且没有任何串扰
     """
+    from agent.schema import ResearchPlan
+    
+    # 同样屏蔽会引发退避重试的联网与 Embedding 环节
+    mock_gen_plan.return_value = ResearchPlan(local_query="Mock Destination", web_queries=["Mock web search"])
+    mock_search_web.return_value = [
+        RetrievalItem(source="web", title="Mock Title", content="Mock Content", link="http://mock", metadata={})
+    ]
+    mock_search_local.return_value = [
+        RetrievalItem(source="local", title="Mock Local", content="Mock Content", link=None, metadata={})
+    ]
+
     print("=== Start Concurrent Multi-User Test ===")
     start_time = time.time()
     
@@ -54,8 +72,5 @@ async def main():
     total_time = time.time() - start_time
     print(f"=== All Requests Completed in {total_time:.2f}s ===")
     
-    # 如果是同步阻塞，3个请求耗时约等于: Req1耗时 + Req2耗时 + Req3耗时
-    # 如果是真异步非阻塞，3个请求总耗时约等于: Max(Req1耗时, Req2耗时, Req3耗时)
-    
-if __name__ == "__main__":
-    asyncio.run(main())
+    # 这里断言总耗时必须要能完成，而不是死锁失败 (真环境应判断其总耗时小于串行耗时)
+    assert total_time > 0

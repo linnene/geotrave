@@ -37,4 +37,4 @@ jobs:
           GLOBAL_MODEL_ID: ${{ secrets.GLOBAL_MODEL_ID }}
           EMBEDDING_MODEL: ${{ secrets.EMBEDDING_MODEL }}
           EMBEDDING_MODEL_API_KEY: ${{ secrets.EMBEDDING_MODEL_API_KEY }}
-        run: uv run pytest test/eval/test_agent_workflow.py -v
+        run: uv run pytest test/ -v
