@@ -37,8 +37,7 @@ class ResearcherTools:
             date=core_req.get("date"),
             tags=core_req.get("tags") or [],
             budget_limit=core_req.get("budget_limit") or 0,
-            hard_constraints=core_req.get("hard_constraints", {}),
-            soft_preferences=core_req.get("soft_preferences", {}),
+            conversation_summary=state.get("conversation_summary", {}),
             format_instructions=parser.get_format_instructions()
         )
         

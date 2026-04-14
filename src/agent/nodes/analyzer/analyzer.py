@@ -48,6 +48,7 @@ async def analyzer_node(state: TravelState):
         
         # 提取当前的全局核心需求状态，作为大模型增量更新的基底
         current_state = state.get("core_requirements") or {}
+        current_summary = state.get("conversation_summary") or {}
         
         import json
         
@@ -56,6 +57,7 @@ async def analyzer_node(state: TravelState):
             current_date=current_date,
             history=messages,
             current_state=json.dumps(current_state, ensure_ascii=False, indent=2),
+            current_summary=json.dumps(current_summary, ensure_ascii=False, indent=2),
             format_instructions=parser.get_format_instructions()
         )
         
@@ -72,14 +74,13 @@ async def analyzer_node(state: TravelState):
         return {
             "messages": [AIMessage(content=result.reply)],
             "needs_research": result.needs_research,
+            "conversation_summary": result.conversation_summary.model_dump() if hasattr(result.conversation_summary, 'model_dump') else dict(result.conversation_summary),
             "core_requirements": {
                 "destination": result.destination,
                 "days": result.days,
                 "date": result.date,
                 "people": result.people_count,
                 "budget_limit": result.budget_limit,
-                "hard_constraints": result.hard_constraints.model_dump() if hasattr(result.hard_constraints, 'model_dump') else dict(result.hard_constraints),
-                "soft_preferences": result.soft_preferences.model_dump() if hasattr(result.soft_preferences, 'model_dump') else dict(result.soft_preferences),
                 "tags": result.tags
             }
         }

@@ -42,6 +42,10 @@ class TestAgentWorkflow:
         expected = case["expected_state"]
         for key, val in expected.items():
             if result is not None:
-                core_req = result.get("core_requirements") or {}
-                actual = core_req.get(key)
+                if key in ["core_constraints", "temp_preferences", "rejected_items"]:
+                    summary = result.get("conversation_summary") or {}
+                    actual = summary.get(key)
+                else:
+                    core_req = result.get("core_requirements") or {}
+                    actual = core_req.get(key)
             assert str(actual) == str(val), f"Field {key} mismatch for {case['id']}: expected {val}, got {actual}"
