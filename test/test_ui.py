@@ -37,40 +37,33 @@ with st.sidebar:
         else:
             st.write(f"*{label} 尚无数据*")
 
-    core_req = st.session_state.travel_state.get("core_requirements") or {}
-    sec_pref = st.session_state.travel_state.get("secondary_preferences") or {}
-    conv_summary = st.session_state.travel_state.get("conversation_summary") or {}
+    user_profile = st.session_state.travel_state.get("user_profile") or {}
 
-    display_state_field("Preferences (偏好)", conv_summary.get("preferences"))
-    display_state_field("Avoidances (避雷)", conv_summary.get("avoidances"))
+    display_state_field("Preferences (偏好)", user_profile.get("preferences"))
+    display_state_field("Avoidances (避雷)", user_profile.get("avoidances"))
     
     # 新增：展示次要需求偏好分类
-    if sec_pref:
-        st.markdown("---")
-        st.subheader("Secondary Preferences")
-        for k, v in sec_pref.items():
-            if v:
-                st.write(f"**{k.capitalize()}**: {v}")
+    st.markdown("---")
+    st.subheader("Secondary Details")
+    for k in ["accommodation", "dining", "transportation", "pace", "activities"]:
+        v = user_profile.get(k)
+        if v:
+            st.write(f"**{k.capitalize()}**: {v}")
 
     # 新增：展示白板中的所有其他关键信息
     st.markdown("---")
     st.subheader("Core State")
     col1, col2 = st.columns(2)
     with col1:
-        dest_val = core_req.get("destination")
+        dest_val = user_profile.get("destination")
         dest_display = ", ".join(dest_val) if isinstance(dest_val, list) else (dest_val or "未确定")
         st.metric("Destination", dest_display)
-        st.metric("Days", core_req.get("days") or "未知")
+        st.metric("Days", user_profile.get("days") or "未知")
     with col2:
-        st.metric("BudgetLimit", f"¥{core_req.get('budget_limit')}" if core_req.get('budget_limit') else "未设置")
+        st.metric("BudgetLimit", f"¥{user_profile.get('budget_limit')}" if user_profile.get('budget_limit') else "未设置")
         # 兼容处理：people 可能是 list 也可能是 int
-        people_val = core_req.get("people")
-        display_people = 0
-        if isinstance(people_val, list):
-            display_people = len(people_val)
-        elif isinstance(people_val, (int, float)):
-            display_people = int(people_val)
-        st.metric("People", display_people)
+        people_val = user_profile.get("people_count")
+        st.metric("People", people_val if people_val else 0)
 
     # 新增：展示研究员检索内容
     st.markdown("---")

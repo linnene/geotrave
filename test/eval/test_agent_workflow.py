@@ -42,13 +42,10 @@ class TestAgentWorkflow:
         expected = case["expected_state"]
         for key, val in expected.items():
             if result is not None:
-                if key in ["preferences", "avoidances"]:
-                    summary = result.get("conversation_summary") or {}
-                    actual = summary.get(key)
-                elif key in ["accommodation", "dining", "transportation", "pace", "activities"]:
-                    sec_pref = result.get("secondary_preferences") or {}
-                    actual = sec_pref.get(key)
-                else:
-                    core_req = result.get("core_requirements") or {}
-                    actual = core_req.get(key)
+                user_profile = result.get("user_profile") or {}
+                
+                # 如果 key 是 people，由于代码里叫 people_count，我们需要做个简单映射
+                search_key = "people_count" if key == "people" else key
+                
+                actual = user_profile.get(search_key)
             assert str(actual) == str(val), f"Field {key} mismatch for {case['id']}: expected {val}, got {actual}"
