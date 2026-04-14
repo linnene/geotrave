@@ -22,7 +22,7 @@ class UserProfile(BaseModel):
 
 class TravelInfo(BaseModel):
     """分析师输出的整个结构化数据"""
-    user_profile: UserProfile = Field(default_factory=UserProfile)
+    user_profile: UserProfile = Field(default_factory=lambda: UserProfile())
     needs_research: bool = Field(default=False, description="是否需要主动唤起检索节点（比如核心需求刚凑全、或者发生了关键变更使得旧信息不再适用时设为True）")
     reply: str = Field(description="追问User")
 

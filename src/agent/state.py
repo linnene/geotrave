@@ -35,7 +35,6 @@ class SearchState(TypedDict):
     query_history: list[str] | None
     retrieval_context: str | None
     retrieval_results: list[RetrievalItem] | None
-    last_searched_req: dict | None  # 记录上一次检索时的全局需求特征快照
 
 class RecommenderState(TypedDict):
     """解耦的私有推荐状态，仅由推荐和计划节点维护"""
