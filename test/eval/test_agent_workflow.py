@@ -2,9 +2,11 @@ import pytest
 import uuid
 import json
 import os
+from unittest.mock import patch, AsyncMock
 from langchain_core.messages import HumanMessage
 
 from agent.graph import graph_app
+from agent.state import RetrievalItem
 
 #测试例加载
 def load_cases():
@@ -20,8 +22,22 @@ class TestAgentWorkflow:
     """
 
     @pytest.mark.parametrize("case", load_cases(), ids=lambda x: x["id"])
-    async def test_agent_workflow_logic(self, case):
+    @patch("agent.nodes.researcher.tools.ResearcherTools.generate_research_plan", new_callable=AsyncMock)
+    @patch("agent.nodes.researcher.tools.ResearcherTools.search_web_ddg", new_callable=AsyncMock)
+    @patch("agent.nodes.researcher.tools.ResearcherTools.search_local_kt", new_callable=AsyncMock)
+    async def test_agent_workflow_logic(self, mock_search_local, mock_search_web, mock_gen_plan, case):
         """验证 TravelState 在各节点间的流转与折叠逻辑"""
+        from agent.schema import ResearchPlan
+        
+        # Mock 研究计划与检索，避免多余的 LLM 调用和无 Key 阻断
+        mock_gen_plan.return_value = ResearchPlan(local_query="Mock Destination", web_queries=["Mock web search"])
+        mock_search_web.return_value = [
+            RetrievalItem(source="web", title="Mock Title", content="Mock Content", link="http://mock", metadata={})
+        ]
+        mock_search_local.return_value = [
+            RetrievalItem(source="local", title="Mock Local", content="Mock Local Docs", link=None, metadata={})
+        ]
+        
         thread_id = str(uuid.uuid4())
         config = {"configurable": {"thread_id": thread_id}}
         
