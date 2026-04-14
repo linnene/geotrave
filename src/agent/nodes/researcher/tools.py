@@ -74,7 +74,7 @@ class ResearcherTools:
         """
         try:
             logger.debug(f"[Researcher Tools] Local RAG search for: {query}")
-            search_results = await asyncio.to_thread(search_similar_documents, query, k)
+            search_results = await search_similar_documents(query, k)
             
             items = []
             for doc in search_results:
@@ -107,11 +107,7 @@ class ResearcherTools:
                 
                 from ddgs import DDGS
                 
-                # We wrap the sync call in to_thread entirely to prevent event loop blocking. 
-                # We also explicitly ensure connections are closed or managed by the context manager.
                 def _sync_ddgs():
-                    # Python 3.12 asyncio under Windows can sometimes loudly complain about unclosed socket transports from HTTP libraries.
-                    # As a preventative measure during tests we can ignore ResourceWarnings locally.
                     import warnings
                     with warnings.catch_warnings():
                         warnings.simplefilter("ignore", ResourceWarning)
