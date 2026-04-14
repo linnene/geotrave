@@ -31,7 +31,7 @@ def researcher_node(state: TravelState):
     """
     检索节点：解耦后的研究员节点，使用独立模型配置。
     """
-    core_req = state.get("core_requirements") or {}
+    core_req = state.get("user_profile") or {}
     destination = core_req.get("destination")
     if not destination:
         logger.debug("[Researcher Node] No destination provided, retrieval skipped.")
@@ -68,6 +68,18 @@ def researcher_node(state: TravelState):
 
     # 4. 汇总 (为了向下兼容 Planner 节点)
     context_parts = []
+    
+    if not all_results:
+        logger.debug("[Researcher Node] Empty results. Return with needs_research reset.")
+        return {
+            "needs_research": False,
+            "search_data": {
+                "query_history": plan.web_queries if plan else [],
+                "retrieval_context": "No relevant information found.",
+                "retrieval_results": []
+            }
+        }
+        
     for item in all_results:
         # 因为 item 现在是 TypedDict (即字典)，需要用类似 item["source"] 的方式取值
         source_val = item.get("source", "unknown").upper()
@@ -83,6 +95,7 @@ def researcher_node(state: TravelState):
     final_context = "\n\n---\n\n".join(context_parts) if context_parts else "No relevant information found."
     
     return {
+        "needs_research": False,  # 检索完毕后重置标志位，避免状态树遗留被后续节点误用
         "search_data": {
             "query_history": plan.web_queries if plan else [],
             "retrieval_context": final_context,

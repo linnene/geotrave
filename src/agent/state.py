@@ -5,6 +5,21 @@ from typing import Annotated, TypedDict, List, Dict, Optional, Any
 
 # ----------------- Con Models -----------------
 
+class UserProfileState(TypedDict):
+    """扁平化的用户画像（合并基础信息与次要偏好）"""
+    destination: list[str] | None
+    days: int | None
+    date: list[str] | None
+    people_count: int | None
+    budget_limit: int | None
+    accommodation: str | None
+    dining: str | None
+    transportation: str | None
+    pace: str | None
+    activities: list[str] | None
+    preferences: list[str]
+    avoidances: list[str]
+
 class RetrievalItem(TypedDict):
     """单条检索结果项（改为 TypedDict 避免 checkpointer msgpack 序列化报错）"""
     source: str
@@ -27,40 +42,21 @@ class RecommenderState(TypedDict):
     recommended_items: list[dict] | None
     user_selected_items: list[dict] | None
 
-class CoreRequirementState(TypedDict):
-    """用户核心旅游需求（解耦后的基础信息）"""
-    destination: list[str] | None
-    days: int | None
-    date: list[str] | None
-    people: list[str] | None
-    budget_limit: int | None
-
-class SecondaryPreferencesState(TypedDict):
-    """用户次要需求/偏好（细粒度的结构化分类，避免重叠冲突）"""
-    accommodation: str | None
-    dining: str | None
-    transportation: str | None
-    pace: str | None  # 游玩节奏，例如"休闲", "紧凑/特种兵"
-    activities: list[str] | None  # 兴趣活动，例如"看海", "购物", "博物馆"
-
-class ConversationSummaryState(TypedDict):
-    """对话总结与约束维护：由分析师维护的细粒度偏好池（解决重叠问题，简化为正面偏好和负面避雷）"""
-    preferences: list[str]
-    avoidances: list[str]
 
 class TravelState(TypedDict):
     """全局状态白板"""
     messages: Annotated[list[BaseMessage], add_messages]
     
-    # 意图路由节点识别出来的最新用户意图，用于条件边分发
+    # Router识别出来的最新用户意图，用于条件边分发
     latest_intent: str | None
     
-    # 分析师判定的标志位，决定是否唤起检索节点
+    # Anaslyzer判定的标志位，决定是否唤起检索节点
     needs_research: bool | None
     
-    # 彻底解耦的各个模块数据
-    core_requirements: CoreRequirementState | None
-    secondary_preferences: SecondaryPreferencesState | None
-    conversation_summary: ConversationSummaryState | None
+    # 用户需求（由于扁平化，合并为一个 profile）
+    user_profile: UserProfileState | None
+    
+    #检索结果
     search_data: SearchState | None
+    #推荐结果
     recommender_data: RecommenderState | None

@@ -39,10 +39,10 @@ def route_after_analyzer(state: TravelState):
     2. 如果基础信息不全，则留在 END 等待用户补充。
     3. 取消被动的状态快照对比，而是听从分析师大模型的自主决断(needs_research)，决定是否主动进入 researcher 节点。
     """
-    core_req = state.get("core_requirements") or {}
+    core_req = state.get("user_profile") or {}
     destination = core_req.get("destination")
     days = core_req.get("days")
-    people = core_req.get("people")          
+    people = core_req.get("people_count")          
     date = core_req.get("date")
     budget = core_req.get("budget_limit")    
     needs_research = state.get("needs_research", False)

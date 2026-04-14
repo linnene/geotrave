@@ -47,10 +47,8 @@ async def analyzer_node(state: TravelState):
     try:
         parser = PydanticOutputParser(pydantic_object=TravelInfo)
         
-        # 提取当前的全局核心需求状态，作为大模型增量更新的基底
-        current_state = state.get("core_requirements") or {}
-        current_sec_pref = state.get("secondary_preferences") or {}
-        current_summary = state.get("conversation_summary") or {}
+        # 提取当前的全局需求状态，作为大模型增量更新的基底
+        current_profile = state.get("user_profile") or {}
         
         import json
         
@@ -58,9 +56,7 @@ async def analyzer_node(state: TravelState):
         prompt_value = analyzer_prompt_template.format(
             current_date=current_date,
             history=messages,
-            current_state=json.dumps(current_state, ensure_ascii=False, indent=2),
-            current_sec_pref=json.dumps(current_sec_pref, ensure_ascii=False, indent=2),
-            current_summary=json.dumps(current_summary, ensure_ascii=False, indent=2),
+            current_profile=json.dumps(current_profile, ensure_ascii=False, indent=2),
             format_instructions=parser.get_format_instructions()
         )
         
@@ -69,21 +65,13 @@ async def analyzer_node(state: TravelState):
         chain = llm | parser
         result = await chain.ainvoke(prompt_value)
         
-        logger.info(f"[Analyzer Node] Analysis complete: {result.destination} for {result.days} days.")
+        logger.info(f"[Analyzer Node] Analysis complete: {result.user_profile.destination} for {result.user_profile.days} days.")
         
-        # 回写至全局状态的 core_requirements 子字典
+        # 回写至全局状态的 user_profile 子字典
         return {
             "messages": [AIMessage(content=result.reply)],
             "needs_research": result.needs_research,
-            "secondary_preferences": result.secondary_preferences.model_dump() if hasattr(result.secondary_preferences, 'model_dump') else dict(result.secondary_preferences),
-            "conversation_summary": result.conversation_summary.model_dump() if hasattr(result.conversation_summary, 'model_dump') else dict(result.conversation_summary),
-            "core_requirements": {
-                "destination": result.destination,
-                "days": result.days,
-                "date": result.date,
-                "people": result.people_count,
-                "budget_limit": result.budget_limit
-            }
+            "user_profile": result.user_profile.model_dump() if hasattr(result.user_profile, 'model_dump') else dict(result.user_profile)
         }
     except Exception as e:
         logger.error(f"[Analyzer Node] Failed to extract user info: {str(e)}")
