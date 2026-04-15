@@ -112,9 +112,11 @@ class ResearcherTools:
             try:
                 # 调用模型（为降低幻觉干扰，可自行调整温度）
                 res = await LLM.ainvoke(prompt)
-                answer = res.content.strip().upper()
+                answer_raw = res.content.strip()
+                answer = answer_raw.upper()
                 if "NO" in answer and "YES" not in answer:
-                    logger.debug(f"[Researcher Tools] Filter dropped irrelevant item: {title}")
+                    reason_msg = answer_raw.replace("\n", " ")  # 将换行符替换为空格以便在日志里做单行展示
+                    logger.debug(f"[Researcher Tools] Filter dropped irrelevant item: {title} | Reason: {reason_msg}")
                     return None
                 else:
                     return item
