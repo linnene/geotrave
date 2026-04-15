@@ -5,7 +5,7 @@ from langchain_openai import ChatOpenAI
 
 from database.vector_db import search_similar_documents
 from utils.logger import logger
-from utils.prompt import research_query_prompt_template
+from utils.prompt import research_query_prompt_template, research_filter_prompt_template
 from agent.state import RetrievalItem
 from agent.schema import ResearchPlan
 
@@ -89,6 +89,43 @@ class ResearcherTools:
         except Exception as e:
             logger.error(f"[Researcher Tools] Local search failed: {str(e)}")
             return []
+
+    @staticmethod
+    async def filter_retrieval_items(items: List[RetrievalItem], LLM: ChatOpenAI) -> List[RetrievalItem]:
+        """
+        [二级过滤] 将刚检索回来的列表经过轻量级的大模型质检，按生成时的 query 进行匹配，剔除内容毫不相关、营销号的杂音
+        """
+        if not items:
+            return []
+            
+        async def _check_single_item(item: RetrievalItem) -> Optional[RetrievalItem]:
+            title = item.get("title", "") if isinstance(item, dict) else getattr(item, "title", "")
+            content = item.get("content", "") if isinstance(item, dict) else getattr(item, "content", "")
+            metadata = item.get("metadata", {}) if isinstance(item, dict) else getattr(item, "metadata", {})
+            query = metadata.get("query", "提供背景信息")
+            
+            prompt = research_filter_prompt_template.format(
+                query=query,
+                title=title,
+                content=content
+            )
+            try:
+                # 调用模型（为降低幻觉干扰，可自行调整温度）
+                res = await LLM.ainvoke(prompt)
+                answer = res.content.strip().upper()
+                if "NO" in answer and "YES" not in answer:
+                    logger.debug(f"[Researcher Tools] Filter dropped irrelevant item: {title}")
+                    return None
+                else:
+                    return item
+            except Exception:
+                # 模型异常降级：宁可放过也不错杀
+                return item
+
+        # 并发质检
+        tasks = [_check_single_item(item) for item in items]
+        checked = await asyncio.gather(*tasks)
+        return [raw for raw in checked if raw is not None]
 
     @staticmethod
     async def search_web_ddg(query: str, max_results: int = 10) -> List[RetrievalItem]:

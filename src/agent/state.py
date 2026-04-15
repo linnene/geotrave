@@ -35,6 +35,7 @@ class SearchState(TypedDict):
     query_history: list[str] | None
     retrieval_context: str | None
     retrieval_results: list[RetrievalItem] | None
+    retrieval_stats: Dict[str, int] | None
 
 class RecommenderState(TypedDict):
     """解耦的私有推荐状态，仅由推荐和计划节点维护"""

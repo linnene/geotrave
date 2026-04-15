@@ -41,7 +41,8 @@ async def researcher_node(state: TravelState):
             "search_data": {
                 "query_history": [],
                 "retrieval_context": "No destination provided, retrieval skipped.",
-                "retrieval_results": []
+                "retrieval_results": [],
+                "retrieval_stats": {"total_fetched": 0, "total_filtered": 0, "valid_count": 0}
             }
         }
         return
@@ -72,13 +73,21 @@ async def researcher_node(state: TravelState):
     
     all_results = []
     plan_web_queries = plan.web_queries if plan else []
+    
+    total_fetched = 0
+    total_filtered = 0
 
     # 遍历只要有任何一个 task 完成就立即处理并 yield 出来 (流式写入)
     for completed_task in asyncio.as_completed(tasks):
         try:
             res = await completed_task
             if isinstance(res, list):
-                all_results.extend(res)
+                # 新增二级 LLM 过滤（质检员环节），剥离无关水分杂讯
+                if len(res) > 0:
+                    total_fetched += len(res)
+                    filtered_res = await ResearcherTools.filter_retrieval_items(res, researcher_llm)
+                    total_filtered += (len(res) - len(filtered_res))
+                    all_results.extend(filtered_res)
             
             # 构建中间累加的文本
             context_parts = []
@@ -101,7 +110,12 @@ async def researcher_node(state: TravelState):
                 "search_data": {
                     "query_history": plan_web_queries,
                     "retrieval_context": final_context,
-                    "retrieval_results": all_results.copy()
+                    "retrieval_results": all_results.copy(),
+                    "retrieval_stats": {
+                        "total_fetched": total_fetched,
+                        "total_filtered": total_filtered,
+                        "valid_count": len(all_results)
+                    }
                 }
             }
             
@@ -109,7 +123,6 @@ async def researcher_node(state: TravelState):
             logger.error(f"[Researcher Node] A retrieval task failed: {e}")
             continue
 
-    # 当没有任何结果时兜底 yield 一次
     if not all_results:
         logger.debug("[Researcher Node] Empty results. Return with needs_research reset.")
         yield {
@@ -117,6 +130,11 @@ async def researcher_node(state: TravelState):
             "search_data": {
                 "query_history": plan_web_queries,
                 "retrieval_context": "No relevant information found.",
-                "retrieval_results": []
+                "retrieval_results": [],
+                "retrieval_stats": {
+                    "total_fetched": total_fetched,
+                    "total_filtered": total_filtered,
+                    "valid_count": len(all_results)
+                }
             }
         }
