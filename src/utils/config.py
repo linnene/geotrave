@@ -50,4 +50,4 @@ CHROMA_DB_DIR = os.getenv("CHROMA_DB_DIR", "./data/chroma")
 DB_TIMEOUT = 60
 
 # 日志配置
-LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
+LOG_LEVEL = os.getenv("LOG_LEVEL", "DEBUG")

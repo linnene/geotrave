@@ -167,9 +167,17 @@ if prompt := st.chat_input("输入你的旅行需求 (例如: 我想去大理，
                             if "needs_research" in node_state:
                                 needs_research = node_state["needs_research"]
                                 sub_msg = f"    ↳ 需要联网检索: `{needs_research}`\n"
-                                status_container.write(f"&nbsp;&nbsp;&nbsp;&nbsp;↳ 需要联网检索: `{needs_research}`")
+                        if node_name == "researcher" and "search_data" in node_state:
+                            search_data = node_state["search_data"]
+                            stats = search_data.get("retrieval_stats")
+                            if stats:
+                                total = stats.get("total_fetched", 0)
+                                filtered = stats.get("total_filtered", 0)
+                                valid = stats.get("valid_count", 0)
+                                sub_msg = f"    ↳ 检索统计: 累计获取 {total} 条数据，质检过滤掉 {filtered} 条无关内容，保留 {valid} 条。\n"
+                                status_container.write(f"&nbsp;&nbsp;&nbsp;&nbsp;↳ 检索统计: 共获取 `{total}` 条数据，命中过滤 `{filtered}` 条，剩 `{valid}` 条有效内容。")
                                 log_msg += sub_msg
-                        
+
                         trace_logs.append(log_msg)
 
             asyncio.run(run_graph())
