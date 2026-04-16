@@ -87,17 +87,17 @@ with st.sidebar:
         with st.expander(f"查看结构化检索结果 ({len(retrieval_results)}条)", expanded=False):
             for i, item in enumerate(retrieval_results):
                 # 如果是 Pydantic 对象或 Dict，尝试友好展示
-                source_tag = f"[{item.get('source', 'unknown').upper()}]" if isinstance(item, dict) else f"[{item.source.upper()}]"
-                title = item.get('title') if isinstance(item, dict) else item.title
-                content = item.get('content') if isinstance(item, dict) else item.content
+                source_tag = f"[{item.get('source', 'unknown').upper()}]" if isinstance(item, dict) else f"[{getattr(item, 'source', 'unknown').upper()}]"
+                title = item.get('title') if isinstance(item, dict) else getattr(item, 'title', 'No Title')
+                content = item.get('content') if isinstance(item, dict) else getattr(item, 'content', '')
                 
-                st.markdown(f"**{i+1}. {source_tag} {title}**")
-                st.text(content[:200] + "..." if len(content) > 200 else content)
-                st.markdown("---")
-    
-    # 保留旧的文本显示用于对比
-    retrieval_context = search_data.get("retrieval_context")
-    if retrieval_context:
+                # 特殊展示天气 API 数据
+                if source_tag == "[API_WEATHER]":
+                    st.markdown(f"**{i+1}. 🌤️ {title} (天气数据)**")
+                    st.info(content)
+                else:
+                    st.markdown(f"**{i+1}. {source_tag} {title}**")
+                    st.text(content[:200] + "..." if len(content) > 200 else content)
         with st.expander("查看原始检索文本", expanded=False):
             st.write(retrieval_context)
     elif not retrieval_results:
