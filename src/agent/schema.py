@@ -32,5 +32,5 @@ class ResearchPlan(BaseModel):
     """研究员生成的检索计划"""
     local_query: Optional[str] = Field(description="知识库检索关键词")
     web_queries: List[str] = Field(default_factory=list, description="在线搜索关键词")
-    need_weather: bool = Field(default=False)
+    need_weather: bool = Field(default=False, description="是否需要查询目的地的天气预报")
     need_api: List[str] = Field(default_factory=list)

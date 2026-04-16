@@ -68,6 +68,13 @@ async def researcher_node(state: TravelState):
             for q in plan.web_queries:
                 tasks.append(ResearcherTools.search_web_ddg(query=q, max_results=10))
 
+        # 4. 天气外部 API 拉取
+        if plan.need_weather:
+            # 针对所有目的地拉取天气
+            dests = destination if isinstance(destination, list) else [destination]
+            for dest in dests:
+                tasks.append(ResearcherTools.search_weather_openmeteo(location=dest))
+
     # 并发执行所有检索任务，使用 as_completed 使得哪条检索先完成就先写入哪条
     logger.debug(f"[Researcher Node] Concurrently executing {len(tasks)} retrieval tasks...")
     
