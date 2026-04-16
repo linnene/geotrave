@@ -35,3 +35,7 @@
 ### 3. 规划系统开发 (Recommender & Planner)
 - [ ] **Recommender Node**：接收清洗完毕的优质数据源，将其转换为清晰的旅游项目（交通、住宿、餐馆、景点）推送给用户确认。
 - [ ] **Planner Node**：根据用户选择的素材项开始串联自动生成结构化、连贯的行程单。
+
+### 4. 扩充检索维度 (Expand Retrieval Dimensions)
+- **Idea**: 拓展 Researcher Node 的能力，接入全球天气预报、地理位置等各种专业 API 数据源，而不仅限于常规网页检索和向量库检索。
+- **Next Step**: 开发天气等具体外部维度的 API 工具集（Tools）供检索节点按需调用，并在明日优先实现该节点的能力扩充。

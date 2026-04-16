@@ -198,9 +198,80 @@ class ResearcherTools:
         return []
 
     @staticmethod
+    async def search_weather_openmeteo(location: str) -> List[RetrievalItem]:
+        """
+        使用 Open-Meteo 获取目的地的天气预报。
+        返回结构化的 RetrievalItem 列表。
+        """
+        import urllib.request
+        import urllib.parse
+        import json
+
+        def _fetch_weather():
+            logger.debug(f"[Researcher Tools] Fetching weather for: {location}")
+            # 1. Geocoding
+            geo_url = f"https://geocoding-api.open-meteo.com/v1/search?name={urllib.parse.quote(location)}&count=1&language=zh"
+            try:
+                with urllib.request.urlopen(geo_url, timeout=10) as response:
+                    geo_data = json.loads(response.read().decode())
+                
+                if not geo_data.get("results"):
+                    logger.warning(f"[Researcher Tools] Weather: Location not found for {location}")
+                    return []
+                
+                res = geo_data["results"][0]
+                lat, lon, name = res["latitude"], res["longitude"], res["name"]
+                
+                # 2. Weather
+                weather_url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=auto"
+                with urllib.request.urlopen(weather_url, timeout=10) as response:
+                    weather_data = json.loads(response.read().decode())
+                
+                daily = weather_data.get("daily", {})
+                if not daily:
+                    return []
+                
+                dates = daily.get("time", [])
+                max_temps = daily.get("temperature_2m_max", [])
+                min_temps = daily.get("temperature_2m_min", [])
+                codes = daily.get("weathercode", [])
+                
+                # 简单映射天气代码到中文描述 (WMO Weather interpretation codes)
+                code_map = {
+                    0: "晴天 (Clear sky)",
+                    1: "大部晴朗 (Mainly clear)", 2: "多云 (Partly cloudy)", 3: "阴天 (Overcast)",
+                    45: "雾 (Fog)", 48: "结霜雾 (Depositing rime fog)",
+                    51: "毛毛雨: 轻微 (Drizzle: Light)", 53: "毛毛雨: 中等 (Drizzle: Moderate)", 55: "毛毛雨: 密集 (Drizzle: Dense)",
+                    61: "下雨: 微弱 (Rain: Slight)", 63: "下雨: 中等 (Rain: Moderate)", 65: "下雨: 强 (Rain: Heavy)",
+                    71: "降雪: 微弱 (Snow: Slight)", 73: "降雪: 中等 (Snow: Moderate)", 75: "降雪: 强 (Snow: Heavy)",
+                    95: "雷雨: 轻微或中等 (Thunderstorm: Slight or moderate)"
+                }
+                
+                lines = []
+                for i in range(len(dates)):
+                    desc = code_map.get(codes[i], f"未知代码 {codes[i]}")
+                    lines.append(f"- 日期: {dates[i]} | 最高温: {max_temps[i]}°C | 最低温: {min_temps[i]}°C | 天气: {desc}")
+                
+                content = "\n".join(lines)
+                
+                return [RetrievalItem(
+                    source="api_weather",
+                    title=f"{name} 未来7天天气预报",
+                    content=content,
+                    link="https://open-meteo.com/",
+                    metadata={"query": f"{location} 天气预报", "type": "weather"}
+                )]
+                
+            except Exception as e:
+                logger.error(f"[Researcher Tools] Weather fetch failed: {str(e)}")
+                return []
+
+        return await asyncio.to_thread(_fetch_weather)
+
+    @staticmethod
     def call_external_api(api_name: str, params: dict) -> str:
         """
-        调用特定的旅游相关 API (如天气、航司、马蜂窝等) (待实现)
+        调用特定的旅游相关 API (如航司、马蜂窝等) (待实现)
         """
         # TODO: 实现特定的 API 调用逻辑
         return f"[Placeholder] API {api_name} results for params: {params}"
