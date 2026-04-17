@@ -264,50 +264,23 @@ class ResearcherTools:
                 
                 lines = []
                 for i in range(len(dates)):
-                    # 日期过滤逻辑：如果设定了日期，只保留范围内的
                     current_date_str = dates[i]
+                    is_in_range = False
                     if start_date and end_date:
-                        if not (start_date <= current_date_str <= end_date):
-                            continue
+                        if start_date <= current_date_str <= end_date:
+                            is_in_range = True
 
                     desc = code_map.get(codes[i], f"代码 {codes[i]}")
-                    lines.append(f"- {current_date_str}: {desc} ({min_temps[i]}°C ~ {max_temps[i]}°C)")
+                    status_str = " [计划行程内]" if is_in_range else ""
+                    lines.append(f"- {current_date_str}: {desc} ({min_temps[i]}°C ~ {max_temps[i]}°C){status_str}")
                 
                 if not lines:
-                    # 如果过滤后没数据，但也可能是因为日期太远。
-                    # 给一个提示。
-                    if start_date:
-                        return [RetrievalItem(
-                            source="api_weather",
-                            title=f"{name} 天气信息",
-                            content=f"抱歉，当前的免费 API 仅支持未来 7-14 天的精准预报。您计划的日期 {start_date} 暂无详细气象数据。",
-                            link="https://open-meteo.com/",
-                            metadata={"query": f"{location} 天气预报", "type": "weather"}
-                        )]
                     return []
 
                 content = "\n".join(lines)
                 return [RetrievalItem(
                     source="api_weather",
-                    title=f"{name} 旅行期间天气预报",
-                    content=content,
-                    link="https://open-meteo.com/",
-                    metadata={"query": f"{location} 天气预报", "type": "weather"}
-                )]
-                
-            except Exception as e:
-                logger.error(f"[Researcher Tools] Weather fetch failed: {str(e)}")
-                return []
-
-        return await asyncio.to_thread(_fetch_weather)
-                    desc = code_map.get(codes[i], f"未知代码 {codes[i]}")
-                    lines.append(f"- 日期: {dates[i]} | 最高温: {max_temps[i]}°C | 最低温: {min_temps[i]}°C | 天气: {desc}")
-                
-                content = "\n".join(lines)
-                
-                return [RetrievalItem(
-                    source="api_weather",
-                    title=f"{name} 未来7天天气预报",
+                    title=f"{name} 未来7天预报 (含行程对比)",
                     content=content,
                     link="https://open-meteo.com/",
                     metadata={"query": f"{location} 天气预报", "type": "weather"}
