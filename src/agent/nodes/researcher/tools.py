@@ -197,17 +197,18 @@ class ResearcherTools:
         return []
 
     @staticmethod
-    async def search_weather_openmeteo(location: str) -> List[RetrievalItem]:
+    async def search_weather_openmeteo(location: str, start_date: Optional[str] = None, end_date: Optional[str] = None) -> List[RetrievalItem]:
         """
         使用 Open-Meteo 获取目的地的天气预报。
-        返回结构化的 RetrievalItem 列表。
+        支持指定日期范围。返回结构化的 RetrievalItem 列表。
         """
         import urllib.request
         import urllib.parse
         import json
+        from datetime import datetime
 
         def _fetch_weather():
-            logger.debug(f"[Researcher Tools] Fetching weather for: {location}")
+            logger.debug(f"[Researcher Tools] Fetching weather for: {location} (Date: {start_date} to {end_date})")
             # 1. Geocoding
             geo_url = f"https://geocoding-api.open-meteo.com/v1/search?name={urllib.parse.quote(location)}&count=1&language=zh"
             try:
@@ -222,7 +223,23 @@ class ResearcherTools:
                 lat, lon, name = res["latitude"], res["longitude"], res["name"]
                 
                 # 2. Weather
-                weather_url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=auto"
+                # 基本 URL
+                weather_base_url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=auto"
+                
+                # 如果有具体日期（且符合 API 格式 YYYY-MM-DD），尝试获取历史/预报混合数据
+                # 注意：Open-Meteo 免费 API 的 forecast 接口通常支持未来 7-14 天
+                # 如果日期在未来 14 天以后，该接口可能返回空。此处暂做基础日期过滤增强。
+                weather_url = weather_base_url
+                if start_date and end_date:
+                    # 验证日期格式是否正确
+                    try:
+                        datetime.strptime(start_date, "%Y-%m-%d")
+                        datetime.strptime(end_date, "%Y-%m-%d")
+                        # 只有在日期范围内时，展示相关性更强。API 默认返回 7 天。
+                        # 我们在客户端手动过滤日期。
+                    except:
+                        pass
+                
                 with urllib.request.urlopen(weather_url, timeout=10) as response:
                     weather_data = json.loads(response.read().decode())
                 
@@ -235,19 +252,54 @@ class ResearcherTools:
                 min_temps = daily.get("temperature_2m_min", [])
                 codes = daily.get("weathercode", [])
                 
-                # 简单映射天气代码到中文描述 (WMO Weather interpretation codes)
+                # 简单映射天气代码到中文描述
                 code_map = {
-                    0: "晴天 (Clear sky)",
-                    1: "大部晴朗 (Mainly clear)", 2: "多云 (Partly cloudy)", 3: "阴天 (Overcast)",
-                    45: "雾 (Fog)", 48: "结霜雾 (Depositing rime fog)",
-                    51: "毛毛雨: 轻微 (Drizzle: Light)", 53: "毛毛雨: 中等 (Drizzle: Moderate)", 55: "毛毛雨: 密集 (Drizzle: Dense)",
-                    61: "下雨: 微弱 (Rain: Slight)", 63: "下雨: 中等 (Rain: Moderate)", 65: "下雨: 强 (Rain: Heavy)",
-                    71: "降雪: 微弱 (Snow: Slight)", 73: "降雪: 中等 (Snow: Moderate)", 75: "降雪: 强 (Snow: Heavy)",
-                    95: "雷雨: 轻微或中等 (Thunderstorm: Slight or moderate)"
+                    0: "晴天", 1: "大部晴朗", 2: "多云", 3: "阴天",
+                    45: "雾", 48: "结霜雾",
+                    51: "毛毛雨: 轻微", 53: "毛毛雨: 中等", 55: "毛毛雨: 密集",
+                    61: "下雨: 微弱", 63: "下雨: 中等", 65: "下雨: 强",
+                    71: "降雪: 微弱", 73: "降雪: 中等", 75: "降雪: 强",
+                    95: "雷雨"
                 }
                 
                 lines = []
                 for i in range(len(dates)):
+                    # 日期过滤逻辑：如果设定了日期，只保留范围内的
+                    current_date_str = dates[i]
+                    if start_date and end_date:
+                        if not (start_date <= current_date_str <= end_date):
+                            continue
+
+                    desc = code_map.get(codes[i], f"代码 {codes[i]}")
+                    lines.append(f"- {current_date_str}: {desc} ({min_temps[i]}°C ~ {max_temps[i]}°C)")
+                
+                if not lines:
+                    # 如果过滤后没数据，但也可能是因为日期太远。
+                    # 给一个提示。
+                    if start_date:
+                        return [RetrievalItem(
+                            source="api_weather",
+                            title=f"{name} 天气信息",
+                            content=f"抱歉，当前的免费 API 仅支持未来 7-14 天的精准预报。您计划的日期 {start_date} 暂无详细气象数据。",
+                            link="https://open-meteo.com/",
+                            metadata={"query": f"{location} 天气预报", "type": "weather"}
+                        )]
+                    return []
+
+                content = "\n".join(lines)
+                return [RetrievalItem(
+                    source="api_weather",
+                    title=f"{name} 旅行期间天气预报",
+                    content=content,
+                    link="https://open-meteo.com/",
+                    metadata={"query": f"{location} 天气预报", "type": "weather"}
+                )]
+                
+            except Exception as e:
+                logger.error(f"[Researcher Tools] Weather fetch failed: {str(e)}")
+                return []
+
+        return await asyncio.to_thread(_fetch_weather)
                     desc = code_map.get(codes[i], f"未知代码 {codes[i]}")
                     lines.append(f"- 日期: {dates[i]} | 最高温: {max_temps[i]}°C | 最低温: {min_temps[i]}°C | 天气: {desc}")
                 
