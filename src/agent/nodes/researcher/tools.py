@@ -244,8 +244,14 @@ class ResearcherTools:
                     weather_data = json.loads(response.read().decode())
                 
                 daily = weather_data.get("daily", {})
-                if not daily:
-                    return []
+                if not daily or not daily.get("time"):
+                    return [RetrievalItem(
+                        source="api_weather",
+                        title=f"{name} 天气预报",
+                        content="注：当前计划日期超出预报范围或无法获取准确数据。Open-Meteo 仅支持查询未来7-14天内的预报。",
+                        link="https://open-meteo.com/",
+                        metadata={"query": f"{location} 天气预报", "type": "weather"}
+                    )]
                 
                 dates = daily.get("time", [])
                 max_temps = daily.get("temperature_2m_max", [])

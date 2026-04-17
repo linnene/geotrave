@@ -99,17 +99,31 @@ async def researcher_node(state: TravelState):
         try:
             res = await completed_task
             if isinstance(res, list):
-                # 新增二级 LLM 过滤（质检员环节），剥离无关水分杂讯
-                if len(res) > 0:
-                    total_fetched += len(res)
-                    filtered_res = await ResearcherTools.filter_retrieval_items(res, researcher_llm)
-                    total_filtered += (len(res) - len(filtered_res))
+                # 如果是天气 API 返回的结果，我们需要特殊处理
+                weather_items = [item for item in res if (isinstance(item, dict) and item.get("source") == "api_weather") or (hasattr(item, "source") and getattr(item, "source") == "api_weather")]
+                other_items = [item for item in res if item not in weather_items]
+
+                # 处理非天气结果：二级 LLM 过滤
+                if other_items:
+                    total_fetched += len(other_items)
+                    filtered_res = await ResearcherTools.filter_retrieval_items(other_items, researcher_llm)
+                    total_filtered += (len(other_items) - len(filtered_res))
                     all_results.extend(filtered_res)
+                
+                # 处理天气结果：直接汇总到专门的字段，不进入 all_results 进行通用拼接
+                current_weather_info = state.get("search_data", {}).get("weather_info") or ""
+                if weather_items:
+                    for w in weather_items:
+                        w_content = w.get("content", "") if isinstance(w, dict) else getattr(w, "content", "")
+                        w_title = w.get("title", "") if isinstance(w, dict) else getattr(w, "title", "")
+                        current_weather_info += f"### {w_title}\n{w_content}\n\n"
             
-            # 构建中间累加的文本
+            # 构建中间累加的文本 (排除天气，因为天气已经单开了频道)
             context_parts = []
             for item in all_results:
                 source_val = item.get("source", "unknown").upper() if isinstance(item, dict) else getattr(item, "source", "unknown").upper()
+                if source_val == "API_WEATHER": continue # 再次防御性检查，确保不混入 context
+
                 title_val = item.get("title", "No Title") if isinstance(item, dict) else getattr(item, "title", "No Title")
                 content_val = item.get("content", "") if isinstance(item, dict) else getattr(item, "content", "")
                 link_val = item.get("link") if isinstance(item, dict) else getattr(item, "link", None)
@@ -128,6 +142,7 @@ async def researcher_node(state: TravelState):
                     "query_history": plan_web_queries,
                     "retrieval_context": final_context,
                     "retrieval_results": all_results.copy(),
+                    "weather_info": current_weather_info if current_weather_info else None,
                     "retrieval_stats": {
                         "total_fetched": total_fetched,
                         "total_filtered": total_filtered,

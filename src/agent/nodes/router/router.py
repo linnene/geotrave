@@ -1,4 +1,4 @@
-import json
+﻿import json
 from langchain_core.messages import AIMessage
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field, SecretStr
@@ -82,17 +82,20 @@ async def router_node(state: TravelState):
             msg_content = parsed.reply_for_malicious or "请咱们把话题拉回旅行规划上好吗？"
             return {
                 "messages": [AIMessage(content=msg_content)],
-                "latest_intent": "chit_chat_or_malicious"
+                "latest_intent": "chit_chat_or_malicious",
+                "needs_research": False
             }
         
         # 将分析结果的枚举推入 state 的 latest_intent，方便后续图流程通过该字符串分流
         return {
-             "latest_intent": parsed.enum_intent
+             "latest_intent": parsed.enum_intent,
+             "needs_research": state.get("needs_research", False)
         }
 
     except Exception as e:
         logger.error(f"[Router Gateway Node] Error parsing request: {e}")
         # 如果出错了，容错 fallback 为 new_destination 以确保进主流程
         return {
-            "latest_intent": "new_destination"
+            "latest_intent": "new_destination",
+            "needs_research": state.get("needs_research", False)
         }

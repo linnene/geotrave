@@ -69,7 +69,12 @@
       "id": "workflow_007_budget_constraint_conflict",
       "description": "预算冲突引导测试",
       "input": "我想去北极看极光，玩10天，预算只有200块",
-      "expected_behavior": "Should politely mention budget constraint or suggest alternatives"
+      "expected_behavior": "Should politely mention budget constraint or suggest alternatives",
+      "expected_state": {
+        "destination": ["北极"],
+        "days": 10,
+        "budget_limit": 200
+      }
     },
     {
       "id": "workflow_008_avoidance_inheritance",
@@ -80,7 +85,7 @@
       ],
       "expected_state": {
         "destination": ["成都"],
-        "avoidances": ["吃辣", "辣"]
+        "avoidances": ["吃辣"]
       },
       "expected_search_negation": ["-辣", "不辣"]
     }

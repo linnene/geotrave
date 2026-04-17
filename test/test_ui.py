@@ -76,6 +76,13 @@ with st.sidebar:
     
     # 获取新的结构化数据
     search_data = st.session_state.travel_state.get("search_data", {})
+
+    # 1. 🌤️ 独立展示天气信息 (新增加逻辑)
+    weather_info = search_data.get("weather_info")
+    if weather_info:
+        with st.expander("🌤️ 实时天气情况", expanded=True):
+            st.info(weather_info)
+    
     queries = search_data.get("query_history", [])
     if queries:
         st.write("**本次由大模型生成的检索词 (Queries):**")
