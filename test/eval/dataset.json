@@ -45,6 +45,44 @@
         "people": 3,
         "budget_limit": "12000"
       }
+    },
+    {
+      "id": "workflow_005_vague_destination",
+      "description": "模糊目的地纠偏测试",
+      "input": "我想去海边玩，预算两千",
+      "expected_behavior": "Should ask for specific destination",
+      "expected_state": {
+        "needs_research": false
+      }
+    },
+    {
+      "id": "workflow_006_multi_destination_weather",
+      "description": "多目的地天气触发测试",
+      "input": "下周我们要去东京和大阪玩5天",
+      "expected_state": {
+        "destination": ["东京", "大阪"],
+        "needs_research": true
+      },
+      "expected_actions": ["weather_api_call_tokyo", "weather_api_call_osaka"]
+    },
+    {
+      "id": "workflow_007_budget_constraint_conflict",
+      "description": "预算冲突引导测试",
+      "input": "我想去北极看极光，玩10天，预算只有200块",
+      "expected_behavior": "Should politely mention budget constraint or suggest alternatives"
+    },
+    {
+      "id": "workflow_008_avoidance_inheritance",
+      "description": "避雷项继承与搜索词过滤测试",
+      "turns": [
+        "我要去成都，绝对不去任何吃辣的地方",
+        "搜一下当地的苍蝇馆子"
+      ],
+      "expected_state": {
+        "destination": ["成都"],
+        "avoidances": ["吃辣", "辣"]
+      },
+      "expected_search_negation": ["-辣", "不辣"]
     }
   ],
   "rag_cases": [
@@ -52,6 +90,12 @@
       "id": "rag_001_sanya_weather",
       "query": "2026年4月三亚天气",
       "expected_keywords": ["晴", "雨", "气温", "度"]
+    },
+    {
+      "id": "rag_002_location_ambiguity",
+      "query": "吉林天气",
+      "description": "测试省份与城市重名时的天气API表现",
+      "expected_keywords": ["吉林市", "吉林省"]
     }
   ]
 }
