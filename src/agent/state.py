@@ -36,6 +36,7 @@ class SearchState(TypedDict):
     retrieval_context: str | None
     retrieval_results: list[RetrievalItem] | None
     retrieval_stats: Dict[str, int] | None
+    weather_info: str | None  # 存储结构化天气信息，可为空
 
 class RecommenderState(TypedDict):
     """解耦的私有推荐状态，仅由推荐和计划节点维护"""
@@ -50,8 +51,8 @@ class TravelState(TypedDict):
     # Router识别出来的最新用户意图，用于条件边分发
     latest_intent: str | None
     
-    # Anaslyzer判定的标志位，决定是否唤起检索节点
-    needs_research: bool | None
+    # Analyzer判定的标志位，决定是否唤起检索节点
+    needs_research: bool
     
     # 用户需求（由于扁平化，合并为一个 profile）
     user_profile: UserProfileState | None
