@@ -70,10 +70,20 @@ async def researcher_node(state: TravelState):
 
         # 4. 天气外部 API 拉取
         if plan.need_weather:
+            # 获取用户设置的日期范围
+            date_range = core_req.get("date")  # [None, None] or ["2026-04-20", "2026-04-25"]
+            s_date, e_date = None, None
+            if date_range and len(date_range) == 2:
+                s_date, e_date = date_range[0], date_range[1]
+
             # 针对所有目的地拉取天气
             dests = destination if isinstance(destination, list) else [destination]
             for dest in dests:
-                tasks.append(ResearcherTools.search_weather_openmeteo(location=dest))
+                tasks.append(ResearcherTools.search_weather_openmeteo(
+                    location=dest, 
+                    start_date=s_date, 
+                    end_date=e_date
+                ))
 
     # 并发执行所有检索任务，使用 as_completed 使得哪条检索先完成就先写入哪条
     logger.debug(f"[Researcher Node] Concurrently executing {len(tasks)} retrieval tasks...")
