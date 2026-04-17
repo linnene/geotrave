@@ -98,6 +98,11 @@ with st.sidebar:
                 else:
                     st.markdown(f"**{i+1}. {source_tag} {title}**")
                     st.text(content[:200] + "..." if len(content) > 200 else content)
+                st.markdown("---")
+    
+    # 保留旧的文本显示用于对比
+    retrieval_context = search_data.get("retrieval_context")
+    if retrieval_context:
         with st.expander("查看原始检索文本", expanded=False):
             st.write(retrieval_context)
     elif not retrieval_results:
