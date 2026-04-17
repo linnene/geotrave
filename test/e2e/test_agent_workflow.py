@@ -10,10 +10,18 @@ from agent.state import RetrievalItem
 
 #测试例加载
 def load_cases():
-    path = os.path.join(os.path.dirname(__file__), "dataset.json")
-    with open(path, "r", encoding="utf-8") as f:
-        data = json.load(f)
-    return data["workflow_cases"]
+    # 尝试从当前目录或者上一级 eval 目录加载 dataset.json
+    current_dir = os.path.dirname(__file__)
+    paths = [
+        os.path.join(current_dir, "dataset.json"),
+        os.path.join(current_dir, "..", "eval", "dataset.json")
+    ]
+    for path in paths:
+        if os.path.exists(path):
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            return data["workflow_cases"]
+    raise FileNotFoundError(f"Could not find dataset.json in {paths}")
 
 @pytest.mark.asyncio
 class TestAgentWorkflow:
