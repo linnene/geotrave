@@ -5,10 +5,15 @@
 ## 1. 测试目录结构
 
 - [test/unit/](test/unit/): **单元测试**。针对单个节点逻辑、工具函数进行 Mock 测试，不依赖外部 API。
-- [test/integration/](test/integration/): **集成测试**。测试多个节点间的状态流转与协作（待完善）。
-- [test/eval/](test/eval/): **效果评估**。基于 [dataset.json](test/eval/dataset.json) 的端到端质量评估，用于衡量 LLM 输出的实际业务价值。
+### 集成测试 ([test/integration/](test/integration/))
+- **API 接口验证 ([test_api.py](test/integration/test_api.py))**:
+    - **Chat 端点**: 验证会话生命周期、输入合法性校验及状态机返回。
+    - **RAG 端点**: 验证向量库统计、大规模文档批量插入及语义检索召回。
+    - **错误处理**: 验证非法文件上传过滤、空消息拦截及系统级异常捕获。
+- **并发压力测试 ([test_concurrency.py](test/integration/test_concurrency.py))**:
+    - 多线程下不同 `thread_id` 的隔离性验证。
 
-## 2. 当前已实现的测试项
+### 效果评估 (E2E) ([test/eval/](test/eval/))
 
 ### 单元测试 ([test/unit/test_nodes.py](test/unit/test_nodes.py))
 - **Router 节点**:

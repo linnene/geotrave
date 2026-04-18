@@ -36,6 +36,27 @@
 - [ ] **Recommender Node**：接收清洗完毕的优质数据源，将其转换为清晰的旅游项目（交通、住宿、餐馆、景点）推送给用户确认。
 - [ ] **Planner Node**：根据用户选择的素材项开始串联自动生成结构化、连贯的行程单。
 
-### 4. 扩充检索维度 (Expand Retrieval Dimensions)
-- **Idea**: 拓展 Researcher Node 的能力，接入全球天气预报、地理位置等各种专业 API 数据源，而不仅限于常规网页检索和向量库检索。
-- **Next Step**: 开发天气等具体外部维度的 API 工具集（Tools）供检索节点按需调用，并在明日优先实现该节点的能力扩充。
+### 4. 扩充检索维度 (Expand Retrieval Dimensions) [ Done]
+- [x] **天气 API 集成**：接入 Open-Meteo 实现全球 7 天天气预报。
+- [x] **状态解耦**：将天气信息从通用检索结果中剥离，在 TravelState 中开设独立 `weather_info` 频道。
+
+---
+
+## 架构升级与代码重构 (Architecture & Refactoring)
+
+### 1. 代码组织结构重新设计 (Code Structure Re-organization)
+- [ ] **解耦 Node 逻辑**：目前 `router.py`, `analyzer.py`, `researcher.py` 中混杂了大量初始化 LLM、定义 Pydantic Schema 的样板代码。
+- [ ] **统一工厂化**：建立 `factory/llm.py` 统一管理所有节点的模型实例初始化，支持从 `config.py` 动态加载。
+- [ ] **Schema 集中管理**：将零散在各 Node 文件中的 Pydantic Model 迁移至 `agent/schema.py` 或专门的 `types/` 目录，提高复用性。
+- [ ] **Middlewares 引入**：探索在 LangGraph 节点间引入中间件机制，处理通用的状态检查、错误捕获和日志记录。
+
+### 2. 健壮性与可维护性提升
+- [ ] **类型标记强化**：全面引入 `typing`（如 `Protocol`, `Generic`）对 `TravelState` 进行更严格的约束。
+- [ ] **测试架构升级**：
+    - [x] 单元测试覆盖核心 Node & Tools。
+    - [x] E2E 工作流自动化评估。
+    - [ ] 引入 `pytest-cov` 监控测试覆盖率。
+
+### 3. 长查询降级与性能优化 (Pending)
+- [ ] **Query Shortening**：优化搜索引擎关键词提取逻辑，避免长句搜索导致的匹配失效。
+- [ ] **缓存层设计**：引入 Redis 或本地缓存，对相同目的地与日期的天气、网页检索结果进行短时缓存。

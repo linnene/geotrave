@@ -58,7 +58,7 @@
     {
       "id": "workflow_006_multi_destination_weather",
       "description": "多目的地天气触发测试",
-      "input": "下周我们要去东京和大阪玩5天",
+      "input": "下周我们要去东京和大阪玩5天，预算3000左右，一共俩个人，请帮我查查这两地的天气，看看需要带什么衣服。",
       "expected_state": {
         "destination": ["东京", "大阪"],
         "needs_research": true

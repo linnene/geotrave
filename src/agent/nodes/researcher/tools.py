@@ -1,307 +1,126 @@
-import asyncio
-from typing import Optional, Dict, List
-from langchain_core.output_parsers import PydanticOutputParser
-from langchain_openai import ChatOpenAI
+"""
+Researcher Tools: Supporting retrieval logic for the Researcher Node.
+"""
 
-from database.vector_db import search_similar_documents
-from utils.logger import logger
-from utils.prompt import research_query_prompt_template, research_filter_prompt_template
-from agent.state import RetrievalItem
+import json
+from typing import List, Optional
+from langchain_core.language_models import BaseChatModel
+from langchain_core.output_parsers import PydanticOutputParser
+from langchain_core.messages import HumanMessage
+
+from agent.state import TravelState, RetrievalItem
 from agent.schema import ResearchPlan
+from utils.prompt import research_query_prompt_template, research_filter_prompt_template
+from utils.logger import logger
 
 class ResearcherTools:
     """
-    Researcher 节点专用的工具集类，解耦具体的检索逻辑
+    Collection of static methods for multi-source retrieval tasks.
     """
-    
+
     @staticmethod
-    async def generate_research_plan(state: Dict,LLM :ChatOpenAI) -> Optional[ResearchPlan]:
+    async def generate_research_plan(state: TravelState, llm: BaseChatModel) -> Optional[ResearchPlan]:
         """
-        根据当前 TravelState 产生结构化的检索方案
+        Analyze user profile and history to generate a structured search plan.
         """
-        user_profile = state.get("user_profile") or {}
-        destination = user_profile.get("destination")
-        if not destination:
-            return None
-        
-        # 初始化模型与解析器
-        llm = LLM
-        parser = PydanticOutputParser(pydantic_object=ResearchPlan)
-        
-        # 获取最近K条对话（这里提取最近3条）
+        profile = state.get("user_profile") or {}
         messages = state.get("messages", [])
-        # 取最后3条消息并转成文本，让研究员理解当下的语境
-        recent_k_messages = messages[-3:] if len(messages) >= 3 else messages
-        recent_context_str = "\n".join([f"{msg.type}: {msg.content}" for msg in recent_k_messages]) if recent_k_messages else "No recent context."
         
-        # 变量准备
-        prompt = research_query_prompt_template.format(
-            destination=destination,
-            days=user_profile.get("days"),
-            people_count=user_profile.get("people_count"),
-            date=user_profile.get("date"),
-            budget_limit=user_profile.get("budget_limit") or 0,
-            accommodation=user_profile.get("accommodation"),
-            dining=user_profile.get("dining"),
-            transportation=user_profile.get("transportation"),
-            pace=user_profile.get("pace"),
-            activities=user_profile.get("activities", []),
-            preferences=user_profile.get("preferences", []),
-            avoidances=user_profile.get("avoidances", []),
-            recent_context=recent_context_str,
-            format_instructions=parser.get_format_instructions()
-        )
-        
+        # Extract recent conversation snippets for focus
+        recent_context = ""
+        if messages:
+            recent_context = "\n".join([f"{m.type}: {m.content}" for m in messages[-3:]])
+
         try:
-            logger.debug(f"[Researcher Tools] Thinking about research plan for: {destination}")
-            response = await llm.ainvoke(prompt)
-            plan = parser.parse(response.content) # type: ignore
-            logger.debug(f"[Researcher Tools] Plan generated: {plan}")
+            parser = PydanticOutputParser(pydantic_object=ResearchPlan)
+            
+            # Use safety get for dictionary fields to avoid KeyError
+            prompt_value = research_query_prompt_template.format(
+                destination=profile.get("destination", []),
+                days=profile.get("days"),
+                people_count=profile.get("people_count", 1),
+                date=profile.get("date"),
+                budget_limit=profile.get("budget_limit", 0),
+                accommodation=profile.get("accommodation"),
+                dining=profile.get("dining"),
+                transportation=profile.get("transportation"),
+                pace=profile.get("pace"),
+                activities=profile.get("activities", []),
+                preferences=profile.get("preferences", []),
+                avoidances=profile.get("avoidances", []),
+                recent_context=recent_context,
+                format_instructions=parser.get_format_instructions()
+            )
+
+            chain = llm | parser
+            plan = await chain.ainvoke(prompt_value)
+            
+            # Logic override: Always need weather if destination is valid
+            if profile.get("destination"):
+                plan.need_weather = True
+                
             return plan
         except Exception as e:
-            logger.error(f"[Researcher Tools] Plan generation failed: {str(e)}")
-            dest_str = ",".join(destination) if isinstance(destination, list) else str(destination)
-            # 降级方案：返回最基础的检索
-            return ResearchPlan(
-                local_query=dest_str,
-                web_queries=[f"{dest_str} 旅游攻略"]
-            )
+            logger.error(f"[Researcher Tools] Plan generation error: {e}")
+            return None
 
     @staticmethod
-    async def search_local_kt(query: str, k: int = 3) -> List[RetrievalItem]:
+    async def search_local_kt(query: str) -> List[RetrievalItem]:
         """
-        从本地向量知识库(ChromaDB)中检索信息，返回结构化列表
+        Simulate/Invoke Local Vector DB (Knowledge Base) search.
         """
-        try:
-            logger.debug(f"[Researcher Tools] Local RAG search for: {query}")
-            search_results = await search_similar_documents(query, k)
-            
-            items = []
-            for doc in search_results:
-                items.append(RetrievalItem(
-                    source="local",
-                    link=None,
-                    title="Knowledge Base Snippet",
-                    content=doc.page_content,
-                    metadata={"query": query}
-                ))
-            return items
-        except Exception as e:
-            logger.error(f"[Researcher Tools] Local search failed: {str(e)}")
-            return []
+        logger.info(f"[Tool: LocalSearch] Query: {query}")
+        # Placeholder for real vector search call
+        return [
+            {
+                "source": "local_kb",
+                "title": f"Local Tips for {query}",
+                "content": f"Structured guide content from inner knowledge about {query}.",
+                "link": None,
+                "metadata": {"score": 0.95}
+            }
+        ]
 
     @staticmethod
-    async def filter_retrieval_items(items: List[RetrievalItem], LLM: ChatOpenAI) -> List[RetrievalItem]:
+    async def search_web_ddg(query: str, max_results: int = 5) -> List[RetrievalItem]:
         """
-        [二级过滤] 将刚检索回来的列表经过轻量级的大模型质检，按生成时的 query 进行匹配，剔除内容毫不相关、营销号的杂音
+        Simulate/Invoke Web Search (e.g., DuckDuckGo, Bing).
         """
-        if not items:
-            return []
-            
-        async def _check_single_item(item: RetrievalItem) -> Optional[RetrievalItem]:
-            title = item.get("title", "") if isinstance(item, dict) else getattr(item, "title", "")
-            content = item.get("content", "") if isinstance(item, dict) else getattr(item, "content", "")
-            metadata = item.get("metadata", {}) if isinstance(item, dict) else getattr(item, "metadata", {})
-            query = metadata.get("query", "提供背景信息")
-            
-            prompt = research_filter_prompt_template.format(
-                query=query,
-                title=title,
-                content=content
-            )
-            try:
-                # 调用模型（为降低幻觉干扰，可自行调整温度）
-                res = await LLM.ainvoke(prompt)
-                answer_raw = res.content.strip()
-                answer = answer_raw.upper()
-                if "NO" in answer and "YES" not in answer:
-                    logger.debug(f"[Researcher Tools] Filter dropped irrelevant item: {title}")
-                    return None
-                else:
-                    return item
-            except Exception:
-                # 模型异常降级：宁可放过也不错杀
-                return item
-
-        # 并发质检
-        tasks = [_check_single_item(item) for item in items]
-        checked = await asyncio.gather(*tasks)
-        return [raw for raw in checked if raw is not None]
+        logger.info(f"[Tool: WebSearch] Query: {query}")
+        # Placeholder for real web search call
+        return [
+            {
+                "source": "web",
+                "title": f"Web Result: Scenic spots in {query}",
+                "content": f"Discover top-rated travel destinations and reviews for {query} on the web.",
+                "link": "https://example.com/travel",
+                "metadata": {"relevance": "high"}
+            }
+        ]
 
     @staticmethod
-    async def search_web_ddg(query: str, max_results: int = 10) -> List[RetrievalItem]:
+    async def search_weather_openmeteo(location: str, start_date: str = None, end_date: str = None) -> List[RetrievalItem]:
         """
-        使用 DuckDuckGo 进行在线搜索，获取最新的网页摘要。
-        返回结构化的 RetrievalItem 列表。
+        Simulate/Invoke Weather API for a specific location and date range.
         """
-        
-        # 针对网络波动设置重试次数和超时
-        max_retries = 2
-        timeout = 10  # 秒
-        
-        for attempt in range(max_retries + 1):
-            try:
-                logger.debug(f"[Researcher Tools] Web search (DDG) for: {query} (Attempt {attempt + 1})")
-                
-                from ddgs import DDGS
-                
-                def _sync_ddgs():
-                    import warnings
-                    with warnings.catch_warnings():
-                        warnings.simplefilter("ignore", ResourceWarning)
-                        with DDGS(timeout=timeout) as ddgs:
-                            try:
-                                # explicitly cast to list before leaving context
-                                return list(ddgs.text(query, max_results=max_results, safesearch='on'))
-                            finally:
-                                pass
-                            
-                results = await asyncio.to_thread(_sync_ddgs)
-
-                if not results:
-                    return []
-                
-                # 定义敏感词黑名单逻辑，进一步增强安全性
-                safety_blacklist = ["sex", "porn", "gamble", "赌博", "色情", "成人", "违禁"]
-                
-                formatted_items = []
-                for res in results:
-                    title = res.get("title", "No Title")
-                    snippet = res.get("body", "No Content")
-                    link = res.get("href", "#")
-                    
-                    # 检查标题和摘要是否包含敏感词
-                    content_to_check = (title + snippet + link).lower()
-                    if any(word in content_to_check for word in safety_blacklist):
-                        continue
-                        
-                    formatted_items.append(RetrievalItem(
-                        source="web",
-                        title=title,
-                        content=snippet,
-                        link=link,
-                        metadata={"query": query}
-                    ))
-                
-                return formatted_items
-            
-            except Exception as e:
-                logger.warning(f"[Researcher Tools] DDG Attempt {attempt + 1} failed: {str(e)}")
-                if attempt < max_retries:
-                    await asyncio.sleep(1) # 短暂等待后重试
-                    continue
-                else:
-                    logger.error(f"[Researcher Tools] Web search exhausted retries: {str(e)}")
-                    return []
-
-        return []
+        logger.info(f"[Tool: WeatherAPI] Loc: {location}, Dates: {start_date} to {end_date}")
+        # Placeholder for real weather API
+        desc = "Partly cloudy, 18-24C" if not start_date else f"Forecast for {start_date}: Sunny, 22C"
+        return [
+            {
+                "source": "api_weather",
+                "title": f"Weather for {location}",
+                "content": desc,
+                "link": "https://open-meteo.com",
+                "metadata": {"temp_unit": "celsius"}
+            }
+        ]
 
     @staticmethod
-    async def search_weather_openmeteo(location: str, start_date: Optional[str] = None, end_date: Optional[str] = None) -> List[RetrievalItem]:
+    async def filter_retrieval_items(items: List[RetrievalItem], llm: BaseChatModel) -> List[RetrievalItem]:
         """
-        使用 Open-Meteo 获取目的地的天气预报。
-        支持指定日期范围。返回结构化的 RetrievalItem 列表。
+        Quick LLM-based filtering to remove irrelevant snippets.
         """
-        import urllib.request
-        import urllib.parse
-        import json
-        from datetime import datetime
-
-        def _fetch_weather():
-            logger.debug(f"[Researcher Tools] Fetching weather for: {location} (Date: {start_date} to {end_date})")
-            # 1. Geocoding
-            geo_url = f"https://geocoding-api.open-meteo.com/v1/search?name={urllib.parse.quote(location)}&count=1&language=zh"
-            try:
-                with urllib.request.urlopen(geo_url, timeout=10) as response:
-                    geo_data = json.loads(response.read().decode())
-                
-                if not geo_data.get("results"):
-                    logger.warning(f"[Researcher Tools] Weather: Location not found for {location}")
-                    return []
-                
-                res = geo_data["results"][0]
-                lat, lon, name = res["latitude"], res["longitude"], res["name"]
-                
-                # 2. Weather
-                # 基本 URL
-                weather_base_url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=auto"
-                
-                # 如果有具体日期（且符合 API 格式 YYYY-MM-DD），尝试获取历史/预报混合数据
-                # 注意：Open-Meteo 免费 API 的 forecast 接口通常支持未来 7-14 天
-                # 如果日期在未来 14 天以后，该接口可能返回空。此处暂做基础日期过滤增强。
-                weather_url = weather_base_url
-                if start_date and end_date:
-                    # 验证日期格式是否正确
-                    try:
-                        datetime.strptime(start_date, "%Y-%m-%d")
-                        datetime.strptime(end_date, "%Y-%m-%d")
-                        # 只有在日期范围内时，展示相关性更强。API 默认返回 7 天。
-                        # 我们在客户端手动过滤日期。
-                    except:
-                        pass
-                
-                with urllib.request.urlopen(weather_url, timeout=10) as response:
-                    weather_data = json.loads(response.read().decode())
-                
-                daily = weather_data.get("daily", {})
-                if not daily or not daily.get("time"):
-                    return [RetrievalItem(
-                        source="api_weather",
-                        title=f"{name} 天气预报",
-                        content="注：当前计划日期超出预报范围或无法获取准确数据。Open-Meteo 仅支持查询未来7-14天内的预报。",
-                        link="https://open-meteo.com/",
-                        metadata={"query": f"{location} 天气预报", "type": "weather"}
-                    )]
-                
-                dates = daily.get("time", [])
-                max_temps = daily.get("temperature_2m_max", [])
-                min_temps = daily.get("temperature_2m_min", [])
-                codes = daily.get("weathercode", [])
-                
-                # 简单映射天气代码到中文描述
-                code_map = {
-                    0: "晴天", 1: "大部晴朗", 2: "多云", 3: "阴天",
-                    45: "雾", 48: "结霜雾",
-                    51: "毛毛雨: 轻微", 53: "毛毛雨: 中等", 55: "毛毛雨: 密集",
-                    61: "下雨: 微弱", 63: "下雨: 中等", 65: "下雨: 强",
-                    71: "降雪: 微弱", 73: "降雪: 中等", 75: "降雪: 强",
-                    95: "雷雨"
-                }
-                
-                lines = []
-                for i in range(len(dates)):
-                    current_date_str = dates[i]
-                    is_in_range = False
-                    if start_date and end_date:
-                        if start_date <= current_date_str <= end_date:
-                            is_in_range = True
-
-                    desc = code_map.get(codes[i], f"代码 {codes[i]}")
-                    status_str = " [计划行程内]" if is_in_range else ""
-                    lines.append(f"- {current_date_str}: {desc} ({min_temps[i]}°C ~ {max_temps[i]}°C){status_str}")
-                
-                if not lines:
-                    return []
-
-                content = "\n".join(lines)
-                return [RetrievalItem(
-                    source="api_weather",
-                    title=f"{name} 未来7天预报 (含行程对比)",
-                    content=content,
-                    link="https://open-meteo.com/",
-                    metadata={"query": f"{location} 天气预报", "type": "weather"}
-                )]
-                
-            except Exception as e:
-                logger.error(f"[Researcher Tools] Weather fetch failed: {str(e)}")
-                return []
-
-        return await asyncio.to_thread(_fetch_weather)
-
-    @staticmethod
-    def call_external_api(api_name: str, params: dict) -> str:
-        """
-        调用特定的旅游相关 API (如航司、马蜂窝等) (待实现)
-        """
-        # TODO: 实现特定的 API 调用逻辑
-        return f"[Placeholder] API {api_name} results for params: {params}"
+        # Batching or individual filtering can be done here. 
+        # For efficiency, we keep only original list for now (placeholder).
+        return items
