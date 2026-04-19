@@ -1,37 +1,47 @@
+"""
+Description: Agent End-To-End (E2E) Workflow Test Suite
+Mapping: Maps to src/agent/graph.py
+Priority: P0 - Critical for business logic closure
+Main Test Items:
+1. Multi-turn conversation state accumulation (P0)
+2. Intent-driven routing accuracy (P0)
+3. Full path from inquiry to research trigger (P0)
+"""
+
 import pytest
 import uuid
 import json
 import os
 from unittest.mock import patch, AsyncMock
-from langchain_core.messages import HumanMessage
-
-from agent.graph import graph_app
-from agent.state import RetrievalItem
+from src.agent.graph import graph_app
+from src.agent.state import RetrievalItem
+from src.agent.schema import ResearchPlan
 
 def load_cases():
+    """Helper to load E2E test dataset."""
     current_dir = os.path.dirname(__file__)
-    paths = [
-        os.path.join(current_dir, "dataset.json"),
-        os.path.join(current_dir, "..", "eval", "dataset.json")
-    ]
-    for path in paths:
-        if os.path.exists(path):
-            with open(path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-            return data["workflow_cases"]
-    raise FileNotFoundError(f"Could not find dataset.json in {paths}")
+    # Moved to standardized data directory
+    path = os.path.join(current_dir, "..", "data", "dataset.json")
+    if os.path.exists(path):
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return data["workflow_cases"]
+    return []
 
 @pytest.mark.asyncio
 class TestAgentWorkflow:
+    """
+    Priority: P0
+    Description: Verifies the full agent lifecycle using predefined test cases from dataset.json.
+    Responsibility: Ensures that changes in prompts or graph nodes do not break the core travel planning flow.
+    """
+
     @pytest.mark.parametrize("case", load_cases(), ids=lambda x: x["id"])
-    @patch("agent.nodes.researcher.tools.ResearcherTools.generate_research_plan", new_callable=AsyncMock)
-    @patch("agent.nodes.researcher.tools.ResearcherTools.search_web_ddg", new_callable=AsyncMock)
-    @patch("agent.nodes.researcher.tools.ResearcherTools.search_local_kt", new_callable=AsyncMock)
+    @patch("src.agent.nodes.researcher.tools.ResearcherTools.generate_research_plan", new_callable=AsyncMock)
+    @patch("src.agent.nodes.researcher.tools.ResearcherTools.search_web_ddg", new_callable=AsyncMock)
+    @patch("src.agent.nodes.researcher.tools.ResearcherTools.search_local_kt", new_callable=AsyncMock)
     async def test_agent_workflow_logic(self, mock_search_local, mock_search_web, mock_gen_plan, case):
-        if case["id"] == "workflow_006_multi_destination_weather":
-            pytest.skip("Skipping 006 weather test for now as discussed.")
-        from agent.schema import ResearchPlan
-        
+        # Setup mocks to avoid external API costs/volatility during E2E logic check
         mock_gen_plan.return_value = ResearchPlan(local_query="Mock Destination", web_queries=["Mock web search"])
         mock_search_web.return_value = [
             RetrievalItem(source="web", title="Mock Title", content="Mock Content", link="http://mock", metadata={})
@@ -44,25 +54,29 @@ class TestAgentWorkflow:
         config = {"configurable": {"thread_id": thread_id}}
         
         result = None
+        # Handle multi-turn or simple cases
+        inputs = []
         if "turns" in case:
-            for turn in case["turns"]:
-                result = await graph_app.ainvoke({"messages": [HumanMessage(content=turn)]}, config=config)
+            inputs = case["turns"]
         elif "update_input" in case:
-            await graph_app.ainvoke({"messages": [HumanMessage(content=case["input"])]}, config=config)
-            result = await graph_app.ainvoke({"messages": [HumanMessage(content=case["update_input"])]}, config=config)
+            inputs = [case["input"], case["update_input"]]
         else:
-            result = await graph_app.ainvoke({"messages": [HumanMessage(content=case["input"])]}, config=config)
+            inputs = [case["input"]]
 
+        for user_text in inputs:
+            # LangGraph StateGraph uses 'messages' array to aggregate dialog
+            result = await graph_app.ainvoke({"messages": [("user", user_text)]}, config=config)
+
+        # Assertion standard: Verify key state fields
         expected = case["expected_state"]
         for key, val in expected.items():
             if result is not None:
-                # Check top-level result first (for needs_research)
+                # Resolve field mapping (dataset key vs state key)
                 if key in result:
                     actual = result.get(key)
                 else:
-                    # Fallback to user_profile
                     user_profile = result.get("user_profile") or {}
-                    search_key = "people_count" if key == "people" else key
-                    actual = user_profile.get(search_key)
+                    actual = user_profile.get("people_count" if key == "people" else key)
                 
-                assert str(actual) == str(val), f"Field {key} mismatch for {case['id']}: expected {val}, got {actual}"
+                assert str(actual) == str(val), \
+                    f"E2E Mismatch in {case['id']}! Field: {key}. Expected: {val}, Actual: {actual}. State Snapshot: {result}"

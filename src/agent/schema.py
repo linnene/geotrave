@@ -31,15 +31,15 @@ class RouterIntent(BaseModel):
 class UserProfile(BaseModel):
     """Structured user travel profile and preferences."""
     destination: List[str] = Field(default_factory=list, description="List of destinations.")
-    days: Optional[int] = Field(None, description="Number of days.")
-    date: Optional[List[Optional[str]]] = Field(None, min_length=2, max_length=2, description="Departure and return dates [start, end].")
+    days: Optional[int] = Field(default=None, description="Number of days.")
+    date: Optional[List[Optional[str]]] = Field(default=None, description="Departure and return dates [start, end].")
     people_count: Optional[int] = Field(default=1, description="Number of travelers.")
     budget_limit: Optional[int] = Field(default=0, description="Total budget limit.")
     
-    accommodation: Optional[str] = Field(None, description="Accommodation preferences (e.g., 5-star, homestay).")
-    dining: Optional[str] = Field(None, description="Dining preferences/restrictions.")
-    transportation: Optional[str] = Field(None, description="Transportation preferences.")
-    pace: Optional[str] = Field(None, description="Travel pace (e.g., leisure, fast-paced).")
+    accommodation: Optional[str] = Field(default=None, description="Accommodation preferences (e.g., 5-star, homestay).")
+    dining: Optional[str] = Field(default=None, description="Dining preferences/restrictions.")
+    transportation: Optional[str] = Field(default=None, description="Transportation preferences.")
+    pace: Optional[str] = Field(default=None, description="Travel pace (e.g., leisure, fast-paced).")
     activities: List[str] = Field(default_factory=list, description="Specific activities or themes.")
     
     preferences: List[str] = Field(default_factory=list, description="General unstructured positive preferences.")
