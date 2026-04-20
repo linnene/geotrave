@@ -8,7 +8,7 @@ This factory ensures that all nodes (Router, Analyzer, Researcher, etc.) use con
 initialization patterns while adhering to their specific model IDs and parameters.
 """
 
-from typing import Literal
+from typing import Literal, Dict
 from pydantic import SecretStr
 from langchain_openai import ChatOpenAI
 from src.utils.config import (
