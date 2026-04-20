@@ -4,6 +4,12 @@ import sys
 import os
 import asyncio
 
+# Fix ProactorEventLoop issue for Playwright on Windows
+if sys.platform == 'win32':
+    try:
+        asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+    except Exception:
+        pass
 
 from streamlit.runtime.scriptrunner import add_script_run_ctx, get_script_run_ctx
 from threading import current_thread
@@ -97,6 +103,19 @@ with st.sidebar:
                 source_tag = f"[{item.get('source', 'unknown').upper()}]" if isinstance(item, dict) else f"[{getattr(item, 'source', 'unknown').upper()}]"
                 title = item.get('title') if isinstance(item, dict) else getattr(item, 'title', 'No Title')
                 content = item.get('content') if isinstance(item, dict) else getattr(item, 'content', '')
+                link = item.get('link') if isinstance(item, dict) else getattr(item, 'link', None)
+                
+                st.markdown(f"**{i+1}. {source_tag} {title}**")
+                
+                # Check if this content is likely a deep crawl result (usually long)
+                is_long_content = len(content) > 1000
+                display_label = "📄 查看完整解析内容" if is_long_content else "📝 查看摘要"
+                
+                with st.expander(display_label):
+                    st.write(content)
+                    if link:
+                        st.link_button("🔗 访问原网页", link)
+                st.write("---")
                 
                 # 特殊展示天气 API 数据
                 if source_tag == "[API_WEATHER]":
