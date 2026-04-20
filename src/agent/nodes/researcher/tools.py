@@ -215,16 +215,28 @@ class ResearcherTools:
         return sanitized_items
 
     @staticmethod
+    async def _crawl_and_update(item: RetrievalItem):
+        """Helper to perform deep crawling on relevant items."""
+        deep_crawl_domains = ["tripadvisor", "booking.com", "lonelyplanet", "ctrip", "qunar", "wikitravel"]
+        link = item.get("link")
+        if not link or link == "#":
+            return
+        
+        if any(domain in link.lower() for domain in deep_crawl_domains):
+            try:
+                logger.info(f"[Researcher Tools] Autonomous deep crawl started for: {link}")
+                crawler = WebCrawler()
+                crawl_res = await crawler.crawl(link)
+                if crawl_res.status == "success" and crawl_res.content:
+                    item["content"] = crawl_res.content
+                    logger.debug(f"[Researcher Tools] Successfully updated item with deep crawl content for: {link}")
+            except Exception as e:
+                logger.warning(f"[Researcher Tools] Autonomous crawl failed for {link}: {str(e)}")
+
+    @staticmethod
     async def search_web_ddg(query: str, max_results: int = 10) -> List[RetrievalItem]:
         """
         Asynchronously perform DuckDuckGo web searches, isolating synchronous library calls.
-        
-        Args:
-            query (str): The targeted search text.
-            max_results (int): Threshold for return chunks.
-            
-        Returns:
-            List[RetrievalItem]: Standardized web snippet items.
         """
         max_retries = 2
         timeout = 10
@@ -234,82 +246,39 @@ class ResearcherTools:
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", ResourceWarning)
                 with DDGS(timeout=timeout) as ddgs:
-                    # Safely extract values from generator before exiting context
                     return list(ddgs.text(query, max_results=max_results, safesearch='on'))
                             
         for attempt in range(max_retries + 1):
             try:
                 logger.debug(f"[Researcher Tools] Web search (DDG) for: {query} (Attempt {attempt + 1})")
-                # 显式加入真正的异步超时管控，防止底层同步库彻底假死导致线程泄漏
                 results = await asyncio.wait_for(asyncio.to_thread(_sync_ddgs), timeout=timeout + 2.0)
-
                 if not results:
                     return []
                 
                 safety_blacklist = ["sex", "porn", "gamble", "赌博", "色情", "成人", "违禁"]
-                
                 formatted_items: List[RetrievalItem] = []
+                
                 for res in results:
-                    title = res.get("title", "No Title")
-                    snippet = res.get("body", "No Content")
-                    link = res.get("href", "#")
-                    
-                    content_to_check = (title + snippet + link).lower()
-                    if any(word in content_to_check for word in safety_blacklist):
+                    title, snippet, link = res.get("title", ""), res.get("body", ""), res.get("href", "#")
+                    if any(word in (title + snippet + link).lower() for word in safety_blacklist):
                         continue
                         
                     formatted_items.append(RetrievalItem(
-                        source="web",
-                        title=title,
-                        content=snippet,
-                        link=link,
+                        source="web", title=title, content=snippet, link=link,
                         metadata={"query": query}
                     ))
                 
-                # [Optimization] Autonomous Deep Crawling
-                # For top results from key travel domains, perform autonomous deep crawling
-                deep_crawl_domains = ["tripadvisor", "booking.com", "lonelyplanet", "ctrip", "qunar", "wikitravel"]
-                
-                async def _crawl_and_update(item: RetrievalItem):
-                    link = item.get("link")
-                    if not link or link == "#":
-                        return
-                    
-                    if any(domain in link.lower() for domain in deep_crawl_domains):
-                        try:
-                            logger.info(f"[Researcher Tools] Autonomous deep crawl started for: {link}")
-                            crawler = WebCrawler()
-                            crawl_res = await crawler.crawl(link)
-                            if crawl_res.status == "success" and crawl_res.content:
-                                # Replace snippet with full cleaned content
-                                item["content"] = crawl_res.content
-                                logger.debug(f"[Researcher Tools] Successfully updated item with deep crawl content for: {link}")
-                        except Exception as e:
-                            logger.warning(f"[Researcher Tools] Autonomous crawl failed for {link}: {str(e)}")
-
+                # Concurrent autonomous crawling for top 2 relevant results
                 if formatted_items:
-                    # Only crawl the top 2 highly relevant results to balance speed and quality
-                    crawl_tasks = [_crawl_and_update(item) for item in formatted_items[:2]]
-                    await asyncio.gather(*crawl_tasks)
+                    await asyncio.gather(*[ResearcherTools._crawl_and_update(item) for item in formatted_items[:2]])
 
                 return formatted_items
             
-            except asyncio.TimeoutError:
-                logger.warning(f"[Researcher Tools] DDG Attempt {attempt + 1} timed out at async task level.")
+            except (asyncio.TimeoutError, Exception) as e:
                 if attempt < max_retries:
+                    logger.warning(f"[Researcher Tools] DDG Attempt {attempt + 1} failed: {str(e)}. Retrying...")
                     await asyncio.sleep(1)
-                    continue
                 else:
-                    logger.error("[Researcher Tools] Web search exhausted retries due to strict timeout. Bypassing safely.")
-                    return []
-                    
-            except Exception as e:
-                logger.warning(f"[Researcher Tools] DDG Attempt {attempt + 1} failed: {str(e)}")
-                if attempt < max_retries:
-                    await asyncio.sleep(1)
-                    continue
-                else:
-                    # 超过两次(第3次失败)，打印错误日志（抛错级）但返回空列表，绝对不打断图的事件循环
                     logger.error(f"[Researcher Tools] Web search exhausted retries: {str(e)}")
                     return []
 
