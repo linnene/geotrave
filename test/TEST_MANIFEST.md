@@ -4,27 +4,36 @@
 
 | Dimension | Directory | Priority | Status | Description |
 | :--- | :--- | :--- | :--- | :--- |
-| **Unit** | `test/unit/` | P0-P1 | Initializing | Core logic units (LLMFactory, Utils, Schemas) |
-| **Node** | `test/unit/nodes/` | P0 | Initializing | LangGraph nodes logic with isolated mock data |
+| **Unit** | `test/unit/` | P0-P1 | Active | Core logic units (LLMFactory, Utils, Schemas) |
+| **Node** | `test/unit/nodes/` | P0 | Active | LangGraph nodes logic with isolated mock data |
 | **Integration** | `test/integration/` | P0 | Not Started | Graph state transitions and cross-module workflow |
-| **Evaluation** | `test/eval/` | P1-P2 | Not Started | Quality scoring and performance benchmarking |
+| **Evaluation** | `test/eval/` | P1-P2 | Active | Quality scoring and performance benchmarking |
 
-## 2. Detailed_Test_Item_Inventory
+## 2. Testing_Architecture_Design
 
-### 2.1 Infrastructure_Unit_Tests (test/unit/)
-- **test_llm_factory.py**
-  - `test_singleton_pattern` (P0): Verify instance reuse.
-  - `test_model_configuration` (P1): Validate param injection for different model IDs.
-- **test_api_schemas.py**
-  - `test_chat_request_validation` (P1): Check Pydantic constraints.
+### 2.1 Mocking_vs_Evaluation_Strategy
+The framework distinguishes between **Mocking (Input Simulation)** and **Evaluation (Verification Standard)**:
 
-### 2.2 Multi_Agent_Node_Logic (test/unit/nodes/)
-- **test_router_node.py** (P0): Maps to `src.agent.router`
-  - *Data Source*: `test/eval/data/router_scenarios.json`
-  - *Focus*: Intent classification accuracy.
-- **test_analyzer_node.py** (P0): Maps to `src.agent.nodes.analyzer`
-  - *Data Source*: `test/eval/data/analyzer_scenarios.json`
-  - *Focus*: Slot filling and profile persistence.
+- **Directory: `test/mock/` (The "Actors")**:
+  - `llm_responses/`: Pre-recorded LLM outputs for deterministic testing.
+  - `tool_outputs/`: Mocked tool results (API, RAG, Web) to isolate environment dependencies.
+- **Directory: `test/eval/` (The "Judges")**:
+  - Contains datasets (`dataset.json`, `analyzer_dataset.json`) that define the Ground Truth for model outputs.
+
+## 3. Detailed_Test_Item_Inventory
+
+### 2.1 Multi_Agent_Node_Logic (test/unit/nodes/)
+- **test_router.py** (P0): 
+  - *Data Source*: `test/eval/dataset.json`
+  - *Mock*: `AsyncMock` for LLM chain pipe operator.
+  - *Focus*: Intent classification & Safety fallback.
+- **test_analyzer.py** (P0):
+  - *Data Source*: `test/eval/analyzer_dataset.json`
+  - *Focus*: Requirement extraction and `TravelState` persistence.
+- **test_researcher.py** (P0):
+  - *Data Source*: `test/mock/llm_responses/`, `test/mock/tool_outputs/`
+  - *Focus*: Concurrent task scheduling and data aggregation logic.
+
 
 ## 3. Core_High_Risk_Items_Deep_Dive
 
