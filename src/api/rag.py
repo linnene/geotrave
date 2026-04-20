@@ -82,12 +82,14 @@ async def insert_rag_data(request: InsertRequest):
 @router.post("/upload/")
 async def upload_file_to_rag(file: fastapi.UploadFile = fastapi.File(...)):
     """
-    Handles file uploads (.txt), performs chunking, and stores results in ChromaDB.
+    Handles file uploads (.txt, .md), performs chunking, and stores results in ChromaDB.
     """
     logger.info(f"[RAG API] Upload file received: {file.filename}")
     
-    if not (file.filename and file.filename.endswith(".txt")):
-        raise fastapi.HTTPException(status_code=400, detail="目前仅支持上传 .txt 文件。")
+    # Check for supported extensions: .txt and .md
+    supported_extensions = (".txt", ".md")
+    if not (file.filename and file.filename.lower().endswith(supported_extensions)):
+        raise fastapi.HTTPException(status_code=400, detail="目前仅支持上传 .txt 或 .md 文件。")
     
     content_bytes = await file.read()
     try:
@@ -95,11 +97,13 @@ async def upload_file_to_rag(file: fastapi.UploadFile = fastapi.File(...)):
     except UnicodeDecodeError:
         raise fastapi.HTTPException(status_code=400, detail="文件编码错误，请确保使用 UTF-8 编码。")
     
-    # LangChain Chunking Strategy: 1000 characters with 200 overlap to maintain context
+    # Strategy: Markdown files often have specific structures. 
+    # For now, we use RecursiveCharacterTextSplitter with Markdown-friendly separators.
+    # We can also add "#" to separators to respect header boundaries.
     text_splitter = RecursiveCharacterTextSplitter(
         chunk_size=1000, 
         chunk_overlap=200,
-        separators=["\n\n", "\n", "。", "！", "？", " ", ""]
+        separators=["\n\n", "\n", "###", "##", "#", "。", "！", "？", " ", ""]
     )
     
     chunks = text_splitter.split_text(text_content)
