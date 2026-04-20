@@ -1,25 +1,34 @@
+"""
+Module: src.agent.graph
+Responsibility: Defines the LangGraph state machine, nodes, and conditional edges for the travel agent.
+Parent Module: src.agent
+Dependencies: langgraph, src.agent.state, src.agent.nodes, src.agent.rules
+
+Refactoring Standard: Strict absolute imports, explicit workflow definitions, and clean compilation.
+"""
+
 from langgraph.graph import StateGraph, START, END
 from langgraph.checkpoint.memory import MemorySaver
 
-from agent.state import TravelState
-from agent.nodes.router.router import router_node
-from agent.nodes.analyzer.analyzer import analyzer_node
-from agent.nodes.researcher.researcher import researcher_node
-from agent.rules import route_after_analyzer, route_after_router
+from src.agent.state import TravelState
+from src.agent.nodes.router.router import router_node
+from src.agent.nodes.analyzer.analyzer import analyzer_node
+from src.agent.nodes.researcher.researcher import researcher_node
+from src.agent.rules import route_after_analyzer, route_after_router
 
 # ========== workflow ==========
 workflow = StateGraph(TravelState)
 
-# signal nodes
+# 1. Register nodes
 workflow.add_node("router", router_node)
 workflow.add_node("analyzer", analyzer_node)
 workflow.add_node("researcher", researcher_node)
 
-# edges
-# 每次用户发起对话都从 router 进行安全性、意图的前置扫描
+# 2. Define edge structure
+# Every interaction begins with the security/intent gateway (Router)
 workflow.add_edge(START, "router")
 
-# router 出来之后通过边缘判断函数决定前往分析还是拦截甚至跳过
+# Post-router logic: Dispatch based on classified intent
 workflow.add_conditional_edges(
     "router",
     route_after_router,
@@ -30,6 +39,7 @@ workflow.add_conditional_edges(
     }
 )
 
+# Post-analyzer logic: Determine if research is needed or if questions persist
 workflow.add_conditional_edges(
     "analyzer",
     route_after_analyzer,
@@ -39,11 +49,12 @@ workflow.add_conditional_edges(
     }
 )
 
-# TODO:添加其他节点和边
+# Implementation remains straightforward for retrieval
 workflow.add_edge("researcher", END)
 
-# Initializing in-memory checkpointer
+# Initializing in-memory checkpointer 
+# Persistent memory is handled at the state layer; this manages ephemeral graph checkpoints.
 memory = MemorySaver()
 
-# compile graph
+# Compile the final application
 graph_app = workflow.compile(checkpointer=memory)
