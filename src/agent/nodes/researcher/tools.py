@@ -30,6 +30,7 @@ from src.utils import (
 )
 from src.agent.state import RetrievalItem
 from src.agent.schema import ResearchPlan
+from src.agent.state import TravelState
 
 class ResearcherTools:
     """
@@ -38,12 +39,12 @@ class ResearcherTools:
     """
     
     @staticmethod
-    async def generate_research_plan(state: Dict[str, Any], LLM: ChatOpenAI) -> Optional[ResearchPlan]:
+    async def generate_research_plan(state: TravelState, LLM: ChatOpenAI) -> Optional[ResearchPlan]:
         """
         Produce a structured research plan based on the current TravelState layout.
         
         Args:
-            state (Dict[str, Any]): The current contextual graph state.
+            state (TravelState): The current contextual graph state.
             LLM (ChatOpenAI): The language model instance provisioned for generation.
             
         Returns:
@@ -270,20 +271,21 @@ class ResearcherTools:
                 deep_crawl_domains = ["tripadvisor", "booking.com", "lonelyplanet", "ctrip", "qunar", "wikitravel"]
                 
                 async def _crawl_and_update(item: RetrievalItem):
-                    if not item.link or item.link == "#":
+                    link = item.get("link")
+                    if not link or link == "#":
                         return
                     
-                    if any(domain in item.link.lower() for domain in deep_crawl_domains):
+                    if any(domain in link.lower() for domain in deep_crawl_domains):
                         try:
-                            logger.info(f"[Researcher Tools] Autonomous deep crawl started for: {item.link}")
+                            logger.info(f"[Researcher Tools] Autonomous deep crawl started for: {link}")
                             crawler = WebCrawler()
-                            crawl_res = await crawler.crawl(item.link)
+                            crawl_res = await crawler.crawl(link)
                             if crawl_res.status == "success" and crawl_res.content:
                                 # Replace snippet with full cleaned content
-                                item.content = crawl_res.content
-                                logger.debug(f"[Researcher Tools] Successfully updated item with deep crawl content for: {item.link}")
+                                item["content"] = crawl_res.content
+                                logger.debug(f"[Researcher Tools] Successfully updated item with deep crawl content for: {link}")
                         except Exception as e:
-                            logger.warning(f"[Researcher Tools] Autonomous crawl failed for {item.link}: {str(e)}")
+                            logger.warning(f"[Researcher Tools] Autonomous crawl failed for {link}: {str(e)}")
 
                 if formatted_items:
                     # Only crawl the top 2 highly relevant results to balance speed and quality
