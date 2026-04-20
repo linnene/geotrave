@@ -168,19 +168,29 @@ class ResearcherTools:
             )
 
             try:
+                logger.debug(f"[Researcher Tools] Chunk filter: sending {len(chunk)} items to LLM (IDs: {start_idx} to {start_idx + len(chunk) - 1})")
                 res = await LLM.ainvoke(prompt)
                 answer = str(res.content).strip().upper()
+                
+                logger.debug(f"[Researcher Tools] Chunk filter raw answer: {answer}")
+                
                 if "NONE" in answer:
+                    logger.debug(f"[Researcher Tools] Chunk filter: IDs {start_idx}-{start_idx+len(chunk)-1} - all items dropped by LLM.")
                     return []
+                
                 import re
-                return [int(n) for n in re.findall(r"\d+", answer)]
+                found_ids = [int(n) for n in re.findall(r"\d+", answer)]
+                logger.debug(f"[Researcher Tools] Chunk filter: IDs {start_idx}-{start_idx+len(chunk)-1} -> Keeping {len(found_ids)} items: {found_ids}")
+                return found_ids
             except Exception as e:
-                logger.warning(f"[Researcher Tools] Chunk filtering failed: {str(e)}")
+                logger.error(f"[Researcher Tools] Chunk filter FAILED at IDs {start_idx}-{start_idx+len(chunk)-1}: {str(e)}")
                 # On individual chunk failure, we include all items from this chunk to be safe
                 return list(range(start_idx, start_idx + len(chunk)))
 
         # Split items into chunks of 15
         item_chunks = [items[i:i + chunk_size] for i in range(0, len(items), chunk_size)]
+        
+        logger.info(f"[Researcher Tools] Batch filtering total {len(items)} items in {len(item_chunks)} concurrent chunks for query: '{query}'")
         
         # Concurrent processing of chunks
         tasks = [_filter_chunk(chunk, i * chunk_size) for i, chunk in enumerate(item_chunks)]
