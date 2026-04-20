@@ -1,31 +1,33 @@
-# GeoTrave 评估体系与测试规范
+# Evaluation_System_Spec
 
-## 概述
-本文档定义了 GeoTrave 项目的全维度自动化评估体系。随着多智能体协同机制的复杂化，本体系旨在通过量化基准和数据驱动的架构，确保项目各节点和流水线的可靠性。
+## 1. Multi_Dimensional_Assessment_Framework
 
-## 全维度测试架构图
+### 1.1 RAG_Quality_Benchmarking
+- **Objective**: Measure retrieval relevance and grounding accuracy.
+- **Metrics**: Context precision, faithfulness, context recall.
+- **Status**: Future implementation via Ragas.
 
-### 维度 1：RAG 召回精度测试 (规划中)
-- 目标：评估通过意图检索本地知识库的相关性和准确率。
-- 指标：事实一致性 (Faithfulness)、上下文召回率 (Context Recall)。
-- 工具栈预留：Ragas。
+### 1.2 Workflow_State_Validation
+- **Objective**: Verify integrity of state transitions across the graph.
+- **Current_Implementation**:
+  - Data-driven engine utilizing `test/eval/dataset.json`.
+  - Concurrent session isolation testing via distinct `thread_id`.
 
-### 维度 2：工作流与多体协作验证 (架构已奠基)
-- 目标：测定各节点之间的状态传递（State Transition）是否满足预期，信息提取是否产生丢失或串点。
-- 当前实现：
-  - 数据驱动引擎：所有输入输出期待值均序列化在 	est/eval/dataset.json。
-  - 并发隔离保障：通过多线程和不同 thread_id 断言，测试 Session 的封闭性。
-- 后续补全：接入 Planner 节点后的大规模测试用例扩充，以及状态白板扩充后的长链路测试逻辑。
+### 1.3 Reasoning_Constraint_Compliance
+- **Objective**: Assess `Planner` capability in handling conflicting constraints.
+- **Metric**: Constraint violation rate, budget accuracy.
 
-### 维度 3：复杂推理与规划验证 (规划中)
-- 目标：评估大模型（特别是 Planner 节点）处理庞大且带有相互博弈的硬约束时的推理能力。
-- 指标：约束冲突服从率、开销计算准确性。
+## 2. Quantitative_Scoring_Algorithm
 
-### 维度 4：端到端（E2E）用户体验基准 (规划中)
-- 目标：拟合真实用户对话负载，黑盒测试整体响应体系。
-- 评估点：系统首字响应延迟、API 熔断情况、容灾反馈处理。
+### 2.1 Formula_Definition
+The aggregate health score ($S_{total}$) is defined as:
+$$S_{total} = w_1 \cdot E_{extraction} + w_2 \cdot R_{recall} + w_3 \cdot C_{compliance}$$
+Where:
+- $w_i$: Normalized weight coefficients.
+- $E_{extraction}$: Slot filling completeness.
+- $R_{recall}$: Retrieval relevance score.
+- $C_{compliance}$: Adherence to hard constraints (e.g., budget limit).
 
-## 综合评估算法规划
-当前系统仅具备基础的 Pass/Fail 二元断言。下一步将着手设计 **多维度数据分数总结算法**：
-- 结合槽位提取的完成度、约束遵循的强弱罚分、以及检索冗余度，计算出单轮乃至单次 Session 的复合健康度评分。
-- 将生成的评分持久化至 CI artifact 或本地日志报告中，形成迭代版本的基线对比。
+### 2.2 Result_Persistence
+- **Log_Format**: Standardized JSON reports per session.
+- **Integration**: Baseline comparison against previous git commits for regression detection.
