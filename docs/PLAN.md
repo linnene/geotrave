@@ -21,7 +21,15 @@
 - **Objective**: Refactor `research_query_prompt_template` to emphasize keyword extraction.
 - **Expected Outcome**: Reduced token consumption and improved recall from search engines.
 
-### 2.2 Recommender_Module_Integration
+### 2.2 Universal_Web_Content_Crawler_&_Parser
+- **Objective**: Develop a robust, anti-ad secondary parser to extract clean content from URLs.
+- **Key Features**:
+  - **Dynamic Fetching**: Integration of `Crawl4AI` or `Playwright` to handle SPA/JavaScript-heavy travel sites.
+  - **Readability Cleaning**: Use `trafilatura` or `readability-lxml` to strip boilerplate (ads, nav, sidebars) and extract primary article text.
+  - **Semantic Chunking**: Split long content into coherent sections for RAG injection.
+- **Priority**: High (Enables deeper research beyond search snippets).
+
+### 2.3 Recommender_Module_Integration
 - **Objective**: Transform raw retrieved contexts into structured candidates.
 - **Components**: Restaurant selection, attraction ranking, and accommodation matching.
 
