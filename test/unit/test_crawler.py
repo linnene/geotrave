@@ -1,49 +1,113 @@
 """
 Description: Universal Web Crawler & Parser Unit Tests
 Target: /src/crawler/parser.py
-Status: Initialization (Pending implementations)
+Status: Completed
 """
 
 import pytest
 import asyncio
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, patch, MagicMock
 from src.crawler import WebCrawler
+from src.crawler.parser import ContentParser
+from src.crawler.schema import CrawlResult
 
 @pytest.fixture
 def crawler():
     return WebCrawler(timeout=1)
 
-@pytest.mark.asyncio
-@pytest.mark.priority("P1")
-async def test_crawler_fetch_raw_html_success(crawler):
-    """
-    Goal: Verify crawler can fetch raw HTML via async httpx.
-    Verify: HTTP Status 200, string output.
-    """
-    pytest.fail("TODO: Implement with a mock HTTP server or real URL once trafilatura/httpx is installed.")
-
-@pytest.mark.priority("P1")
-def test_crawler_trafilatura_extraction(crawler):
-    """
-    Goal: Verify Trafilatura extracts clean content from a target HTML string.
-    Verify: Result is Markdown, no navigation/ads from input HTML.
-    """
-    pytest.fail("TODO: Implement with sample HTML body containing navigation and main article content.")
+@pytest.fixture
+def parser():
+    return ContentParser()
 
 @pytest.mark.asyncio
 @pytest.mark.priority("P1")
-async def test_crawler_crawl_entry_point(crawler):
+async def test_crawler_schema_validation():
+    """Verify CrawlResult schema constraints."""
+    result = CrawlResult(
+        url="https://example.com",
+        title="Test Title",
+        content="Test Content",
+        status="success",
+        mode="fast"
+    )
+    assert result.url == "https://example.com"
+    assert result.status == "success"
+
+@pytest.mark.priority("P1")
+def test_parser_cleaning_logic(parser):
     """
-    Goal: Verify high-level crawl() method handles successful fetch and cleanup.
-    Verify: Returns dict with 'content' and 'status'.
+    Goal: Verify Trafilatura extraction logic works with sample HTML.
     """
-    pytest.fail("TODO: End-to-end unit test with mocked external search response.")
+    sample_html = """
+    <html>
+        <head><title>Travel Guide</title></head>
+        <body>
+            <nav><ul><li>Home</li><li>About</li></ul></nav>
+            <main>
+                <h1>Japan Trip 2024</h1>
+                <p>Japan is a beautiful country with great food.</p>
+                <div class="ads">Buy our luggage now!</div>
+            </main>
+            <footer>Contact us</footer>
+        </body>
+    </html>
+    """
+    title, content = parser.process_extraction(sample_html)
+    
+    # Trafilatura should pick the main content and ignore nav/ads
+    assert "Japan Trip 2024" in content
+    assert "Japan is a beautiful country" in content
+    assert "Home" not in content  # Nav should be stripped
+    assert title == "Travel Guide"
+
+@pytest.mark.asyncio
+@pytest.mark.priority("P1")
+@patch("src.crawler.fetcher.ContentFetcher.fetch_fast")
+async def test_crawler_orchestration_fast_success(mock_fetch, crawler):
+    """
+    Goal: Verify WebCrawler orchestrator correctly uses Fast mode when it succeeds.
+    """
+    mock_fetch.return_value = "<html><body><h1>Fast Content</h1></body></html>"
+    
+    result = await crawler.crawl("https://simple-site.com")
+    
+    assert result.status == "success"
+    assert result.mode == "fast"
+    assert "Fast Content" in result.content
+    mock_fetch.assert_called_once()
+
+@pytest.mark.asyncio
+@pytest.mark.priority("P1")
+@patch("src.crawler.fetcher.ContentFetcher.fetch_fast")
+@patch("src.crawler.fetcher.ContentFetcher.fetch_deep")
+async def test_crawler_orchestration_fallback_to_deep(mock_deep, mock_fast, crawler):
+    """
+    Goal: Verify WebCrawler falls back to Deep mode if Fast mode fails.
+    """
+    mock_fast.return_value = None  # Simulate 403 or timeout
+    mock_deep.return_value = "<html><body><h1>Deep Content</h1></body></html>"
+    
+    result = await crawler.crawl("https://complex-site.com")
+    
+    assert result.status == "success"
+    assert result.mode == "deep"
+    assert "Deep Content" in result.content
+    mock_fast.assert_called_once()
+    mock_deep.assert_called_once()
 
 @pytest.mark.asyncio
 @pytest.mark.priority("P2")
-async def test_crawler_failure_handling(crawler):
+@patch("src.crawler.fetcher.ContentFetcher.fetch_fast")
+@patch("src.crawler.fetcher.ContentFetcher.fetch_deep")
+async def test_crawler_full_path_error(mock_deep, mock_fast, crawler):
     """
-    Goal: Verify crawler returns proper status on HTTP errors (404, DNS failure).
-    Verify: status == 'error', content is None.
+    Goal: Verify error status when both engines fail.
     """
-    pytest.fail("TODO: Mock connection error and verify graceful exit.")
+    mock_fast.return_value = None
+    mock_deep.return_value = None
+    
+    result = await crawler.crawl("https://broken-site.com")
+    
+    assert result.status == "error"
+    assert result.content is None
+
