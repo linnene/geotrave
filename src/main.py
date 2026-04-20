@@ -9,6 +9,8 @@ Refactoring Standard: Absolute imports, clear lifespan management, and standardi
 
 import fastapi
 import uvicorn
+import asyncio
+import sys
 from contextlib import asynccontextmanager
 
 from src.api.routes import router as api_router
@@ -19,6 +21,11 @@ async def lifespan(app: fastapi.FastAPI):
     """
     Manages the startup and shutdown lifecycle of the FastAPI application.
     """
+    # Fix ProactorEventLoop issue for Playwright on Windows
+    if sys.platform == 'win32':
+        asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+        logger.info("[GeoTrave] Applied WindowsProactorEventLoopPolicy for async subprocess support")
+
     logger.info("======================================================")
     logger.info(" API Server: Initializing Infrastructure")
     logger.info("======================================================")
