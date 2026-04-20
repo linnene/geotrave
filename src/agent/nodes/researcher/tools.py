@@ -132,7 +132,7 @@ class ResearcherTools:
     async def filter_retrieval_items(items: List[RetrievalItem], LLM: ChatOpenAI) -> List[RetrievalItem]:
         """
         Batch filtering of retrieval items using an LLM to purge irrelevant hits.
-        Uses a numbered index approach to reduce LLM calls and latency.
+        Uses a chunked approach (15 items per batch) to maintain focus and reduce latency.
         
         Args:
             items (List[RetrievalItem]): The raw aggregated retrieval results.
@@ -149,42 +149,53 @@ class ResearcherTools:
         metadata = first_item.get("metadata", {}) if isinstance(first_item, dict) else getattr(first_item, "metadata", {})
         query = metadata.get("query", "旅游规划相关信息")
 
-        # Build a numbered list for batch processing
-        formatted_list = []
-        for i, item in enumerate(items):
-            title = item.get("title", "") if isinstance(item, dict) else getattr(item, "title", "")
-            content = item.get("content", "") if isinstance(item, dict) else getattr(item, "content", "")
-            # Truncate content for the filter prompt to save tokens and time
-            short_content = (content[:200] + "...") if len(content) > 200 else content
-            formatted_list.append(f"ID: {i}\nTitle: {title}\nContent: {short_content}")
-
-        batch_content = "\n\n".join(formatted_list)
+        chunk_size = 15
+        all_valid_ids = []
         
-        prompt = research_batch_filter_prompt_template.format(
-            query=query,
-            batch_content=batch_content
-        )
+        async def _filter_chunk(chunk: List[RetrievalItem], start_idx: int) -> List[int]:
+            formatted_list = []
+            for i, item in enumerate(chunk):
+                title = item.get("title", "") if isinstance(item, dict) else getattr(item, "title", "")
+                content = item.get("content", "") if isinstance(item, dict) else getattr(item, "content", "")
+                # Truncate content to save tokens
+                short_content = (content[:200] + "...") if len(content) > 200 else content
+                formatted_list.append(f"ID: {start_idx + i}\nTitle: {title}\nContent: {short_content}")
 
-        try:
-            logger.debug(f"[Researcher Tools] Batch filtering {len(items)} items for query: {query}")
-            res = await LLM.ainvoke(prompt)
-            answer = str(res.content).strip().upper()
+            batch_content = "\n\n".join(formatted_list)
+            prompt = research_batch_filter_prompt_template.format(
+                query=query,
+                batch_content=batch_content
+            )
+
+            try:
+                res = await LLM.ainvoke(prompt)
+                answer = str(res.content).strip().upper()
+                if "NONE" in answer:
+                    return []
+                import re
+                return [int(n) for n in re.findall(r"\d+", answer)]
+            except Exception as e:
+                logger.warning(f"[Researcher Tools] Chunk filtering failed: {str(e)}")
+                # On individual chunk failure, we include all items from this chunk to be safe
+                return list(range(start_idx, start_idx + len(chunk)))
+
+        # Split items into chunks of 15
+        item_chunks = [items[i:i + chunk_size] for i in range(0, len(items), chunk_size)]
+        
+        # Concurrent processing of chunks
+        tasks = [_filter_chunk(chunk, i * chunk_size) for i, chunk in enumerate(item_chunks)]
+        chunk_results = await asyncio.gather(*tasks)
+        
+        # Flatten valid IDs
+        for valid_ids in chunk_results:
+            all_valid_ids.extend(valid_ids)
             
-            if "NONE" in answer:
-                return []
-                
-            # Extract numbers from the response
-            import re
-            valid_ids = [int(n) for n in re.findall(r"\d+", answer)]
-            
-            # Filter the original list
-            sanitized_items = [items[i] for i in valid_ids if 0 <= i < len(items)]
-            logger.debug(f"[Researcher Tools] Filtered {len(items)} -> {len(sanitized_items)} items")
-            return sanitized_items
-            
-        except Exception as e:
-            logger.warning(f"[Researcher Tools] Batch filtering failed: {str(e)}. Falling back to full list.")
-            return items
+        # Unique and sorted to maintain order and avoid duplicates
+        unique_valid_ids = sorted(list(set(all_valid_ids)))
+        
+        sanitized_items = [items[i] for i in unique_valid_ids if 0 <= i < len(items)]
+        logger.debug(f"[Researcher Tools] Filtered {len(items)} -> {len(sanitized_items)} items in {len(item_chunks)} chunks.")
+        return sanitized_items
 
     @staticmethod
     async def search_web_ddg(query: str, max_results: int = 10) -> List[RetrievalItem]:
