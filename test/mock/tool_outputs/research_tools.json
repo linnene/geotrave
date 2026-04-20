@@ -1,0 +1,20 @@
+{
+    "shanghai_weather": [
+        {
+            "content": "上海今日晴，15℃-22℃，体感舒适，适合户外游玩。",
+            "source": "api_weather",
+            "title": "上海天气预报",
+            "link": null,
+            "metadata": {"location": "上海"}
+        }
+    ],
+    "shanghai_local": [
+        {
+            "content": "外滩（The Bund）是上海标志性景点，推荐傍晚前往看夜景。",
+            "source": "local_db",
+            "title": "外滩游玩指南",
+            "link": null,
+            "metadata": {"source": "manual_upload"}
+        }
+    ]
+}
