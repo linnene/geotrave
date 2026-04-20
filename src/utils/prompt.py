@@ -138,6 +138,21 @@ research_query_prompt_template = PromptTemplate(
 )
 
 # ==============================================================================
+# RESEARCH BATCH FILTER (QUALITY ASSURANCE) PROMPT
+# ==============================================================================
+_RESEARCH_BATCH_FILTER_TEMPLATE = """你是一个旅游信息筛选专家。请分析以下针对查询 "{query}" 的搜索结果，判断哪些结果是真正有用且相关的。直接列出所有**相关**结果的编号(ID)，用逗号分隔。
+
+搜索结果列表：
+{batch_content}
+
+输出格式：仅输出编号，如: 0, 2, 5 (如果都无关请输出: NONE)"""
+
+research_batch_filter_prompt_template = PromptTemplate(
+    template=_RESEARCH_BATCH_FILTER_TEMPLATE,
+    input_variables=["query", "batch_content"]
+)
+
+# ==============================================================================
 # RESEARCH FILTER (QUALITY ASSURANCE) PROMPT
 # ==============================================================================
 _RESEARCH_FILTER_TEMPLATE = """你是一个旅行检索内容宽容的初步质检员。

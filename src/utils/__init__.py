@@ -32,6 +32,7 @@ from src.utils.prompt import (
     analyzer_prompt_template,
     research_query_prompt_template,
     research_filter_prompt_template,
+    research_batch_filter_prompt_template,
 )
 from src.utils.llm_factory import LLMFactory
 

@@ -21,7 +21,12 @@ from langchain_openai import ChatOpenAI
 from ddgs import DDGS
 
 from src.database.vector_db import search_similar_documents
-from src.utils import logger, research_query_prompt_template, research_filter_prompt_template
+from src.utils import (
+    logger, 
+    research_query_prompt_template, 
+    research_filter_prompt_template,
+    research_batch_filter_prompt_template
+)
 from src.agent.state import RetrievalItem
 from src.agent.schema import ResearchPlan
 
@@ -126,7 +131,8 @@ class ResearcherTools:
     @staticmethod
     async def filter_retrieval_items(items: List[RetrievalItem], LLM: ChatOpenAI) -> List[RetrievalItem]:
         """
-        Secondary LLM-driven filtering mechanism to purge severely irrelevant search hits.
+        Batch filtering of retrieval items using an LLM to purge irrelevant hits.
+        Uses a numbered index approach to reduce LLM calls and latency.
         
         Args:
             items (List[RetrievalItem]): The raw aggregated retrieval results.
@@ -138,34 +144,47 @@ class ResearcherTools:
         if not items:
             return []
             
-        async def _check_single_item(item: RetrievalItem) -> Optional[RetrievalItem]:
+        # Get query from the first item to provide context
+        first_item = items[0]
+        metadata = first_item.get("metadata", {}) if isinstance(first_item, dict) else getattr(first_item, "metadata", {})
+        query = metadata.get("query", "旅游规划相关信息")
+
+        # Build a numbered list for batch processing
+        formatted_list = []
+        for i, item in enumerate(items):
             title = item.get("title", "") if isinstance(item, dict) else getattr(item, "title", "")
             content = item.get("content", "") if isinstance(item, dict) else getattr(item, "content", "")
-            metadata = item.get("metadata", {}) if isinstance(item, dict) else getattr(item, "metadata", {})
-            query = metadata.get("query", "提供背景信息")
-            
-            prompt = research_filter_prompt_template.format(
-                query=query,
-                title=title,
-                content=content
-            )
-            try:
-                res = await LLM.ainvoke(prompt)
-                answer_raw = str(res.content).strip()
-                answer = answer_raw.upper()
-                if "NO" in answer and "YES" not in answer:
-                    logger.debug(f"[Researcher Tools] Filter dropped irrelevant item: {title}")
-                    return None
-                else:
-                    return item
-            except Exception:
-                # Retain item passively if LLM fails 
-                return item
+            # Truncate content for the filter prompt to save tokens and time
+            short_content = (content[:200] + "...") if len(content) > 200 else content
+            formatted_list.append(f"ID: {i}\nTitle: {title}\nContent: {short_content}")
 
-        # Dispatch concurrency
-        tasks = [_check_single_item(item) for item in items]
-        checked = await asyncio.gather(*tasks)
-        return [raw for raw in checked if raw is not None]
+        batch_content = "\n\n".join(formatted_list)
+        
+        prompt = research_batch_filter_prompt_template.format(
+            query=query,
+            batch_content=batch_content
+        )
+
+        try:
+            logger.debug(f"[Researcher Tools] Batch filtering {len(items)} items for query: {query}")
+            res = await LLM.ainvoke(prompt)
+            answer = str(res.content).strip().upper()
+            
+            if "NONE" in answer:
+                return []
+                
+            # Extract numbers from the response
+            import re
+            valid_ids = [int(n) for n in re.findall(r"\d+", answer)]
+            
+            # Filter the original list
+            sanitized_items = [items[i] for i in valid_ids if 0 <= i < len(items)]
+            logger.debug(f"[Researcher Tools] Filtered {len(items)} -> {len(sanitized_items)} items")
+            return sanitized_items
+            
+        except Exception as e:
+            logger.warning(f"[Researcher Tools] Batch filtering failed: {str(e)}. Falling back to full list.")
+            return items
 
     @staticmethod
     async def search_web_ddg(query: str, max_results: int = 10) -> List[RetrievalItem]:
