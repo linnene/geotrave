@@ -20,6 +20,7 @@ from langchain_core.output_parsers import PydanticOutputParser
 from langchain_openai import ChatOpenAI
 from ddgs import DDGS
 
+from src.crawler import WebCrawler
 from src.database.vector_db import search_similar_documents
 from src.utils import (
     logger, 
@@ -264,6 +265,31 @@ class ResearcherTools:
                         metadata={"query": query}
                     ))
                 
+                # [Optimization] Autonomous Deep Crawling
+                # For top results from key travel domains, perform autonomous deep crawling
+                deep_crawl_domains = ["tripadvisor", "booking.com", "lonelyplanet", "ctrip", "qunar", "wikitravel"]
+                
+                async def _crawl_and_update(item: RetrievalItem):
+                    if not item.link or item.link == "#":
+                        return
+                    
+                    if any(domain in item.link.lower() for domain in deep_crawl_domains):
+                        try:
+                            logger.info(f"[Researcher Tools] Autonomous deep crawl started for: {item.link}")
+                            crawler = WebCrawler()
+                            crawl_res = await crawler.crawl(item.link)
+                            if crawl_res.status == "success" and crawl_res.content:
+                                # Replace snippet with full cleaned content
+                                item.content = crawl_res.content
+                                logger.debug(f"[Researcher Tools] Successfully updated item with deep crawl content for: {item.link}")
+                        except Exception as e:
+                            logger.warning(f"[Researcher Tools] Autonomous crawl failed for {item.link}: {str(e)}")
+
+                if formatted_items:
+                    # Only crawl the top 2 highly relevant results to balance speed and quality
+                    crawl_tasks = [_crawl_and_update(item) for item in formatted_items[:2]]
+                    await asyncio.gather(*crawl_tasks)
+
                 return formatted_items
             
             except asyncio.TimeoutError:
