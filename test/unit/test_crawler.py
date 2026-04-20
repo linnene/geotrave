@@ -7,7 +7,7 @@ Status: Initialization (Pending implementations)
 import pytest
 import asyncio
 from unittest.mock import AsyncMock, patch
-from src.crawler.parser import WebCrawler
+from src.crawler import WebCrawler
 
 @pytest.fixture
 def crawler():
