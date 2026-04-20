@@ -2,14 +2,28 @@
   <img src="assets/GeoTrave.png" alt="GeoTrave Logo" width="400" />
 </p>
 
+---
+
+<p align="">
+  <img src="assets/GeoTrave_sign.png" alt="GeoTrave Logo"/>
+</p>
 
 # GeoTrave: High-Performance Multi-Agent Travel Architect
 
 GeoTrave is a sophisticated travel planning engine built on **LangGraph**, utilizing a robust multi-agent orchestration to transform complex natural language into structured, executable travel itineraries.
 
+
+## Documentation Guide
+
+- **[Project Plan](docs/PLAN.md)**: Current development roadmap, phase milestones, and architectural evolution.
+- **[Evaluation Spec](docs/EVAL.md)**: Metrics for agent performance, benchmark datasets, and RAGAS scoring criteria.
+- **[Test Manifest](test/TEST_MANIFEST.md)**: Technical documentation for the 3-layer testing framework (Unit, Integration, E2E).
+- **[Node](docs/NODE.md)**: About each node
+
+
 ## Core_Architectural_Features
-<p align="center">
-  <img src="assets/Gragh.png" />
+<p>
+  <img src="assets/Gragh.png" width = "500"/>
 </p>
 
 ### Multi_Agent_Orchestration
@@ -48,6 +62,17 @@ TAVILY_API_KEY="your_api_key"
 # Clone repository
 git clone https://github.com/linnene/geotrave.git
 cd geotrave
+```
+
+## Testing_Framework
+GeoTrave utilizes a comprehensive testing suite to ensure high reliability across all agent nodes.
+
+```bash
+# Run all tests (Unit, Integration, E2E)
+uv run pytest test/ -v
+
+# Run high-priority (P0) tests only
+uv run pytest -m "priority('P0')"
 
 # Sync dependencies
 uv sync
@@ -81,9 +106,3 @@ src/
 └── utils/       # LLM Factory, Config, and Logger
 ```
 
----
-
-
-<p align="">
-  <img src="assets/GeoTrave_sign.png" alt="GeoTrave Logo"/>
-</p>
