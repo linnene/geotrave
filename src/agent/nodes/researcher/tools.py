@@ -13,7 +13,7 @@ import json
 import urllib.request
 import urllib.parse
 from datetime import datetime
-from typing import Optional, Dict, List, Any
+from typing import Optional, Dict, List
 
 # Top-level unified imports adhering to the robust import architecture
 from langchain_core.output_parsers import PydanticOutputParser
@@ -25,7 +25,6 @@ from src.database.vector_db import search_similar_documents
 from src.utils import (
     logger, 
     research_query_prompt_template, 
-    research_filter_prompt_template,
     research_batch_filter_prompt_template
 )
 from src.agent.state import RetrievalItem
@@ -164,8 +163,14 @@ class ResearcherTools:
             for i, item in enumerate(chunk):
                 title = item.get("title", "") if isinstance(item, dict) else getattr(item, "title", "")
                 content = item.get("content", "") if isinstance(item, dict) else getattr(item, "content", "")
-                # Truncate content to save tokens
-                short_content = (content[:200] + "...") if len(content) > 200 else content
+                
+                # Check if this item is a deep crawl result (usually has long content)
+                # For deep crawl results, we use a slightly longer representative snippet for LLM filtering
+                # but we will NOT truncate it in the final output.
+                is_deep_crawl = len(content) > 1000
+                snippet_len = 500 if is_deep_crawl else 200
+                short_content = (content[:snippet_len] + "...") if len(content) > snippet_len else content
+                
                 formatted_list.append(f"ID: {start_idx + i}\nTitle: {title}\nContent: {short_content}")
 
             batch_content = "\n\n".join(formatted_list)
