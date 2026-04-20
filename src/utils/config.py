@@ -1,3 +1,13 @@
+"""
+Module: src.utils.config
+Responsibility: Centralized configuration management handling environment variables, LLM parameters, and system-wide settings.
+Parent Module: src.utils
+Dependencies: os, python-dotenv
+
+This module loads the `.env` file and exposes immutable global configurations 
+for database connections, LLM APIs, and agent hyperparameters.
+"""
+
 import os
 from dotenv import load_dotenv
 
