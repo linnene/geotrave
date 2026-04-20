@@ -72,7 +72,7 @@ class ContentFetcher:
                 result = await crawler.arun(url=url, config=run_config)
                 
                 # Validation: check for anti-bot keywords in result
-                if result.html and len(result.html) > 1000:
+                if result and result.success and result.html and len(result.html) > 1000:
                     forbidden_keys = ["verify you're not a robot", "JavaScript is disabled"]
                     for key in forbidden_keys:
                         if key.lower() in result.html.lower():
