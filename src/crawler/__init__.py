@@ -18,9 +18,17 @@ class WebCrawler:
         html = None
         mode = "fast"
         
+        # Heuristic: certain domains are known to block fast mode or require JS
+        block_prone_domains = ["booking.com", "tripadvisor.com", "ctrip.com", "xiaohongshu.com", "xhslink.com"]
+        if any(domain in url.lower() for domain in block_prone_domains):
+            force_deep = True
+
         if not force_deep:
             html = await self.fetcher.fetch_fast(url)
-            
+            # If fast mode returns an obvious bot-block message, retry with deep mode
+            if html and ("JavaScript is disabled" in html or "verify you're not a robot" in html):
+                html = None
+
         if not html:
             html = await self.fetcher.fetch_deep(url)
             mode = "deep"
