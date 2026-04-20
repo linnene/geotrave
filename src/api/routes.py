@@ -1,9 +1,19 @@
+"""
+Module: src.api.routes
+Responsibility: Aggregates all API sub-routers (Chat, RAG) into a single unified router.
+Parent Module: src.api
+Dependencies: fastapi, src.api.chat, src.api.rag
+"""
+
 from fastapi import APIRouter
-from .chat import router as chat_router
-from .rag import router as rag_router
+from src.api.chat import router as chat_router
+from src.api.rag import router as rag_router
 
 router = APIRouter()
-router.include_router(chat_router)
-router.include_router(rag_router)
+
+# Combine individual logic routers
+router.include_router(chat_router, prefix="/chat", tags=["Agent Chat"])
+router.include_router(rag_router, prefix="/rag", tags=["Knowledge Base"])
+
 
 
