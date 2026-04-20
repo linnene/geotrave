@@ -18,10 +18,14 @@ from src.agent.nodes.router.router import router_node, RouterIntent
 from src.agent.state import TravelState
 def load_scenarios():
     """Helper to load isolated test data."""
-    # Build path relative to current file
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    # from test/unit/nodes to test/eval/data
-    path = os.path.abspath(os.path.join(current_dir, "..", "..", "eval", "data", "router_scenarios.json"))
+    # Build path relative to project root instead of __file__ to avoid confusion
+    # In pytest, the CWD is usually the project root
+    path = os.path.join(os.getcwd(), "test", "eval", "data", "router_scenarios.json")
+    if not os.path.exists(path):
+        # Fallback to relative path from this file
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        path = os.path.abspath(os.path.join(current_dir, "..", "..", "eval", "data", "router_scenarios.json"))
+        
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
 
