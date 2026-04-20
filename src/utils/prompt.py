@@ -151,28 +151,3 @@ research_batch_filter_prompt_template = PromptTemplate(
     template=_RESEARCH_BATCH_FILTER_TEMPLATE,
     input_variables=["query", "batch_content"]
 )
-
-# ==============================================================================
-# RESEARCH FILTER (QUALITY ASSURANCE) PROMPT
-# ==============================================================================
-_RESEARCH_FILTER_TEMPLATE = """你是一个旅行检索内容宽容的初步质检员。
-当前的搜索目标/查询词为：【{query}】
-
-以下是网络或数据库刚刚检索到的一篇参考资料：
-【标题】：{title}
-【内容片段】：{content}
-
-任务：请判定这篇资料与当前搜索目标【{query}】是否具有基本的关联性。
-注意：只要资料提供了符合该目的地的任何旅游、景点、美食、天气等相关信息，哪怕是不完整的片段，也应视为“相关”。
-只有当资料完全偏离（例如：介绍其他城市、或者明显是无意义的垃圾广告、404错误页面），才视为“不相关”。
-
-如果相关，请回复且仅回复 "YES"。
-如果不相关，请回复且仅回复 "NO"。
-"""
-
-research_filter_prompt_template = PromptTemplate(
-    template=_RESEARCH_FILTER_TEMPLATE,
-    input_variables=["query", "title", "content"]
-)
-
-
