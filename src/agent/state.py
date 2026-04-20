@@ -1,63 +1,96 @@
-﻿from langgraph.graph.message import add_messages
+﻿"""
+Module: src.agent.state
+Responsibility: Defines the typed dictionaries for LangGraph state management.
+Parent Module: src.agent
+Dependencies: langgraph.graph.message.add_messages, langchain_core.messages.BaseMessage, typing
+
+Constitutes the single source of truth for the multi-agent 'blackboard' memory,
+flowing strictly from Router -> Analyzer -> Researcher -> etc.
+"""
+
+from typing import Annotated, TypedDict, Dict, Optional, Any
+from langgraph.graph.message import add_messages
 from langchain_core.messages import BaseMessage
 
-from typing import Annotated, TypedDict, List, Dict, Optional, Any
 
-# ----------------- Con Models -----------------
+# ==============================================================================
+# Concrete Internal Models
+# ==============================================================================
 
 class UserProfileState(TypedDict):
-    """扁平化的用户画像（合并基础信息与次要偏好）"""
-    destination: list[str] | None
-    days: int | None
-    date: list[str] | None
-    people_count: int | None
-    budget_limit: int | None
-    accommodation: str | None
-    dining: str | None
-    transportation: str | None
-    pace: str | None
-    activities: list[str] | None
+    """
+    Flattened User Profile representing the core conversational constraints.
+    Persisted within the graph to maintain contextual consistency.
+    """
+    destination: Optional[list[str]]
+    days: Optional[int]
+    date: Optional[list[str]]
+    people_count: Optional[int]
+    budget_limit: Optional[int]
+    accommodation: Optional[str]
+    dining: Optional[str]
+    transportation: Optional[str]
+    pace: Optional[str]
+    activities: Optional[list[str]]
     preferences: list[str]
     avoidances: list[str]
 
 class RetrievalItem(TypedDict):
-    """单条检索结果项（改为 TypedDict 避免 checkpointer msgpack 序列化报错）"""
+    """
+    Standardized payload for knowledge graph/RAG hits. 
+    TypedDict is strictly used here to avoid msgpack serialization crashes 
+    during LangGraph checkpointing.
+    """
     source: str
     title: str
     content: str
     link: Optional[str]
     metadata: Dict[str, Any]
 
-# ----------------- Shared State -----------------
+# ==============================================================================
+# Sub-State Compartments
+# ==============================================================================
 
 class SearchState(TypedDict):
-    """解耦的私有搜索状态，仅在检索、推荐和计划节点流转"""
-    query_history: list[str] | None
-    retrieval_context: str | None
-    retrieval_results: list[RetrievalItem] | None
-    retrieval_stats: Dict[str, int] | None
-    weather_info: str | None  # 存储结构化天气信息，可为空
+    """
+    Decoupled state slice strictly governing Researcher inputs/outputs.
+    """
+    query_history: Optional[list[str]]
+    retrieval_context: Optional[str]
+    retrieval_results: Optional[list[RetrievalItem]]
+    retrieval_stats: Optional[Dict[str, int]]
+    weather_info: Optional[str]  # Stores structured weather API dumps
 
 class RecommenderState(TypedDict):
-    """解耦的私有推荐状态，仅由推荐和计划节点维护"""
-    recommended_items: list[dict] | None
-    user_selected_items: list[dict] | None
+    """
+    Decoupled state slice for recommendation items.
+    """
+    recommended_items: Optional[list[dict]]
+    user_selected_items: Optional[list[dict]]
 
+# ==============================================================================
+# Global Graph Whiteboard
+# ==============================================================================
 
 class TravelState(TypedDict):
-    """全局状态白板"""
+    """
+    Global root state for the multi-agent graph system.
+    Propagated dynamically across node thresholds.
+    """
+    # LangGraph message history aggregating conversation turns
     messages: Annotated[list[BaseMessage], add_messages]
     
-    # Router识别出来的最新用户意图，用于条件边分发
-    latest_intent: str | None
+    # Intention routed by Router
+    latest_intent: Optional[str]
     
-    # Analyzer判定的标志位，决定是否唤起检索节点
+    # Internal trigger flag manipulated by Analyzer to govern Researcher execution
     needs_research: bool
     
-    # 用户需求（由于扁平化，合并为一个 profile）
-    user_profile: UserProfileState | None
+    # Sub-compartmentalized profile traits
+    user_profile: Optional[UserProfileState]
     
-    #检索结果
-    search_data: SearchState | None
-    #推荐结果
-    recommender_data: RecommenderState | None
+    # Sub-compartmentalized external knowledge acquisitions
+    search_data: Optional[SearchState]
+    
+    # Sub-compartmentalized user itinerary selections
+    recommender_data: Optional[RecommenderState]
