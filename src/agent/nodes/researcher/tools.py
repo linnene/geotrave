@@ -222,7 +222,7 @@ class ResearcherTools:
     @staticmethod
     async def _crawl_and_update(item: RetrievalItem):
         """Helper to perform deep crawling on relevant items."""
-        deep_crawl_domains = ["tripadvisor", "booking.com", "lonelyplanet", "ctrip", "qunar", "wikitravel"]
+        deep_crawl_domains = ["tripadvisor", "booking.com", "lonelyplanet", "ctrip", "qunar", "wikitravel", "zhihu", "xiaohongshu"]
         link = item.get("link")
         if not link or link == "#":
             return

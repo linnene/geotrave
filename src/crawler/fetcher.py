@@ -71,8 +71,15 @@ class ContentFetcher:
             async with AsyncWebCrawler(config=browser_config) as crawler:
                 result = await crawler.arun(url=url, config=run_config)
                 
+                # Check for error status
+                if result and not result.success:
+                    logger.error(f"Deep fetch failed for {url}: {result.error_message}")
+                    # Fallback to result.html if available even on "failure" (e.g. timeout but some HTML present)
+                    if not result.html:
+                        return None
+
                 # Validation: check for anti-bot keywords in result
-                if result and result.success and result.html and len(result.html) > 1000:
+                if result and result.html and len(result.html) > 500:
                     forbidden_keys = ["verify you're not a robot", "JavaScript is disabled"]
                     for key in forbidden_keys:
                         if key.lower() in result.html.lower():
