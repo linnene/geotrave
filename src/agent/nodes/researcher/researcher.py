@@ -1,37 +1,33 @@
-#Researcher Node: Decoupled Researcher Node using ResearcherTools for multi-dimensional retrieval
+"""
+Module: src.agent.nodes.researcher.researcher
+Responsibility: Performs multi-dimensional asynchronous research (local RAG, web, weather) and sanitizes results.
+Parent Module: src.agent.nodes.researcher
+Dependencies: asyncio, langchain_openai, src.agent.state, src.utils, researcher.tools
+
+Refactoring Standard: Full async concurrency with stream-like generator updates, centralized LLM factory.
+"""
 
 import asyncio
-from agent.nodes.researcher.tools import ResearcherTools
-from agent.state import TravelState
-from utils.logger import logger
-from langchain_openai import ChatOpenAI
-from pydantic import SecretStr
+from typing import AsyncGenerator, Dict, Any
 
-from utils.config import (
-    RESEARCHER_MODEL_ID,
-    RESEARCHER_MODEL_BASE_URL,
-    RESEARCHER_MODEL_API_KEY,
-    PLANNING_TEMPERATURE,
-    MAX_TOKENS,
-    LLM_TIMEOUT
-)
+from src.agent.nodes.researcher.tools import ResearcherTools
+from src.agent.state import TravelState
+from src.utils import logger, LLMFactory
 
-# 使用配置中特定的 Researcher 模型
-researcher_llm = ChatOpenAI(
-    model=RESEARCHER_MODEL_ID,
-    api_key=SecretStr(RESEARCHER_MODEL_API_KEY), 
-    base_url=RESEARCHER_MODEL_BASE_URL, 
-    temperature=PLANNING_TEMPERATURE,
-    max_completion_tokens=MAX_TOKENS,  
-    timeout=LLM_TIMEOUT,
-    disable_streaming=True,
-)
+# 1. Init Researcher's LLM via Factory
+researcher_llm = LLMFactory.get_model("researcher")
 
 
-async def researcher_node(state: TravelState):
+async def researcher_node(state: TravelState) -> AsyncGenerator[Dict[str, Any], None]:
     """
-    检索节点：解耦后的研究员节点，使用独立模型配置。
-    重构为完全异步并发模型，使用 scatter/gather 并发拉取网络与本地结果。
+    Decoupled researcher node using an independent model configuration.
+    Implements scatter/gather concurrency to fetch both web and local results.
+    
+    Args:
+        state (TravelState): Current graph state.
+        
+    Yields:
+        Dict[str, Any]: Incremental search_data updates.
     """
     core_req = state.get("user_profile") or {}
     destination = core_req.get("destination")
@@ -49,34 +45,31 @@ async def researcher_node(state: TravelState):
 
     logger.info(f"[Researcher Node] Start async research for: {destination}")
 
-    # 1. 产生检索计划 (传递特定 LLM)
-    plan = await ResearcherTools.generate_research_plan(state, researcher_llm) # type: ignore
+    # 1. Generate Research Plan
+    plan = await ResearcherTools.generate_research_plan(state, researcher_llm)
     
     tasks = []
     
     if not plan:
-        # 如果计划生成失败，进行基础检索降级
         fallback_query = ",".join(destination) if isinstance(destination, list) else str(destination)
         tasks.append(ResearcherTools.search_local_kt(fallback_query))
     else:
-        # 2. 从本地知识库检索任务
+        # 2. Local RAG Tasks
         if plan.local_query:
             tasks.append(ResearcherTools.search_local_kt(plan.local_query))
 
-        # 3. 网络搜索任务 (并发撒网)
+        # 3. Web Search Tasks (Concurrent)
         if plan.web_queries:
             for q in plan.web_queries:
                 tasks.append(ResearcherTools.search_web_ddg(query=q, max_results=10))
 
-        # 4. 天气外部 API 拉取
+        # 4. Weather API Tasks
         if plan.need_weather:
-            # 获取用户设置的日期范围
-            date_range = core_req.get("date")  # [None, None] or ["2026-04-20", "2026-04-25"]
+            date_range = core_req.get("date")
             s_date, e_date = None, None
             if date_range and len(date_range) == 2:
                 s_date, e_date = date_range[0], date_range[1]
 
-            # 针对所有目的地拉取天气
             dests = destination if isinstance(destination, list) else [destination]
             for dest in dests:
                 tasks.append(ResearcherTools.search_weather_openmeteo(
@@ -85,44 +78,43 @@ async def researcher_node(state: TravelState):
                     end_date=e_date
                 ))
 
-    # 并发执行所有检索任务，使用 as_completed 使得哪条检索先完成就先写入哪条
     logger.debug(f"[Researcher Node] Concurrently executing {len(tasks)} retrieval tasks...")
     
     all_results = []
     plan_web_queries = plan.web_queries if plan else []
+    current_weather_info = ""
     
     total_fetched = 0
     total_filtered = 0
 
-    # 遍历只要有任何一个 task 完成就立即处理并 yield 出来 (流式写入)
+    # Process tasks as they complete for incremental state updates
     for completed_task in asyncio.as_completed(tasks):
         try:
             res = await completed_task
             if isinstance(res, list):
-                # 如果是天气 API 返回的结果，我们需要特殊处理
+                # Separate weather from other items
                 weather_items = [item for item in res if (isinstance(item, dict) and item.get("source") == "api_weather") or (hasattr(item, "source") and getattr(item, "source") == "api_weather")]
                 other_items = [item for item in res if item not in weather_items]
 
-                # 处理非天气结果：二级 LLM 过滤
+                # Secondary LLM sanitization for non-weather results
                 if other_items:
                     total_fetched += len(other_items)
                     filtered_res = await ResearcherTools.filter_retrieval_items(other_items, researcher_llm)
                     total_filtered += (len(other_items) - len(filtered_res))
                     all_results.extend(filtered_res)
                 
-                # 处理天气结果：直接汇总到专门的字段，不进入 all_results 进行通用拼接
-                current_weather_info = state.get("search_data", {}).get("weather_info") or ""
+                # Format and accumulate weather info
                 if weather_items:
                     for w in weather_items:
                         w_content = w.get("content", "") if isinstance(w, dict) else getattr(w, "content", "")
                         w_title = w.get("title", "") if isinstance(w, dict) else getattr(w, "title", "")
                         current_weather_info += f"### {w_title}\n{w_content}\n\n"
             
-            # 构建中间累加的文本 (排除天气，因为天气已经单开了频道)
+            # Aggregate textual context
             context_parts = []
             for item in all_results:
                 source_val = item.get("source", "unknown").upper() if isinstance(item, dict) else getattr(item, "source", "unknown").upper()
-                if source_val == "API_WEATHER": continue # 再次防御性检查，确保不混入 context
+                if source_val == "API_WEATHER": continue
 
                 title_val = item.get("title", "No Title") if isinstance(item, dict) else getattr(item, "title", "No Title")
                 content_val = item.get("content", "") if isinstance(item, dict) else getattr(item, "content", "")
@@ -135,7 +127,6 @@ async def researcher_node(state: TravelState):
 
             final_context = "\n\n---\n\n".join(context_parts) if context_parts else "No relevant information found."
             
-            # 流式递增 Yield 当前收集到的总进度
             yield {
                 "needs_research": False,
                 "search_data": {
@@ -166,7 +157,7 @@ async def researcher_node(state: TravelState):
                 "retrieval_stats": {
                     "total_fetched": total_fetched,
                     "total_filtered": total_filtered,
-                    "valid_count": len(all_results)
+                    "valid_count": 0
                 }
             }
         }

@@ -33,6 +33,7 @@ from src.utils.prompt import (
     research_query_prompt_template,
     research_filter_prompt_template,
 )
+from src.utils.llm_factory import LLMFactory
 
 __all__ = [
     "logger",
@@ -42,6 +43,7 @@ __all__ = [
     "CHROMA_DB_DIR",
     "DB_TIMEOUT",
     "LOG_LEVEL",
+    "LLMFactory",
     
     # Embedding Configuration
     "EMBEDDING_MODEL",
