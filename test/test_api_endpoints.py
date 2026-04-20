@@ -3,7 +3,6 @@ from fastapi.testclient import TestClient
 from unittest.mock import patch, AsyncMock
 from langchain_core.messages import AIMessage
 from src.main import app
-from src.agent.schema import RouterIntent
 
 client = TestClient(app)
 
