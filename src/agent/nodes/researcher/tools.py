@@ -193,7 +193,8 @@ class ResearcherTools:
         for attempt in range(max_retries + 1):
             try:
                 logger.debug(f"[Researcher Tools] Web search (DDG) for: {query} (Attempt {attempt + 1})")
-                results = await asyncio.to_thread(_sync_ddgs)
+                # 显式加入真正的异步超时管控，防止底层同步库彻底假死导致线程泄漏
+                results = await asyncio.wait_for(asyncio.to_thread(_sync_ddgs), timeout=timeout + 2.0)
 
                 if not results:
                     return []
@@ -220,12 +221,22 @@ class ResearcherTools:
                 
                 return formatted_items
             
+            except asyncio.TimeoutError:
+                logger.warning(f"[Researcher Tools] DDG Attempt {attempt + 1} timed out at async task level.")
+                if attempt < max_retries:
+                    await asyncio.sleep(1)
+                    continue
+                else:
+                    logger.error("[Researcher Tools] Web search exhausted retries due to strict timeout. Bypassing safely.")
+                    return []
+                    
             except Exception as e:
                 logger.warning(f"[Researcher Tools] DDG Attempt {attempt + 1} failed: {str(e)}")
                 if attempt < max_retries:
                     await asyncio.sleep(1)
                     continue
                 else:
+                    # 超过两次(第3次失败)，打印错误日志（抛错级）但返回空列表，绝对不打断图的事件循环
                     logger.error(f"[Researcher Tools] Web search exhausted retries: {str(e)}")
                     return []
 
