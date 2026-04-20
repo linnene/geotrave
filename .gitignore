@@ -17,7 +17,7 @@ ENV/
 .env.local
 
 # Databases
-data/
+data/chroma/
 *.sqlite3
 *.db
 
