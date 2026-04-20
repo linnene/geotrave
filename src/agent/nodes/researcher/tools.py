@@ -111,8 +111,10 @@ class ResearcherTools:
             List[RetrievalItem]: Mapped retrieval items representing knowledge base snippets.
         """
         try:
-            logger.debug(f"[Researcher Tools] Local RAG search for: {query}")
-            search_results = await search_similar_documents(query, k)
+            logger.debug(f"[Researcher Tools] Local RAG search START for: {query}")
+            # Add a strict timeout to the RAG search to prevent infinite hang
+            search_results = await asyncio.wait_for(search_similar_documents(query, k), timeout=15.0)
+            logger.debug(f"[Researcher Tools] Local RAG search END (Found {len(search_results)} docs)")
             
             items: List[RetrievalItem] = []
             for doc in search_results:
@@ -124,8 +126,11 @@ class ResearcherTools:
                     metadata={"query": query}
                 ))
             return items
+        except asyncio.TimeoutError:
+            logger.error(f"[Researcher Tools] Local RAG search TIMEOUT (15s) for: {query}")
+            return []
         except Exception as e:
-            logger.error(f"[Researcher Tools] Local search failed: {str(e)}")
+            logger.error(f"[Researcher Tools] Local search FAILED: {str(e)}")
             return []
 
     @staticmethod

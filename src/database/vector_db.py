@@ -18,26 +18,33 @@ from langchain_chroma import Chroma
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 
 # Standardized unidirectional import from the configuration facade
-from src.utils import config
+from src.utils import config, logger
 
 # Initialize Google's Embedding Model globally.
-embeddings = GoogleGenerativeAIEmbeddings(
-    model=config.EMBEDDING_MODEL,
-    api_key=SecretStr(config.EMBEDDING_MODEL_API_KEY or "dummy_api_key_for_testing"),
-)
+# Using a factory-like initialization to ensure logs are visible
+try:
+    embeddings = GoogleGenerativeAIEmbeddings(
+        model=config.EMBEDDING_MODEL,
+        api_key=SecretStr(config.EMBEDDING_MODEL_API_KEY or "dummy_api_key_for_testing"),
+    )
+except Exception as e:
+    logger.error(f"[Vector DB] Failed to initialize Google Embeddings: {e}")
+    embeddings = None
 
+@lru_cache(maxsize=1)
 def get_vector_store(collection_name: str = "geotrave_guides") -> Chroma:
     """
     Retrieve or initialize the shared ChromaDB Vector Store.
-    
-    Args:
-        collection_name (str): The namespace identifier for the collection.
-        
-    Returns:
-        Chroma: The instantiated vector store handler.
+    Cached to avoid repeated heavy initialization.
     """
     os.makedirs(config.CHROMA_DB_DIR, exist_ok=True)
     
+    logger.debug(f"[Vector DB] Initializing ChromaDB at {config.CHROMA_DB_DIR}")
+    
+    if embeddings is None:
+        logger.error("[Vector DB] Cannot initialize Chroma: Embeddings model is None.")
+        raise RuntimeError("Embeddings model initialization failed.")
+
     vector_store = Chroma(
         collection_name=collection_name,
         embedding_function=embeddings,
