@@ -31,6 +31,7 @@ class TravelState(TypedDict):
     
     # [Structured Business Data]
     user_profile: UserProfile
+    user_request: str  # Added: Summarized user intent for cross-node communication (Analyst -> Plan)
     research_data: ResearchManifest
     
     # [Orchestration & Control]

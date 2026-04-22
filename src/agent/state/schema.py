@@ -71,3 +71,15 @@ class GatewayOutput(BaseModel):
     reason: str = Field(description="做出此判断的简短理由或摘要")
     reply: str = Field(default="", description="如果无效时的回复语；如果合法且涉及PII，此字段应包含脱敏后的文本（若定义要求覆盖输入），否则保持为空。")
     sanitized_text: Optional[str] = Field(default=None, description="如果检测到 PII 信息，请返回脱敏后的用户输入文本；若无敏感信息，保持为 None。")
+
+# ==============================================================================
+# AnalystOutput Output Schema
+# ==============================================================================
+
+class AnalystOutput(BaseModel):
+    """Pydantic model for Analyst node output"""
+    updated_profile: UserProfile = Field(..., description="经过合并与更新后的完整 UserProfile 对象")
+    is_complete: bool = Field(..., description="关键信息（目的地、大致天数）是否已完备以开启搜索")
+    missing_fields: List[str] = Field(default_factory=list, description="仍缺失的核心字段列表")
+    user_request: str = Field(..., description="基于对话历史总结的当前任务核心诉求。例如：'用户想知道5月份去大理有哪些小众景点'。此字段将作为后续 Planner 节点的直接输入。")
+    reason: str = Field(description="本次提取与合并逻辑的简要说明")
