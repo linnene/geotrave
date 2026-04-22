@@ -50,11 +50,8 @@ def create_travel_graph():
     # Use MemorySaver to enable multi-turn memory via thread_id
     checkpointer = MemorySaver()
 
+
     return workflow.compile(checkpointer=checkpointer)
 
 # Direct instance for import
 travel_app = create_travel_graph()
-
-# ==============================================================================
-# DEBUG: State & Node Inspectors (Development Only)
-# ==============================================================================

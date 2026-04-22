@@ -97,7 +97,7 @@ async def analyst_node(state: TravelState) -> Dict[str, Any]:
 
     route_update = RouteMetadata(
         next_node=next_node,
-        reason=f"Completeness is {result.is_complete}. Missing: {result.missing_fields}"
+        reason = f"Completeness is {result.is_complete}. Missing: {result.missing_fields}"
     )
 
     token_usage = {}
