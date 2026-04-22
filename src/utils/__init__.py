@@ -27,12 +27,6 @@ from src.utils.config import (
     ROUTER_MODEL_BASE_URL,
     ROUTER_MODEL_ID,
 )
-from src.utils.prompt import (
-    router_prompt_template,
-    analyzer_prompt_template,
-    research_query_prompt_template,
-    research_batch_filter_prompt_template,
-)
 
 __all__ = [
     "logger",
@@ -58,10 +52,4 @@ __all__ = [
     "ROUTER_MODEL_API_KEY",
     "ROUTER_MODEL_BASE_URL",
     "ROUTER_MODEL_ID",
-    
-    # Prompts
-    "router_prompt_template",
-    "analyzer_prompt_template",
-    "research_query_prompt_template",
-    "research_batch_filter_prompt_template",
 ]
