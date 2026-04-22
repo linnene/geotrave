@@ -9,12 +9,14 @@ from utils.config import (
     GLOBAL_MODEL_API_KEY, 
     GLOBAL_MODEL_BASE_URL, 
     GLOBAL_MODEL_ID,
-    ROUTER_MODEL_API_KEY,
-    ROUTER_MODEL_BASE_URL,
-    ROUTER_MODEL_ID,
-    ANALYZER_MODEL_API_KEY,
-    ANALYZER_MODEL_BASE_URL,
-    ANALYZER_MODEL_ID,
+    
+    GATEWAY_MODEL_API_KEY,
+    GATEWAY_MODEL_BASE_URL,
+    GATEWAY_MODEL_ID,
+    ANALYST_MODEL_API_KEY,
+    ANALYST_MODEL_BASE_URL,
+    ANALYST_MODEL_ID,
+
     RESEARCHER_MODEL_API_KEY,
     RESEARCHER_MODEL_BASE_URL,
     RESEARCHER_MODEL_ID
@@ -39,13 +41,13 @@ class LLMFactory:
 
         # 节点特定映射
         if node_name == "gateway":
-            config["api_key"] = ROUTER_MODEL_API_KEY
-            config["base_url"] = ROUTER_MODEL_BASE_URL
-            config["model"] = ROUTER_MODEL_ID
+            config["api_key"] = GATEWAY_MODEL_API_KEY
+            config["base_url"] = GATEWAY_MODEL_BASE_URL
+            config["model"] = GATEWAY_MODEL_ID
         elif node_name == "analyst":
-            config["api_key"] = ANALYZER_MODEL_API_KEY
-            config["base_url"] = ANALYZER_MODEL_BASE_URL
-            config["model"] = ANALYZER_MODEL_ID
+            config["api_key"] = ANALYST_MODEL_API_KEY
+            config["base_url"] = ANALYST_MODEL_BASE_URL
+            config["model"] = ANALYST_MODEL_ID
         elif node_name == "researcher":
             config["api_key"] = RESEARCHER_MODEL_API_KEY
             config["base_url"] = RESEARCHER_MODEL_BASE_URL

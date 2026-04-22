@@ -32,9 +32,11 @@ class TravelState(TypedDict):
     
     # [Structured Business Data]
     user_profile: UserProfile
+    research_data: ResearchManifest
+
+    # Sign status
     user_request: str
     missing_fields: List[str]
-    research_data: ResearchManifest
     
     # [Orchestration & Control]
     route_metadata: RouteMetadata
