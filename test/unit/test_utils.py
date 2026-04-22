@@ -9,7 +9,7 @@ Main Test Items:
 """
 
 import pytest
-from src.utils.llm_factory import LLMFactory
+from agent.llm_factory import LLMFactory
 from src.utils import config
 
 @pytest.mark.priority("P0")
