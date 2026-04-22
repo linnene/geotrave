@@ -9,6 +9,7 @@ the decoupling principle: raw data is stored externally, while this state carrie
 references, metadata, and control flags.
 """
 
+from operator import add
 from typing import Annotated, List, TypedDict
 from langgraph.graph.message import add_messages
 from langchain_core.messages import BaseMessage
@@ -31,14 +32,15 @@ class TravelState(TypedDict):
     
     # [Structured Business Data]
     user_profile: UserProfile
-    user_request: str  # Added: Summarized user intent for cross-node communication (Analyst -> Plan)
+    user_request: str
+    missing_fields: List[str]
     research_data: ResearchManifest
     
     # [Orchestration & Control]
     route_metadata: RouteMetadata
     
     # [Observability & Audit]
-    trace_history: List[TraceLog]
+    trace_history: Annotated[List[TraceLog], add]
     
     # [Safety & Signals]
     needs_exit: bool

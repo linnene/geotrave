@@ -61,7 +61,21 @@ async def gateway_node(state: TravelState) -> Dict[str, Any]:
         
         # Manual parse from JSON string in AIMessage content
         import json as json_lib
-        content_str = raw_result.content if hasattr(raw_result, "content") else str(raw_result)
+                # Manual parse from JSON string
+        content = raw_result.content if hasattr(raw_result, "content") else str(raw_result)
+        
+        # Handle cases where content might be a list (multimodal or complex tool outputs)
+        if isinstance(content, list):
+            # Find the first text block or join them
+            content_str = ""
+            for item in content:
+                if isinstance(item, str):
+                    content_str += item
+                elif isinstance(item, dict) and item.get("type") == "text":
+                    content_str += item.get("text", "")
+        else:
+            content_str = str(content)
+            
         parsed_json = json_lib.loads(content_str)
         result = GatewayOutput(**parsed_json)
         
@@ -106,7 +120,7 @@ async def gateway_node(state: TravelState) -> Dict[str, Any]:
         detail={"category": category, "reason": reason},
         token_usage=token_usage
     )
-    
+
 #========================================================
 
     # 4. Prepare response state (with PII sanitization support)
