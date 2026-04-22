@@ -36,7 +36,7 @@ async def chat_endpoint(request: ChatRequest):
     run_config: RunnableConfig = {
         "configurable": {"thread_id": request.session_id}
     }
-    
+        
     try:
         # Invoke the compiled graph asynchronously.
         # Graph retrieves historical user_profile, research_data etc. automatically.

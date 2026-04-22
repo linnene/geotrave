@@ -10,7 +10,7 @@ import time
 import json
 from typing import Dict, Any
 
-from src.agent.state import TraceLog, TravelState, AnalystOutput
+from src.agent.state import TraceLog, TravelState, AnalystOutput, RouteMetadata
 from utils.llm_factory import LLMFactory
 from utils.prompt import analyst_prompt_template
 from utils.logger import get_logger
@@ -36,6 +36,7 @@ async def analyst_node(state: TravelState) -> Dict[str, Any]:
     # 1. Prepare Context
     messages = state.get("messages", [])
     last_user_msg = messages[-1].content if messages else ""
+
     # Filter only recent Human/AI messages to avoid context bloat (N=10)
     history = "\n".join([f"{m.type}: {m.content}" for m in messages[-11:-1]])
     current_profile_json = state.get("user_profile").model_dump_json(indent=2) if state.get("user_profile") else "{}"
@@ -58,7 +59,20 @@ async def analyst_node(state: TravelState) -> Dict[str, Any]:
         raw_result = await bound_llm.ainvoke(prompt_str)
         
         # Manual parse from JSON string
-        content_str = raw_result.content if hasattr(raw_result, "content") else str(raw_result)
+        content = raw_result.content if hasattr(raw_result, "content") else str(raw_result)
+        
+        # Handle cases where content might be a list (multimodal or complex tool outputs)
+        if isinstance(content, list):
+            # Find the first text block or join them
+            content_str = ""
+            for item in content:
+                if isinstance(item, str):
+                    content_str += item
+                elif isinstance(item, dict) and item.get("type") == "text":
+                    content_str += item.get("text", "")
+        else:
+            content_str = str(content)
+
         parsed_json = json.loads(content_str)
         result = AnalystOutput(**parsed_json)
         
@@ -78,6 +92,14 @@ async def analyst_node(state: TravelState) -> Dict[str, Any]:
 #========================================================
 
     # 3. Audit & State Assembly
+    # Determine the next hop based on information completeness
+    next_node = "manager" if result.is_complete else "reply"
+
+    route_update = RouteMetadata(
+        next_node=next_node,
+        reason=f"Completeness is {result.is_complete}. Missing: {result.missing_fields}"
+    )
+
     token_usage = {}
     if hasattr(raw_result, "response_metadata"):
         metadata = getattr(raw_result, "response_metadata", {})
@@ -107,5 +129,7 @@ async def analyst_node(state: TravelState) -> Dict[str, Any]:
     return {
         "user_profile": result.updated_profile,
         "user_request": result.user_request,
+        "missing_fields": result.missing_fields,
+        "route_metadata": route_update,
         "trace_history": [trace]
     }
