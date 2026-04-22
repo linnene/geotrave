@@ -69,4 +69,5 @@ class GatewayOutput(BaseModel):
     is_valid: bool = Field(description="是否是一个有效且合规的指令")
     category: Literal["legal", "malicious", "chitchat"] = Field(description="请求的具体分类")
     reason: str = Field(description="做出此判断的简短理由或摘要")
-    reply: str = Field(default="", description="如果无效，生成给用户的礼貌性推脱回复；如果合法，保持为空字符串。")
+    reply: str = Field(default="", description="如果无效时的回复语；如果合法且涉及PII，此字段应包含脱敏后的文本（若定义要求覆盖输入），否则保持为空。")
+    sanitized_text: Optional[str] = Field(default=None, description="如果检测到 PII 信息，请返回脱敏后的用户输入文本；若无敏感信息，保持为 None。")
