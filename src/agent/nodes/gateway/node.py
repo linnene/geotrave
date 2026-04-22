@@ -49,15 +49,21 @@ async def gateway_node(state: TravelState) -> Dict[str, Any]:
     )
     
     llm = LLMFactory.get_model("gateway", temperature=0)
-    structured_llm = llm.with_structured_output(GatewayOutput)
-    
+    # Use bind with json_object for better compatibility with providers like DeepSeek
+    # instead of with_structured_output(GatewayOutput) which uses tool_calling/json_schema.
+    bound_llm = llm.bind(response_format={"type": "json_object"})
 
 #========================================================
 
     try:
-        # Cast result explicitly to handle structured output variance
-        raw_result = await structured_llm.ainvoke(prompt_str)
-        result = GatewayOutput(**raw_result) if isinstance(raw_result, dict) else raw_result
+        # 3. LLM Reasoning
+        raw_result = await bound_llm.ainvoke(prompt_str)
+        
+        # Manual parse from JSON string in AIMessage content
+        import json as json_lib
+        content_str = raw_result.content if hasattr(raw_result, "content") else str(raw_result)
+        parsed_json = json_lib.loads(content_str)
+        result = GatewayOutput(**parsed_json)
         
         is_valid = result.is_valid
         reason = result.reason
@@ -81,14 +87,17 @@ async def gateway_node(state: TravelState) -> Dict[str, Any]:
 
     # Extract token usage if available from LLM response
     token_usage = {}
+    # Use cast or check with getattr to satisfy Pylance when result is potentially a dict or BaseMessage
     if hasattr(raw_result, "response_metadata"):
-        usage = raw_result.response_metadata.get("token_usage", {})
+        metadata = getattr(raw_result, "response_metadata", {})
+        usage = metadata.get("token_usage", {})
         if usage:
             token_usage = {
                 "prompt": usage.get("prompt_tokens", 0),
                 "completion": usage.get("completion_tokens", 0),
                 "total": usage.get("total_tokens", 0)
             }
+
 
     trace = TraceLog(
         node="gateway",
@@ -97,11 +106,25 @@ async def gateway_node(state: TravelState) -> Dict[str, Any]:
         detail={"category": category, "reason": reason},
         token_usage=token_usage
     )
+    
+#========================================================
 
+    # 4. Prepare response state (with PII sanitization support)
+    # If PII was sanitized, overwrite the last message to protect downstream nodes
+    response_msg = []
+    if is_valid:
+        if result.sanitized_text:
+            logger.info("PII detected and sanitized in Gateway.")
+            response_msg = [HumanMessage(content=result.sanitized_text)]
+    else:
+        if reply:
+            response_msg = [HumanMessage(content=reply)]
+
+#========================================================
 
     return {
         "route_metadata": route,
         "trace_history": [trace],
         "needs_exit": not is_valid,
-        "messages": [HumanMessage(content=reply)] if not is_valid and reply else []
+        "messages": response_msg
     }

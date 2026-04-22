@@ -1,3 +1,3 @@
-from state import TravelState
-from schema import *
+from .state import TravelState
+from .schema import *
 
