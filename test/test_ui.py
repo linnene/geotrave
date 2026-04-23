@@ -1,242 +1,115 @@
 import streamlit as st
 import uuid
+import json
+import asyncio
 import sys
 import os
-import asyncio
+from typing import cast
 
-# Fix ProactorEventLoop issue for Playwright on Windows
-if sys.platform == 'win32':
-    try:
-        asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
-    except Exception:
-        pass
+# 将项目根目录添加到 pythonpath
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from streamlit.runtime.scriptrunner import add_script_run_ctx, get_script_run_ctx
-from threading import current_thread
+from langchain_core.messages import HumanMessage, AIMessage
+from src.agent.graph import travel_app
+from src.agent.state.state import TravelState
 
-root_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-sys.path.append(os.path.join(root_path, "src"))
-sys.path.append(root_path)
+# 配置页面
+st.set_page_config(page_title="GeoTrave Agent 实验室", layout="wide")
 
-from src.agent.graph import graph_app
-
-st.set_page_config(page_title="GeoTrave Debug UI", layout="wide")
-
-st.title("GeoTrave Agent 测试")
+st.title("🧪 GeoTrave Agent 2.0 实验室 (Direct Mode)")
 st.markdown("---")
 
-# 初始化 Session State
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-if "thread_id" not in st.session_state:
-    st.session_state.thread_id = str(uuid.uuid4())
-if "travel_state" not in st.session_state:
-    st.session_state.travel_state = {}
+# 初始化 Session ID 和 状态
+if "session_id" not in st.session_state:
+    st.session_state.session_id = str(uuid.uuid4())
 
-# 侧边栏：显示内部状态
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
+
+if "latest_state" not in st.session_state:
+    st.session_state.latest_state = {}
+
+# 侧边栏：实时状态监控
 with st.sidebar:
-    st.header("TravelState")
-    st.info(f"Thread ID: `{st.session_state.thread_id}`")
+    st.header("🔍 实时状态监控")
+    st.info(f"Thread ID: `{st.session_state.session_id}`")
     
-    # 辅助函数：显示字典
-    def display_state_field(label, data):
-        if data:
-            st.subheader(label)
-            st.json(data)
-        else:
-            st.write(f"*{label} 尚无数据*")
-
-    user_profile = st.session_state.travel_state.get("user_profile") or {}
-
-    display_state_field("Preferences (偏好)", user_profile.get("preferences"))
-    display_state_field("Avoidances (避雷)", user_profile.get("avoidances"))
-    
-    # 新增：展示次要需求偏好分类
-    st.markdown("---")
-    st.subheader("Secondary Details")
-    for k in ["accommodation", "dining", "transportation", "pace", "activities"]:
-        v = user_profile.get(k)
-        if v:
-            st.write(f"**{k.capitalize()}**: {v}")
-
-    # 新增：展示白板中的所有其他关键信息
-    st.markdown("---")
-    st.subheader("Core State")
-    st.info(f"Latest Intent: `{st.session_state.travel_state.get('latest_intent', 'None')}`")
-    st.info(f"Needs Research: `{st.session_state.travel_state.get('needs_research', False)}`")
-    col1, col2 = st.columns(2)
-    with col1:
-        dest_val = user_profile.get("destination")
-        dest_display = ", ".join(dest_val) if isinstance(dest_val, list) else (dest_val or "未确定")
-        st.metric("Destination", dest_display)
-        st.metric("Days", user_profile.get("days") or "未知")
-    with col2:
-        st.metric("BudgetLimit", f"¥{user_profile.get('budget_limit')}" if user_profile.get('budget_limit') else "未设置")
-        # 兼容处理：people 可能是 list 也可能是 int
-        people_val = user_profile.get("people_count")
-        st.metric("People", people_val if people_val else 0)
-
-    # 新增：展示研究员检索内容
-    st.markdown("---")
-    st.subheader("Researcher Result")
-    
-    # 获取新的结构化数据
-    search_data = st.session_state.travel_state.get("search_data", {})
-
-    # 1. 🌤️ 独立展示天气信息 (新增加逻辑)
-    weather_info = search_data.get("weather_info")
-    if weather_info:
-        with st.expander("🌤️ 实时天气情况", expanded=True):
-            st.info(weather_info)
-    
-    queries = search_data.get("query_history", [])
-    if queries:
-        st.write("**本次由大模型生成的检索词 (Queries):**")
-        for q in queries:
-            st.caption(f"- `{q}`")
-            
-    retrieval_results = search_data.get("retrieval_results") or []
-    if retrieval_results:
-        with st.expander(f"查看结构化检索结果 ({len(retrieval_results)}条)", expanded=False):
-            for i, item in enumerate(retrieval_results):
-                # 如果是 Pydantic 对象或 Dict，尝试友好展示
-                source_tag = f"[{item.get('source', 'unknown').upper()}]" if isinstance(item, dict) else f"[{getattr(item, 'source', 'unknown').upper()}]"
-                title = item.get('title') if isinstance(item, dict) else getattr(item, 'title', 'No Title')
-                content = item.get('content') if isinstance(item, dict) else getattr(item, 'content', '')
-                link = item.get('link') if isinstance(item, dict) else getattr(item, 'link', None)
-                
-                st.markdown(f"**{i+1}. {source_tag} {title}**")
-                
-                # Check if this content is likely a deep crawl result (usually long)
-                is_long_content = len(content) > 1000
-                display_label = "📄 查看完整解析内容" if is_long_content else "📝 查看摘要"
-                
-                with st.expander(display_label):
-                    st.write(content)
-                    if link:
-                        st.link_button("🔗 访问原网页", link)
-                st.write("---")
-                
-                # 特殊展示天气 API 数据
-                if source_tag == "[API_WEATHER]":
-                    st.markdown(f"**{i+1}. 🌤️ {title} (天气数据)**")
-                    st.info(content)
-                else:
-                    st.markdown(f"**{i+1}. {source_tag} {title}**")
-                    st.text(content[:200] + "..." if len(content) > 200 else content)
-                st.markdown("---")
-    
-    # 保留旧的文本显示用于对比
-    retrieval_context = search_data.get("retrieval_context")
-    if retrieval_context:
-        with st.expander("查看原始检索文本", expanded=False):
-            st.write(retrieval_context)
-    elif not retrieval_results:
-        st.write("*暂无检索内容*")
-
-    if st.button("RESET"):
-        st.session_state.messages = []
-        st.session_state.thread_id = str(uuid.uuid4())
-        st.session_state.travel_state = {}
+    if st.button("🔄 重置会话"):
+        st.session_state.session_id = str(uuid.uuid4())
+        st.session_state.chat_history = []
+        st.session_state.latest_state = {}
         st.rerun()
 
-# 聊天界面
-for message in st.session_state.messages:
-    if message.get("is_trace"):
-        with st.status(message.get("label", "Agent 处理轨迹"), state="complete", expanded=False):
-            st.markdown(message["content"])
-    else:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
+    if st.session_state.latest_state:
+        st.divider()
+        st.subheader("📍 节点流转 (Route)")
+        route = st.session_state.latest_state.get("route_metadata")
+        if route:
+            # 兼容 Pydantic 和 Dict
+            next_node = getattr(route, "next_node", route.get("next_node") if isinstance(route, dict) else "unknown")
+            reason = getattr(route, "reason", route.get("reason") if isinstance(route, dict) else "")
+            st.success(f"**Next Node**: `{next_node}`")
+            st.caption(f"Reason: {reason}")
+        
+        with st.expander("👤 User Profile", expanded=True):
+            profile = st.session_state.latest_state.get("user_profile")
+            if profile:
+                st.json(profile.model_dump() if hasattr(profile, "model_dump") else profile)
+        
+        with st.expander("📜 Trace History"):
+            traces = st.session_state.latest_state.get("trace_history", [])
+            for t in reversed(traces):
+                status_val = getattr(t, "status", t.get("status") if isinstance(t, dict) else "unknown")
+                node_val = getattr(t, "node", t.get("node") if isinstance(t, dict) else "unknown")
+                latency_val = getattr(t, "latency_ms", t.get("latency_ms") if isinstance(t, dict) else 0)
+                status_color = "🟢" if status_val == "SUCCESS" else "🔴"
+                st.markdown(f"{status_color} **{node_val}** ({latency_val}ms)")
+        
+        with st.expander("🛡️ 全局 State 详情"):
+            # 过滤掉庞大的 messages 以便查看
+            debug_state = {k: v for k, v in st.session_state.latest_state.items() if k != "messages"}
+            def serialize(obj):
+                if hasattr(obj, "model_dump"): return obj.model_dump()
+                return str(obj)
+            st.json(json.loads(json.dumps(debug_state, default=serialize)))
 
-if prompt := st.chat_input("输入你的旅行需求 (例如: 我想去大理，预算5000)"):
-    # 用户消息
-    st.session_state.messages.append({"role": "user", "content": prompt})
+# 聊天主界面
+for msg_type, content in st.session_state.chat_history:
+    with st.chat_message("user" if msg_type == "human" else "assistant"):
+        st.markdown(content)
+
+# 处理输入
+if prompt := st.chat_input("输入指令..."):
+    st.session_state.chat_history.append(("human", prompt))
     with st.chat_message("user"):
         st.markdown(prompt)
 
-    # 调用 Agent 逻辑
-    config = {"configurable": {"thread_id": st.session_state.thread_id}}
-    
     with st.chat_message("assistant"):
-        try:
-            inputs = {"messages": [("user", prompt)]}
+        with st.spinner("Graph 运行中..."):
+            # 构造输入并进行类型转换满足 Pylance
+            input_state = cast(TravelState, {"messages": [HumanMessage(content=prompt)]})
+            config = {"configurable": {"thread_id": st.session_state.session_id}}
             
-            # 使用两个容器：上面放回复（立刻显示），下面放轨迹
-            reply_container = st.empty()
-            status_container = st.status("Agent 处理轨迹...", expanded=True)
-            trace_logs = []
+            # 手动运行异步 Graph
+            async def run_agent():
+                return await travel_app.ainvoke(input_state, config=config)
             
-            # 抓取当前的上下文
-            ctx = get_script_run_ctx()
-            
-            async def run_graph():
-                # 内部显式重新挂载
-                add_script_run_ctx(ctx=ctx)
+            try:
+                final_state = asyncio.run(run_agent())
+                st.session_state.latest_state = final_state
                 
-                async for event in graph_app.astream(inputs, config=config, stream_mode="updates"): # type: ignore
-                    
-                    for node_name, node_state in event.items():
-                        log_msg = f"✅ 执行节点: **{node_name}**\n"
-                        status_container.write(f"✅ 执行节点: **{node_name}**")
-                        
-                        # 提取节点中的关键信息进行展示
-                        if node_name == "router" and "latest_intent" in node_state:
-                            intent = node_state["latest_intent"]
-                            if hasattr(intent, "intent"):
-                                sub_msg = f"    ↳ 识别意图: `{intent.intent}`  *(置信度: {intent.confidence})*\n"
-                                status_container.write(f"&nbsp;&nbsp;&nbsp;&nbsp;↳ 识别意图: `{intent.intent}`  *(置信度: {intent.confidence})*")
-                                log_msg += sub_msg
-                        
-                        if node_name == "analyzer":
-                            # 分析师有结果了，立刻把回复上屏，不被 Researcher 的网络耗时阻塞
-                            if "messages" in node_state and node_state["messages"]:
-                                last_msg = node_state["messages"][-1]
-                                content = last_msg.content if hasattr(last_msg, 'content') else (last_msg.get("content") if isinstance(last_msg, dict) else str(last_msg))
-                                reply_container.markdown(content)
-                                
-                            if "needs_research" in node_state:
-                                needs_research = node_state["needs_research"]
-                                sub_msg = f"    ↳ 需要联网检索: `{needs_research}`\n"
-                        if node_name == "researcher" and "search_data" in node_state:
-                            search_data = node_state["search_data"]
-                            stats = search_data.get("retrieval_stats")
-                            if stats:
-                                total = stats.get("total_fetched", 0)
-                                filtered = stats.get("total_filtered", 0)
-                                valid = stats.get("valid_count", 0)
-                                sub_msg = f"    ↳ 检索统计: 累计获取 {total} 条数据，质检过滤掉 {filtered} 条无关内容，保留 {valid} 条。\n"
-                                status_container.write(f"&nbsp;&nbsp;&nbsp;&nbsp;↳ 检索统计: 共获取 `{total}` 条数据，命中过滤 `{filtered}` 条，剩 `{valid}` 条有效内容。")
-                                log_msg += sub_msg
-
-                        trace_logs.append(log_msg)
-
-            asyncio.run(run_graph())
-            status_container.update(label="处理完成!", state="complete", expanded=False)
-            
-            # 记录轨迹到历史
-            if trace_logs:
-                st.session_state.messages.append({"role": "assistant", "is_trace": True, "label": "Agent 处理轨迹", "content": "\n".join(trace_logs)})
-            
-            # 获取最终的完整状态
-            result_state = graph_app.get_state(config) # type: ignore
-            result = result_state.values
-            st.session_state.travel_state = result
-            
-            # 以从状态图中提取的最终回复落盘到历史中
-            messages = result.get("messages", [])
-            if messages:
-                last_msg = messages[-1]
-                content = last_msg.content if hasattr(last_msg, 'content') else (last_msg.get("content") if isinstance(last_msg, dict) else str(last_msg))
-                # 因为刚刚通过 reply_container 实时渲染过了，所以这里不仅更新历史，同时为了保险起见重新填充一下
-                reply_container.markdown(content)
-                st.session_state.messages.append({"role": "assistant", "content": content})
-            else:
-                st.error("Agent 返回了空消息。")
-        except Exception as e:
-            st.error(f"执行出错: {str(e)}")
-            import traceback
-            st.code(traceback.format_exc())
-            
-    # 强制刷新侧边栏状态，并保持页面位置
-    st.rerun()
+                # 获取最后一条 AI 消息
+                msgs = final_state.get("messages", [])
+                ai_reply = "未触发回复节点"
+                for m in reversed(msgs):
+                    if isinstance(m, AIMessage):
+                        ai_reply = m.content
+                        break
+                
+                st.markdown(ai_reply)
+                st.session_state.chat_history.append(("ai", ai_reply))
+                st.rerun() # 强制刷新以更新侧边栏
+                
+            except Exception as e:
+                st.error(f"Graph 执行失败: {str(e)}")
+                st.exception(e)
