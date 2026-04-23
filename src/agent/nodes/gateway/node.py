@@ -12,9 +12,9 @@ from typing import Dict, Any
 
 from langchain_core.messages import HumanMessage
 from src.agent.state import RouteMetadata, TraceLog, TravelState, GatewayOutput
-from utils.llm_factory import LLMFactory
-from utils.prompt import gateway_prompt_template
-from utils.logger import get_logger
+from src.utils.llm_factory import LLMFactory
+from src.utils.prompt import gateway_prompt_template
+from src.utils.logger import get_logger
 
 logger = get_logger("GatewayNode")
 
@@ -41,9 +41,13 @@ async def gateway_node(state: TravelState) -> Dict[str, Any]:
         return {"needs_exit": True}
     
     last_user_msg = messages[-1].content
+
+    # Provide recent history (N=5) to detect follow-up answers
+    history = "\n".join([f"{m.type}: {m.content}" for m in messages[-6:-1]])
     
     # 2. LLM Orchestration with dynamic schema injection
     prompt_str = gateway_prompt_template.format(
+        history=history if history else "无对话历史",
         user_input=last_user_msg,
         format_instructions=_get_format_instructions()
     )

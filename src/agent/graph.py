@@ -28,24 +28,34 @@ def create_travel_graph():
 
     # 3. Define Edges
     workflow.set_entry_point("gateway")
+    workflow.set_entry_point("gateway")
 
     # Gateway Routing
     workflow.add_conditional_edges(
         "gateway",
         lambda state: state["route_metadata"].next_node,
         {
-            "manager": "analyst", # Temporary mapping: Gateway -> Analyst (Manager logic logic placeholder)
+            "manager": "analyst", # Gateway typically flows to Analyst for parsing
             "reply": "reply",
             "__end__": END
         }
     )
 
-    # Analyst flow
+    # Analyst flow: ALWAYS wake up reply, optionally end the current turn's exploration
+    def analyst_router(state: state_mod.TravelState) -> list[str]:
+        route = state.get("route_metadata")
+        if not route:
+            return ["reply"]
+        
+        # We always want to reply to the user. 
+        # If core info is met, we might trigger other logic in the future,
+        # but for now, we just flow to reply and let it end.
+        return ["reply"]
+
     workflow.add_conditional_edges(
         "analyst",
-        lambda state: state["route_metadata"].next_node,
+        analyst_router,
         {
-            "manager": END, # Manager placeholder
             "reply": "reply"
         }
     )
