@@ -28,14 +28,23 @@ async def reply_node(state: TravelState) -> Dict[str, Any]:
     missing_fields = state.get("missing_fields", [])
     current_profile = state.get("user_profile")
     user_request = state.get("user_request", "")
+    messages = state.get("messages", [])
+    
+    # Extract the last user message specifically to give Reply node "eyes"
+    last_user_msg = ""
+    for m in reversed(messages):
+        if m.type == "human":
+            last_user_msg = m.content
+            break
     
     current_profile_json = current_profile.model_dump_json(indent=2) if current_profile else "{}"
 
     # 2. LLM Orchestration
     prompt_str = reply_prompt_template.format(
-        missing_fields=", ".join(missing_fields) if missing_fields else "无",
+        last_user_message=last_user_msg,
+        user_request=user_request,
         current_profile=current_profile_json,
-        user_request=user_request
+        missing_fields=", ".join(missing_fields) if missing_fields else "全量信息已具备，正在深化细节"
     )
 
     llm = LLMFactory.get_model("reply", temperature=0.7) # Higher temperature for natural phrasing

@@ -48,6 +48,33 @@ class UserProfile(BaseModel):
 
     Flex: Optional[Dict[str, Any]] = Field(default_factory=dict, description="灵活字段，用于存储额外的用户信息或偏好，一些用户明显提及并，且没有被字段规定的信息")
 
+    def check_completeness(self) -> tuple[bool, List[str]]:
+        """
+        判断字段填写情况。
+        返回: (是否满足开启搜索的核心条件, 仍缺失的所有字段列表)
+        核心字段(用于控制流转): destination, days/date, people_count, budget_limit
+        所有字段(用于传输给 Reply): UserProfile 类定义的所有字段
+        """
+        # 1. 核心字段校验 (决定是否唤醒 Manager)
+        core_missing = []
+        if not self.destination: core_missing.append("destination")
+        if not (self.days or self.date): core_missing.append("days/date")
+        if not self.people_count: core_missing.append("people_count")
+        if self.budget_limit is None: core_missing.append("budget_limit")
+        
+        is_core_complete = len(core_missing) == 0
+
+        # 2. 扫描所有字段 (用于 Reply 引导)
+        all_missing = []
+        # 获取 UserProfile 定义的所有字段名 (排除 Flex 和方法)
+        for field_name in self.model_fields.keys():
+            if field_name == "Flex": continue
+            val = getattr(self, field_name)
+            if val is None or val == "" or val == [] or val == 0:
+                all_missing.append(field_name)
+                
+        return is_core_complete, all_missing
+
 class RetrievalMetadata(BaseModel):
     """外部存储数据的索引模型"""
     hash_key: str = Field(..., description="异步 KV 库中的存储键 (Content Hash)")
@@ -81,7 +108,6 @@ class GatewayOutput(BaseModel):
 class AnalystOutput(BaseModel):
     """Pydantic model for Analyst node output"""
     updated_profile: UserProfile = Field(..., description="经过合并与更新后的完整 UserProfile 对象")
-    is_complete: bool = Field(..., description="关键信息（目的地、大致天数）是否已完备以开启搜索")
-    missing_fields: List[str] = Field(default_factory=list, description="仍缺失的核心字段列表")
+    missing_fields: List[str] = Field(default_factory=list, description="UserProfile中仍缺失的字段列表")
     user_request: str = Field(..., description="基于对话历史总结的当前任务核心诉求。例如：'用户想知道5月份去大理有哪些小众景点'。此字段将作为后续 Planner 节点的直接输入。")
     reason: str = Field(description="本次提取与合并逻辑的简要说明")
