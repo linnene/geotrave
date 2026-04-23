@@ -46,6 +46,8 @@ class UserProfile(BaseModel):
     transportation: Optional[str] = Field(None, description="交通工具偏好")
     pace: Optional[str] = Field(None, description="旅行节奏 (如: 休闲, 特种兵)")
 
+    Flex: Optional[Dict[str, Any]] = Field(default_factory=dict, description="灵活字段，用于存储额外的用户信息或偏好，一些用户明显提及并，且没有被字段规定的信息")
+
 class RetrievalMetadata(BaseModel):
     """外部存储数据的索引模型"""
     hash_key: str = Field(..., description="异步 KV 库中的存储键 (Content Hash)")
