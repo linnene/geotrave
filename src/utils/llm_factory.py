@@ -5,7 +5,7 @@ Responsibility: Centralized factory for creating and configuring LLM instances.
 
 from langchain_openai import ChatOpenAI
 from pydantic import SecretStr
-from utils.config import (
+from src.utils.config import (
     GLOBAL_MODEL_API_KEY, 
     GLOBAL_MODEL_BASE_URL, 
     GLOBAL_MODEL_ID,
