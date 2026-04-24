@@ -13,7 +13,7 @@ from operator import add
 from typing import Annotated, List, TypedDict
 from langgraph.graph.message import add_messages
 from langchain_core.messages import BaseMessage
-from src.agent.state.schema import UserProfile, ResearchManifest, RouteMetadata, TraceLog
+from src.agent.state.schema import UserProfile, ResearchManifest, RouteMetadata, TraceLog, ExecutionSigns
 
 class TravelState(TypedDict):
     """
@@ -23,23 +23,23 @@ class TravelState(TypedDict):
         messages: Full conversation history, using add_messages for automatic appending.
         user_profile: Structured constraints and preferences extracted by the Analyst.
         research_data: Status of the current research loop, including queries and KV hashes.
-        route_metadata: Control flow metadata used by Manager and conditional edges.
+        execution_signs: Signal plane for cross-node coordination (is_safe, is_complete, etc.)
+        route_metadata: Global routing instructions issued ONLY by Manager.
         trace_history: Audit trail of node executions for observability and debugging.
         needs_exit: Global termination signal.
     """
     # [Conversation & Context]
     messages: Annotated[List[BaseMessage], add_messages]
+    research_data: ResearchManifest
     
     # [Structured Business Data]
     user_profile: UserProfile
-    research_data: ResearchManifest
-
-    # Sign status
     user_request: str
     missing_fields: List[str]
     
     # [Orchestration & Control]
     route_metadata: RouteMetadata
+    execution_signs: ExecutionSigns
     
     # [Observability & Audit]
     trace_history: Annotated[List[TraceLog], add]

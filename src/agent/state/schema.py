@@ -15,10 +15,22 @@ from typing import Literal
 # ==============================================================================
 
 class RouteMetadata(BaseModel):
-    """用于控制图流转的元数据 (Control Plane)"""
+    """
+    用于控制图流转的元数据 (Control Plane)
+    权限控制：仅允许 Manager (作为 Router) 进行修改。
+    """
     next_node: str = Field(..., description="下一跳节点名称")
     reason: str = Field(..., description="流转决策的原因/依据")
     is_error: bool = Field(default=False, description="是否发生了需要特殊处理的异常")
+
+class ExecutionSigns(BaseModel):
+    """
+    统一信号面板 (Signal Plane)
+    用于存放各业务节点产生的、影响流转逻辑的状态位。
+    """
+    is_safe: bool = Field(default=True, description="Gateway 查验结果：是否放行")
+    is_core_complete: bool = Field(default=False, description="Analyst 审计结果：核心信息是否完整")
+    is_loop_exit: bool = Field(default=False, description="Critic 审计结果：是否跳出研究循环")
 
 class TraceLog(BaseModel):
     """节点执行的详细审计记录 (Observability)"""

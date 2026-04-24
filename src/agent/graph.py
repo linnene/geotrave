@@ -29,26 +29,26 @@ def create_travel_graph():
     # 3. Define Edges
     workflow.set_entry_point("gateway")
 
-    # Gateway Routing
+    # Gateway Routing: 仅根据 execution_signs 判断去向
+    def gateway_router(state: state_mod.TravelState) -> str:
+        signs = state.get("execution_signs")
+        if signs and not signs.is_safe:
+            return "reply"
+        # 正常放行通过 (根据架构图，Gateway流向应为Reply或Manager，目前Manager映射到Analyst)
+        return "manager"
+
     workflow.add_conditional_edges(
         "gateway",
-        lambda state: state["route_metadata"].next_node,
+        gateway_router,
         {
-            "manager": "analyst", # Gateway typically flows to Analyst for parsing
-            "reply": "reply",
-            "__end__": END
+            "manager": "analyst",
+            "reply": "reply"
         }
     )
 
-    # Analyst flow: ALWAYS wake up reply, optionally end the current turn's exploration
+    # Analyst flow: 根据需求完整性决定
     def analyst_router(state: state_mod.TravelState) -> list[str]:
-        route = state.get("route_metadata")
-        if not route:
-            return ["reply"]
-        
-        # We always want to reply to the user. 
-        # If core info is met, we might trigger other logic in the future,
-        # but for now, we just flow to reply and let it end.
+        # 目前简单实现，始终回复用户
         return ["reply"]
 
     workflow.add_conditional_edges(
