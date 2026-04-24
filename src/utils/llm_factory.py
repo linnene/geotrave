@@ -28,7 +28,7 @@ class LLMFactory:
     """
     
     @staticmethod
-    def get_model(node_name: str, temperature: float = 0, streaming: bool = False, max_tokens: int = None):
+    def get_model(node_name: str, temperature: float = 0, streaming: bool = False, max_tokens: int | None = None):
         """
         根据节点名称返回对应的 ChatOpenAI 实例。
         """

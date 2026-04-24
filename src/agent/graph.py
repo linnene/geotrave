@@ -28,7 +28,6 @@ def create_travel_graph():
 
     # 3. Define Edges
     workflow.set_entry_point("gateway")
-    workflow.set_entry_point("gateway")
 
     # Gateway Routing
     workflow.add_conditional_edges(

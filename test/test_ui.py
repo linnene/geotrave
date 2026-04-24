@@ -101,8 +101,13 @@ if prompt := st.chat_input("输入指令..."):
                 # 获取最后一条 AI 消息
                 msgs = final_state.get("messages", [])
                 ai_reply = "未触发回复节点"
+                # 直接获取 AIMessage 实例，langgraph 会自动反序列化
                 for m in reversed(msgs):
-                    if isinstance(m, AIMessage):
+                    # 检查类型或者类名（防止反序列化后的奇怪类型判断失败）
+                    if hasattr(m, 'type') and m.type == 'ai':
+                        ai_reply = m.content
+                        break
+                    elif isinstance(m, AIMessage):
                         ai_reply = m.content
                         break
                 
