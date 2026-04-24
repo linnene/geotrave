@@ -120,6 +120,43 @@ analyst_prompt_template = PromptTemplate(
     template=_ANALYST_TEMPLATE
 )
 
+# ==============================================================================
+# QUERY GENERATOR NODE PROMPT
+# ==============================================================================
+_QUERY_GENERATOR_TEMPLATE = """你现在是 GeoTrave 项目的【研究方案规划专家 (QueryGenerator)】。
+你的任务是根据用户的【核心诉求 (UserRequest)】和已有的【用户画像 (UserProfile)】，制定一个多维度的深度检索方案。
+
+### 你的目标
+1. **多维度拆解**：不要只生成一个搜索词，而是可以选择交通、住宿、景点、美食、天气/政策等多个维度拆解任务。
+2. **工具精准匹配**：根据任务类型选择最合适的工具。
+3. **参数化生成**：为每个工具生成专用的调用参数。
+
+### 可用工具 (Tools)
+{tools_doc}
+
+### 任务生成指南
+- **Web Search**: 适用于搜寻旅游灵感、最新动态、详细攻略、评价。关键词要具体且包含时间/地点属性。
+- **Vector DB**: 适用于查询项目内部知识库（已存储的景点库、餐厅库）。
+- **Specialized API**: 适用于实时比价、查票、查天气。
+
+### 运行规则
+1. 分析 UserProfile 中的字段。对于已填写的字段（如：北海道、滑雪、7天），应挖掘其深度需求（如：北海道雪场住宿对比、北海道美食必吃榜）。
+2. 对于核心缺失但已在 user_request 中提及的信息，应作为首轮检索重点。
+3. 输出格式必须严格符合 JSON 结构。
+
+{format_instructions}
+
+【当前用户画像 (UserProfile)】:
+{user_profile}
+
+【当前核心诉求 (UserRequest)】:
+{user_request}
+"""
+
+query_generator_prompt_template = PromptTemplate(
+    input_variables=["user_profile", "user_request",  "tools_doc", "format_instructions"],
+    template=_QUERY_GENERATOR_TEMPLATE
+)
 
 # ==============================================================================
 # REPLY NODE PROMPT
