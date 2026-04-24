@@ -28,7 +28,7 @@ class LLMFactory:
     """
     
     @staticmethod
-    def get_model(node_name: str, temperature: float = 0, streaming: bool = False):
+    def get_model(node_name: str, temperature: float = 0, streaming: bool = False, max_tokens: int = None):
         """
         根据节点名称返回对应的 ChatOpenAI 实例。
         """
@@ -36,7 +36,8 @@ class LLMFactory:
         config = {
             "api_key": GLOBAL_MODEL_API_KEY,
             "base_url": GLOBAL_MODEL_BASE_URL,
-            "model": GLOBAL_MODEL_ID
+            "model": GLOBAL_MODEL_ID,
+            "max_tokens": max_tokens
         }
 
         # 节点特定映射
