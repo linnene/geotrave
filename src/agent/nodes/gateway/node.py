@@ -15,6 +15,7 @@ from src.agent.state import RouteMetadata, TraceLog, TravelState, GatewayOutput
 from src.utils.llm_factory import LLMFactory
 from src.utils.prompt import gateway_prompt_template
 from src.utils.logger import get_logger
+from src.agent.nodes.utils import format_recent_history
 from .config import TEMPERATURE, HISTORY_LIMIT, MAX_TOKENS
 
 logger = get_logger("GatewayNode")
@@ -43,8 +44,8 @@ async def gateway_node(state: TravelState) -> Dict[str, Any]:
     
     last_user_msg = messages[-1].content
 
-    # Provide recent history (N=N) to detect follow-up answers
-    history = "\n".join([f"{m.type}: {m.content}" for m in messages[-(HISTORY_LIMIT+1):-1]])
+    # 使用解耦的历史格式化工具
+    history = format_recent_history(messages, HISTORY_LIMIT)
     
     # 2. LLM Orchestration with dynamic schema injection
     prompt_str = gateway_prompt_template.format(

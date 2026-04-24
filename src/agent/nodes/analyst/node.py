@@ -14,6 +14,7 @@ from src.agent.state import TraceLog, TravelState, AnalystOutput, RouteMetadata
 from src.utils.llm_factory import LLMFactory
 from src.utils.prompt import analyst_prompt_template
 from src.utils.logger import get_logger
+from src.agent.nodes.utils import format_recent_history
 from .config import TEMPERATURE, HISTORY_LIMIT, MAX_TOKENS
 
 logger = get_logger("AnalystNode")
@@ -38,8 +39,8 @@ async def analyst_node(state: TravelState) -> Dict[str, Any]:
     messages = state.get("messages", [])
     last_user_msg = messages[-1].content if messages else ""
 
-    # Filter only recent Human/AI messages to avoid context bloat (N=N)
-    history = "\n".join([f"{m.type}: {m.content}" for m in messages[-(HISTORY_LIMIT+1):-1]])
+    # 使用解耦的历史格式化工具
+    history = format_recent_history(messages, HISTORY_LIMIT)
     current_profile_json = state.get("user_profile").model_dump_json(indent=2) if state.get("user_profile") else "{}"
 
     # 2. LLM Orchestration
