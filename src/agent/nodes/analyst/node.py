@@ -10,7 +10,7 @@ import time
 import json
 from typing import Dict, Any
 
-from src.agent.state import TraceLog, TravelState, AnalystOutput, RouteMetadata
+from src.agent.state import TraceLog, TravelState, AnalystOutput, ExecutionSigns
 from src.utils.llm_factory import LLMFactory
 from src.utils.prompt import analyst_prompt_template
 from src.utils.logger import get_logger
@@ -100,16 +100,8 @@ async def analyst_node(state: TravelState) -> Dict[str, Any]:
 
     # 5. Audit & State Assembly
     # Logic: 
-    # - ALWAYS wake up 'reply' to keep engaging the user.
-    # - Wake up 'manager' ONLY IF core info is sufficient.
-    next_nodes = ["reply"]
-    if is_core_complete:
-        next_nodes.append("manager")
-
-    route_update = RouteMetadata(
-        next_node=",".join(next_nodes), # We'll handle this join in the graph router
-        reason = f"Audit results: is_core_complete={is_core_complete}. All missing: {all_missing}"
-    )
+    # - Node only provides facts via ExecutionSigns.
+    # - Graph router will decide whether to wake up 'reply' and 'manager'.
 
     token_usage = {}
     if hasattr(raw_result, "response_metadata"):
@@ -128,7 +120,6 @@ async def analyst_node(state: TravelState) -> Dict[str, Any]:
         latency_ms=int((time.time() - start_time) * 1000),
         detail={
             "is_core_complete": is_core_complete,
-            "next_nodes": next_nodes,
             "all_missing": all_missing,
             "reason": result.reason
         },
@@ -139,6 +130,6 @@ async def analyst_node(state: TravelState) -> Dict[str, Any]:
         "user_profile": result.updated_profile,
         "user_request": result.user_request,
         "missing_fields": all_missing, # Transmission of all missing fields to 'reply' node
-        "route_metadata": route_update,
+        "execution_signs": ExecutionSigns(is_core_complete=is_core_complete),
         "trace_history": [trace]
     }

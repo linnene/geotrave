@@ -11,7 +11,7 @@ import json
 from typing import Dict, Any
 
 from langchain_core.messages import HumanMessage
-from src.agent.state import RouteMetadata, TraceLog, TravelState, GatewayOutput
+from src.agent.state import ExecutionSigns, TraceLog, TravelState, GatewayOutput
 from src.utils.llm_factory import LLMFactory
 from src.utils.prompt import gateway_prompt_template
 from src.utils.logger import get_logger
@@ -98,13 +98,10 @@ async def gateway_node(state: TravelState) -> Dict[str, Any]:
 
 #========================================================
 
-    # 3. Routing & Audit Assembly
-    route = RouteMetadata(
-        next_node="manager" if is_valid else "__end__",
-        reason=f"[{category}] {reason}",
-        is_error=not is_valid
-    )
-
+    # 3. Decision & Audit Assembly
+    # Gateway 仅产出业务事实，不实例化 RouteMetadata
+    is_safe = is_valid
+    
     # Extract token usage if available from LLM response
     token_usage = {}
     # Use cast or check with getattr to satisfy Pylance when result is potentially a dict or BaseMessage
@@ -143,8 +140,8 @@ async def gateway_node(state: TravelState) -> Dict[str, Any]:
 #========================================================
 
     return {
-        "route_metadata": route,
+        "execution_signs": ExecutionSigns(is_safe=is_safe),
         "trace_history": [trace],
-        "needs_exit": not is_valid,
+        "needs_exit": not is_safe,
         "messages": response_msg
     }
