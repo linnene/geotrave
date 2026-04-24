@@ -1,6 +1,6 @@
 # Analyst Node Configuration
 
-TEMPERATURE = 0.0 
+TEMPERATURE = 0.2
 """
 Analysts need to remain objective and consistent and avoid introducing unnecessary randomness
 """

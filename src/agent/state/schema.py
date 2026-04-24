@@ -110,3 +110,24 @@ class AnalystOutput(BaseModel):
     missing_fields: List[str] = Field(default_factory=list, description="UserProfile中仍缺失的字段列表")
     user_request: str = Field(..., description="基于对话历史总结的当前任务核心诉求。例如：'用户想知道5月份去大理有哪些小众景点'。此字段将作为后续 Planner 节点的直接输入。")
     reason: str = Field(description="本次提取与合并逻辑的简要说明")
+
+# ==============================================================================
+# QueryGenerator Output Schema
+# ==============================================================================
+
+class SearchTask(BaseModel):
+    """具体的搜索任务定义，支持动态参数"""
+    tool_name: str = Field(..., description="拟调用的工具名称（如 web_search, flight_api）")
+    dimension: Literal["transportation", "accommodation", "dining", "attraction", "general", "weather", "policy"] = Field(..., description="搜索维度")
+    parameters: Dict[str, Any] = Field(
+        default_factory=dict, 
+        description="针对该工具的具体调用参数。如果是 web_search，通常包含 {'query': '...'}; 如果是 API，可能包含 {'origin': '...', 'destination': '...'}"
+    )
+    rationale: str = Field(..., description="生成该任务的原因，以及期望获取的信息点内容")
+
+class QueryGeneratorOutput(BaseModel):
+    """Pydantic model for QueryGenerator node output"""
+    tasks: List[SearchTask] = Field(..., description="拆解后的多维度搜索任务列表")
+    research_strategy: str = Field(..., description="整体的研究策略描述。例如：'先通过通用搜索确定热门商圈，再针对性检索高评分民宿'。")
+    focus_areas: List[str] = Field(..., description="本次研究需要重点突破的信息盲区")
+
