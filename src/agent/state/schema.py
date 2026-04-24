@@ -88,7 +88,6 @@ class ResearchManifest(BaseModel):
     feedback_history: List[str] = Field(default_factory=list, description="Critic 给出的打回反馈原因Log")
 
 
-
 # ==============================================================================
 # GatewayOutput Output Schema
 # ==============================================================================

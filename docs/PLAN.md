@@ -29,7 +29,16 @@
   - **Semantic Chunking**: Split long content into coherent sections for RAG injection.
 - **Priority**: High (Enables deeper research beyond search snippets).
 
-### 2.3 Recommender_Module_Integration
+### 2.3 Retrieval_Loop_Development (Active)
+- **Objective**: Implement the core cognitive loop for iterative information gathering.
+- **Scope**:
+  - **Node Design**: `QueryGenerator` -> `SearchExecutor` -> `Validator`.
+  - **QueryGenerator Role**: Analyzes UserProfile to generate a structured research plan, including multi-dimensional search queries and specific tool selection strategies (e.g., Google Search for trends, specialized APIs for flights).
+  - **Graph Integration**: Connect `Analyst` output to `QueryGenerator` when `CoreComplete=True`.
+  - **State Management**: Implement `ResearchManifest` to track search history and prevent duplicate queries.
+  - **Verification**: Ensure the loop can self-terminate when information depth is sufficient.
+
+### 2.4 Recommender_Module_Integration
 - **Objective**: Transform raw retrieved contexts into structured candidates.
 - **Components**: Restaurant selection, attraction ranking, and accommodation matching.
 
