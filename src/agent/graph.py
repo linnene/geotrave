@@ -73,23 +73,8 @@ def create_travel_graph():
         }
     )
 
-    # Analyst flow: 决定是继续深入研究还是直接由于信息不足回复用户
-    def analyst_router(state: state_mod.TravelState) -> str:
-        signs = state.get("execution_signs")
-        # 如果核心信息不全，直接去 reply 寻求补充
-        if signs and not signs.is_core_complete:
-            return "reply"
-        # 核心信息齐全，流回 manager 进行下一步规划
-        return "manager"
-
-    workflow.add_conditional_edges(
-        "analyst",
-        analyst_router,
-        {
-            "reply": "reply",
-            "manager": "manager"
-        }
-    )
+    # Analyst flow: 始终回到 Manager，由全局大脑决定下一步
+    workflow.add_edge("analyst", "manager")
 
     # After replying, wait for next user input
     workflow.add_edge("reply", END)
