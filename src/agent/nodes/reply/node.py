@@ -13,6 +13,7 @@ from src.agent.state import TraceLog, TravelState
 from src.utils.llm_factory import LLMFactory
 from src.utils.prompt import reply_prompt_template
 from src.utils.logger import get_logger
+from .config import TEMPERATURE, MAX_TOKENS
 
 logger = get_logger("ReplyNode")
 
@@ -47,7 +48,7 @@ async def reply_node(state: TravelState) -> Dict[str, Any]:
         missing_fields=", ".join(missing_fields) if missing_fields else "全量信息已具备，正在深化细节"
     )
 
-    llm = LLMFactory.get_model("reply", temperature=0.7) # Higher temperature for natural phrasing
+    llm = LLMFactory.get_model("reply", temperature=TEMPERATURE, max_tokens=MAX_TOKENS) 
     
     try:
         response = await llm.ainvoke(prompt_str)

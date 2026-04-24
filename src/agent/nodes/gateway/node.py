@@ -15,6 +15,7 @@ from src.agent.state import RouteMetadata, TraceLog, TravelState, GatewayOutput
 from src.utils.llm_factory import LLMFactory
 from src.utils.prompt import gateway_prompt_template
 from src.utils.logger import get_logger
+from .config import TEMPERATURE, HISTORY_LIMIT, MAX_TOKENS
 
 logger = get_logger("GatewayNode")
 
@@ -42,8 +43,8 @@ async def gateway_node(state: TravelState) -> Dict[str, Any]:
     
     last_user_msg = messages[-1].content
 
-    # Provide recent history (N=5) to detect follow-up answers
-    history = "\n".join([f"{m.type}: {m.content}" for m in messages[-6:-1]])
+    # Provide recent history (N=N) to detect follow-up answers
+    history = "\n".join([f"{m.type}: {m.content}" for m in messages[-(HISTORY_LIMIT+1):-1]])
     
     # 2. LLM Orchestration with dynamic schema injection
     prompt_str = gateway_prompt_template.format(
@@ -52,7 +53,7 @@ async def gateway_node(state: TravelState) -> Dict[str, Any]:
         format_instructions=_get_format_instructions()
     )
     
-    llm = LLMFactory.get_model("gateway", temperature=0)
+    llm = LLMFactory.get_model("gateway", temperature=TEMPERATURE, max_tokens=MAX_TOKENS)
     # Use bind with json_object for better compatibility with providers like DeepSeek
     # instead of with_structured_output(GatewayOutput) which uses tool_calling/json_schema.
     bound_llm = llm.bind(response_format={"type": "json_object"})

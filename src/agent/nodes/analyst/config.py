@@ -1,0 +1,5 @@
+# Analyst Node Configuration
+
+TEMPERATURE = 0.0
+HISTORY_LIMIT = 10
+MAX_TOKENS = 1000

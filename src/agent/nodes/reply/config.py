@@ -1,0 +1,5 @@
+# Reply Node Configuration
+
+TEMPERATURE = 0.7
+HISTORY_LIMIT = 5
+MAX_TOKENS = 800

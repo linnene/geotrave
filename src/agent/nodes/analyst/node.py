@@ -14,6 +14,7 @@ from src.agent.state import TraceLog, TravelState, AnalystOutput, RouteMetadata
 from src.utils.llm_factory import LLMFactory
 from src.utils.prompt import analyst_prompt_template
 from src.utils.logger import get_logger
+from .config import TEMPERATURE, HISTORY_LIMIT, MAX_TOKENS
 
 logger = get_logger("AnalystNode")
 
@@ -37,8 +38,8 @@ async def analyst_node(state: TravelState) -> Dict[str, Any]:
     messages = state.get("messages", [])
     last_user_msg = messages[-1].content if messages else ""
 
-    # Filter only recent Human/AI messages to avoid context bloat (N=10)
-    history = "\n".join([f"{m.type}: {m.content}" for m in messages[-11:-1]])
+    # Filter only recent Human/AI messages to avoid context bloat (N=N)
+    history = "\n".join([f"{m.type}: {m.content}" for m in messages[-(HISTORY_LIMIT+1):-1]])
     current_profile_json = state.get("user_profile").model_dump_json(indent=2) if state.get("user_profile") else "{}"
 
     # 2. LLM Orchestration
@@ -49,7 +50,7 @@ async def analyst_node(state: TravelState) -> Dict[str, Any]:
         format_instructions=_get_format_instructions()
     )
 
-    llm = LLMFactory.get_model("analyst", temperature=0)
+    llm = LLMFactory.get_model("analyst", temperature=TEMPERATURE, max_tokens=MAX_TOKENS)
     # Using json_object mode for robust compatibility with DeepSeek/OpenAI
     bound_llm = llm.bind(response_format={"type": "json_object"})
 
