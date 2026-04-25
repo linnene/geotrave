@@ -23,10 +23,12 @@ def create_travel_graph():
     from src.agent.nodes.analyst.node import analyst_node
     from src.agent.nodes.reply.node import reply_node
     from src.agent.nodes.manager.node import manager_node
+    from src.agent.nodes.query_generator.node import query_generator_node
     workflow.add_node("gateway", gateway_node)
     workflow.add_node("analyst", analyst_node)
     workflow.add_node("reply", reply_node)
     workflow.add_node("manager", manager_node)
+    workflow.add_node("query_generator", query_generator_node) 
 
     # 3. Define Edges
     workflow.set_entry_point("gateway")
@@ -55,7 +57,7 @@ def create_travel_graph():
         
         # 建立映射表防止节点未注册
         mapping = {
-            "query_generator": "reply", # 临时映射
+            "query_generator": "query_generator", # 临时映射
             "recommender": "reply", # 临时映射
             
             "planner": "reply", # 临时映射
@@ -69,12 +71,14 @@ def create_travel_graph():
         manager_router,
         {
             "analyst": "analyst",
-            "reply": "reply"
+            "reply": "reply",
+            "query_generator": "query_generator"
         }
     )
 
     # Analyst flow: 始终回到 Manager，由全局大脑决定下一步
     workflow.add_edge("analyst", "manager")
+    workflow.add_edge("query_generator", "manager")
 
     # After replying, wait for next user input
     workflow.add_edge("reply", END)
