@@ -70,11 +70,15 @@ class UserProfile(BaseModel):
         # 1. 核心字段校验 (决定是否唤醒 Manager)
         core_missing = []
         if not self.destination: core_missing.append("destination")
-        if not (self.days or self.date): core_missing.append("days/date")
+        if not (self.days ): core_missing.append("days")
+        if not (self.date): core_missing.append("date")
         if not self.people_count: core_missing.append("people_count")
         if self.budget_limit is None: core_missing.append("budget_limit")
         
-        is_core_complete = len(core_missing) == 0
+        if len(core_missing) > 0:
+            is_core_complete = False
+        else:
+            is_core_complete = True
 
         # 2. 扫描所有字段 (用于 Reply 引导)
         all_missing = []

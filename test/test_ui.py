@@ -55,6 +55,16 @@ with st.sidebar:
             profile = st.session_state.latest_state.get("user_profile")
             if profile:
                 st.json(profile.model_dump() if hasattr(profile, "model_dump") else profile)
+
+        with st.expander("📊 Research Data (Verified)"):
+            research = st.session_state.latest_state.get("research_data")
+            if research:
+                verified = getattr(research, "verified_results", {})
+                st.write(f"Total Verified Hashes: `{len(verified)}`")
+                if verified:
+                    st.json(verified)
+            else:
+                st.caption("No research data yet.")
         
         with st.expander("📜 Trace History"):
             traces = st.session_state.latest_state.get("trace_history", [])
