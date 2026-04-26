@@ -1,4 +1,4 @@
-from service import add_documents_to_db, search_similar_documents, get_document_count
+from .service import add_documents_to_db, search_similar_documents, get_document_count
 from .manager import VectorDBManager
 
 

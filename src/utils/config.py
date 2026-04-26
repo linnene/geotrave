@@ -18,28 +18,23 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # --- 1. Global LLM Configuration ---
-# If configured, acts as a fallback for any node that does not have specific configs
 GLOBAL_MODEL_API_KEY = os.getenv("GLOBAL_MODEL_API_KEY", "")
 GLOBAL_MODEL_BASE_URL = os.getenv("GLOBAL_MODEL_BASE_URL", "")
 GLOBAL_MODEL_ID = os.getenv("GLOBAL_MODEL_ID", "")
 
 # --- 2. Node-Specific LLM Configuration ---
-# Analyzer (分析师)
 ANALYST_MODEL_API_KEY = os.getenv("ANALYZER_MODEL_API_KEY", GLOBAL_MODEL_API_KEY)
 ANALYST_MODEL_BASE_URL = os.getenv("ANALYZER_MODEL_BASE_URL", GLOBAL_MODEL_BASE_URL)
 ANALYST_MODEL_ID = os.getenv("ANALYZER_MODEL_ID", GLOBAL_MODEL_ID)
 
-# Researcher (研究员)
 RESEARCHER_MODEL_API_KEY = os.getenv("RESEARCHER_MODEL_API_KEY", GLOBAL_MODEL_API_KEY)
 RESEARCHER_MODEL_BASE_URL = os.getenv("RESEARCHER_MODEL_BASE_URL", GLOBAL_MODEL_BASE_URL)
 RESEARCHER_MODEL_ID = os.getenv("RESEARCHER_MODEL_ID", GLOBAL_MODEL_ID)
 
-# Router (网关)
 GATEWAY_MODEL_API_KEY = os.getenv("ROUTER_MODEL_API_KEY", GLOBAL_MODEL_API_KEY)
 GATEWAY_MODEL_BASE_URL = os.getenv("ROUTER_MODEL_BASE_URL", GLOBAL_MODEL_BASE_URL)
 GATEWAY_MODEL_ID = os.getenv("ROUTER_MODEL_ID", GLOBAL_MODEL_ID)
 
-# Planner (规划师) (预留)
 PLANNER_MODEL_API_KEY = os.getenv("PLANNER_MODEL_API_KEY", GLOBAL_MODEL_API_KEY)
 PLANNER_MODEL_BASE_URL = os.getenv("PLANNER_MODEL_BASE_URL", GLOBAL_MODEL_BASE_URL)
 PLANNER_MODEL_ID = os.getenv("PLANNER_MODEL_ID", GLOBAL_MODEL_ID)
@@ -55,6 +50,9 @@ MAX_TOKENS = 4096
 LLM_TIMEOUT = 60
 
 # --- 5. System Base Configuration ---
+# Checkpoint 数据库配置 (Sqlite)
+CHECKPOINT_DB_PATH = os.getenv("CHECKPOINT_DB_PATH", "data/checkpointer/checkpoints.sqlite")
+
 # ChromaDB 向量数据库配置
 CHROMA_DB_DIR = os.getenv("CHROMA_DB_DIR", "./data/chroma")
 DB_TIMEOUT = 60
