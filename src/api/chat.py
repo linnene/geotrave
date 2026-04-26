@@ -11,7 +11,7 @@ from langchain_core.messages import HumanMessage
 from langchain_core.runnables import RunnableConfig
 
 from src.api.schema import ChatRequest
-from src.agent.graph import travel_app
+from src.agent.graph import get_travel_app
 from src.agent.state.state import TravelState
 from src.utils import logger
 
@@ -24,6 +24,9 @@ async def chat_endpoint(request: ChatRequest):
     Delegates state retrieval to LangGraph persistence via thread_id.
     """
     logger.info(f"[Chat API] Received message for session: {request.session_id}")
+    
+    # Get the travel app instance (async initialization)
+    travel_app = await get_travel_app()
     
     # Construct minimal input state (Delta).
     # LangGraph will merge this with existing state in Checkpointer using thread_id.
