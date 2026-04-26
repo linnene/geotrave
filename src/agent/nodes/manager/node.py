@@ -57,7 +57,7 @@ async def manager_node(state: TravelState) -> Dict[str, Any]:
         format_instructions=parser.get_format_instructions()
     )
 
-    llm = LLMFactory.get_model("manager", temperature=TEMPERATURE, max_tokens=MAX_TOKENS)
+    llm = LLMFactory.get_model("Manager", temperature=TEMPERATURE, max_tokens=MAX_TOKENS)
 
     try:
         # 使用 parser 来处理结果，更鲁棒

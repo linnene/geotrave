@@ -51,7 +51,7 @@ async def analyst_node(state: TravelState) -> Dict[str, Any]:
         format_instructions=_get_format_instructions()
     )
 
-    llm = LLMFactory.get_model("analyst", temperature=TEMPERATURE, max_tokens=MAX_TOKENS)
+    llm = LLMFactory.get_model("Analyst", temperature=TEMPERATURE, max_tokens=MAX_TOKENS)
     # Using json_object mode for robust compatibility with DeepSeek/OpenAI
     bound_llm = llm.bind(response_format={"type": "json_object"})
 
