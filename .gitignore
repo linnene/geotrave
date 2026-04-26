@@ -18,6 +18,8 @@ ENV/
 
 # Databases
 data/chroma/
+data/checkpointer/
+
 *.sqlite3
 *.db
 
