@@ -71,7 +71,7 @@ async def query_generator_node(state: TravelState) -> Dict[str, Any]:
     )
 
     # 3. LLM Orchestration
-    llm = LLMFactory.get_model("query_generator", temperature=TEMPERATURE, max_tokens=MAX_TOKENS)
+    llm = LLMFactory.get_model("QueryGenerator", temperature=TEMPERATURE, max_tokens=MAX_TOKENS)
     bound_llm = llm.bind(response_format={"type": "json_object"})
 
     try:

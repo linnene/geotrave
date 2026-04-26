@@ -54,7 +54,7 @@ async def gateway_node(state: TravelState) -> Dict[str, Any]:
         format_instructions=_get_format_instructions()
     )
     
-    llm = LLMFactory.get_model("gateway", temperature=TEMPERATURE, max_tokens=MAX_TOKENS)
+    llm = LLMFactory.get_model("Gateway", temperature=TEMPERATURE, max_tokens=MAX_TOKENS)
     # Use bind with json_object for better compatibility with providers like DeepSeek
     # instead of with_structured_output(GatewayOutput) which uses tool_calling/json_schema.
     bound_llm = llm.bind(response_format={"type": "json_object"})

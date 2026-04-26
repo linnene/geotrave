@@ -48,7 +48,7 @@ async def reply_node(state: TravelState) -> Dict[str, Any]:
         missing_fields=", ".join(missing_fields) if missing_fields else "全量信息已具备，正在深化细节"
     )
 
-    llm = LLMFactory.get_model("reply", temperature=TEMPERATURE, max_tokens=MAX_TOKENS) 
+    llm = LLMFactory.get_model("Reply", temperature=TEMPERATURE, max_tokens=MAX_TOKENS) 
     
     try:
         response = await llm.ainvoke(prompt_str)

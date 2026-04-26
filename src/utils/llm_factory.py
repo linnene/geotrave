@@ -41,18 +41,26 @@ class LLMFactory:
         }
 
         # 节点特定映射
-        if node_name == "gateway":
+        if node_name == "Gateway":
             config["api_key"] = GATEWAY_MODEL_API_KEY
             config["base_url"] = GATEWAY_MODEL_BASE_URL
             config["model"] = GATEWAY_MODEL_ID
-        elif node_name == "analyst":
+        elif node_name == "Analyst":
             config["api_key"] = ANALYST_MODEL_API_KEY
             config["base_url"] = ANALYST_MODEL_BASE_URL
             config["model"] = ANALYST_MODEL_ID
-        elif node_name == "researcher":
+        elif node_name == "QueryGenerator":
             config["api_key"] = RESEARCHER_MODEL_API_KEY
             config["base_url"] = RESEARCHER_MODEL_BASE_URL
             config["model"] = RESEARCHER_MODEL_ID
+        elif node_name == "Manager":
+            config["api_key"] = GLOBAL_MODEL_API_KEY
+            config["base_url"] = GLOBAL_MODEL_BASE_URL
+            config["model"] = GLOBAL_MODEL_ID
+        elif node_name == "Reply":
+            config["api_key"] = GLOBAL_MODEL_API_KEY
+            config["base_url"] = GLOBAL_MODEL_BASE_URL
+            config["model"] = GLOBAL_MODEL_ID
 
         return ChatOpenAI(
             api_key=SecretStr(config["api_key"]) if config["api_key"] else None,
