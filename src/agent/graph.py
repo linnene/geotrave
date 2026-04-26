@@ -91,10 +91,17 @@ async def get_travel_app():
         # Initialize checkpointer
         checkpointer = await SqliteCheckpointer.get_instance()
         
+        # Cleanup default session on startup to ensure a fresh state
+        try:
+            await SqliteCheckpointer.delete_checkpoint("session1")
+        except Exception as e:
+            from src.utils.logger import get_logger
+            get_logger("Graph").warning(f"Failed to cleanup default session: {e}")
+
         # Attach serializer
         serializer = JsonPlusSerializer(
             allowed_msgpack_modules=[
-                ('src.agent.state.schema', 'RouteMetadata'),
+                ('src.agent.state.sc·hema', 'RouteMetadata'),
                 ('src.agent.state.schema', 'UserProfile'),
                 ('src.agent.state.schema', 'TraceLog'),
                 ('src.agent.state.schema', 'ResearchManifest'),
