@@ -45,6 +45,30 @@ class SqliteCheckpointer:
         return cls._instance
 
     @classmethod
+    async def delete_checkpoint(cls, thread_id: str):
+        """
+        Deletes all checkpoints associated with a specific thread_id.
+        """
+        if cls._instance is None:
+            await cls.get_instance()
+        
+        logger.info(f"Cleaning up checkpoints for thread_id: {thread_id}")
+        # AsyncSqliteSaver uses a central connection pool. 
+        # We can execute raw SQL on the underlying connection.
+        if cls._instance is not None:
+            async with cls._instance.conn.execute(
+                "DELETE FROM checkpoints WHERE thread_id = ?", (thread_id,)
+            ):
+                await cls._instance.conn.commit()
+            
+            async with cls._instance.conn.execute(
+                "DELETE FROM writes WHERE thread_id = ?", (thread_id,)
+            ):
+                await cls._instance.conn.commit()
+        else:
+            logger.warning("No active AsyncSqliteSaver instance found for cleanup.")
+
+    @classmethod
     async def close(cls):
         """
         Gracefully closes the checkpointer connection.
