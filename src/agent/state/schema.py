@@ -97,12 +97,27 @@ class RetrievalMetadata(BaseModel):
     source: str = Field(..., description="数据来源标题或链接")
     relevance_score: float = Field(default=0.0, description="Critic 打出的相关性评分")
 
+class SearchTask(BaseModel):
+    """具体的搜索任务定义，支持动态参数"""
+    tool_name: str = Field(..., description="拟调用的工具名称（如 web_search, flight_api）")
+    dimension: Literal["transportation", "accommodation", "dining", "attraction", "general", "weather", "policy"] = Field(..., description="搜索维度")
+    parameters: Dict[str, Any] = Field(
+        default_factory=dict, 
+        description="针对该工具的具体调用参数。如果是 web_search，通常包含 {'query': '...'}; 如果是 API，可能包含 {'origin': '...', 'destination': '...'}"
+    )
+    rationale: str = Field(..., description="生成该任务的原因，以及期望获取的信息点内容")
+
+class QueryGeneratorOutput(BaseModel):
+    """Pydantic model for QueryGenerator node output"""
+    tasks: List[SearchTask] = Field(..., description="拆解后的多维度搜索任务列表")
+    research_strategy: str = Field(..., description="整体的研究策略描述。例如：'先通过通用搜索确定热门商圈，再针对性检索高评分民宿'。")
+    focus_areas: List[str] = Field(..., description="本次研究需要重点突破的信息盲区")
+
 class ResearchManifest(BaseModel):
     """检索循环的状态看板 (Research Loop Context)"""
-    active_queries: List[str] = Field(default_factory=list, description="当前循环待执行的查询列表")
+    active_queries: List[SearchTask] = Field(default_factory=list, description="当前循环待执行的查询任务列表，由 QueryGenerator 节点生成")
     verified_results: List[RetrievalMetadata] = Field(default_factory=list, description="已通过 Critic 验证的结果索引")
     feedback_history: List[str] = Field(default_factory=list, description="Critic 给出的打回反馈原因Log")
-
 
 # ==============================================================================
 # ManagerOutput Output Schema
@@ -141,22 +156,7 @@ class AnalystOutput(BaseModel):
     reason: str = Field(description="本次提取与合并逻辑的简要说明")
 
 # ==============================================================================
-# QueryGenerator Output Schema
+# QueryGenerator Output Schema (continued from above)
 # ==============================================================================
-
-class SearchTask(BaseModel):
-    """具体的搜索任务定义，支持动态参数"""
-    tool_name: str = Field(..., description="拟调用的工具名称（如 web_search, flight_api）")
-    dimension: Literal["transportation", "accommodation", "dining", "attraction", "general", "weather", "policy"] = Field(..., description="搜索维度")
-    parameters: Dict[str, Any] = Field(
-        default_factory=dict, 
-        description="针对该工具的具体调用参数。如果是 web_search，通常包含 {'query': '...'}; 如果是 API，可能包含 {'origin': '...', 'destination': '...'}"
-    )
-    rationale: str = Field(..., description="生成该任务的原因，以及期望获取的信息点内容")
-
-class QueryGeneratorOutput(BaseModel):
-    """Pydantic model for QueryGenerator node output"""
-    tasks: List[SearchTask] = Field(..., description="拆解后的多维度搜索任务列表")
-    research_strategy: str = Field(..., description="整体的研究策略描述。例如：'先通过通用搜索确定热门商圈，再针对性检索高评分民宿'。")
-    focus_areas: List[str] = Field(..., description="本次研究需要重点突破的信息盲区")
+# SearchTask, QueryGeneratorOutput are defined earlier
 

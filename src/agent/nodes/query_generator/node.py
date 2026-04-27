@@ -93,15 +93,10 @@ async def query_generator_node(state: TravelState) -> Dict[str, Any]:
         result = QueryGeneratorOutput(**parsed_json)
         
         # 4. Update ResearchManifest
-        # 将生成的任务转换为 ResearchManifest 能理解的列表
-        # TODO: 之后的 ResearchManifest 可能会演进为存储整个 Task 对象
-        active_queries = []
-        for task in result.tasks:
-            active_queries.append(f"[{task.tool_name}] {task.dimension}: {json.dumps(task.parameters, ensure_ascii=False)}")
-
+        # 直接将 SearchTask 列表赋值给 ResearchManifest.active_queries，不再打包成字符串
         new_research_data = ResearchManifest(
-            active_queries=active_queries,
-            verified_results=[], # 新一轮生成清空旧的（或增量，取决于策略）
+            active_queries=result.tasks,
+            verified_results=[],   # 新一轮生成清空旧的（或增量，取决于策略）
             feedback_history=[]
         )
 
