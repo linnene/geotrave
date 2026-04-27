@@ -44,11 +44,8 @@ async def search_node(state: Dict[str, Any]) -> Dict[str, Any]:
             "trace_history": trace_history + [trace],
         }
 
-    # Tool dispatcher (uses functions from the tools module)
-    tool_dispatcher = {
-        "web_search": tools.execute_web_search,
-        "vector_db": tools.execute_vector_search,
-    }
+    # Tool dispatcher (uses the automatically built dispatch map)
+    tool_dispatcher = tools.TOOL_DISPATCH
 
     new_results: List[RetrievalMetadata] = []
     error_occurred = False
