@@ -38,10 +38,11 @@ async def manager_node(state: TravelState) -> Dict[str, Any]:
     is_safe = signs.is_safe if signs else True
     is_core_complete = signs.is_core_complete if signs else False
     hashes_count = len(research_manifest.verified_results) if research_manifest else 0
-    
-    history = format_recent_history(messages, HISTORY_LIMIT) # 简短历史参考
+    research_history = research_manifest.research_history if research_manifest else []
+
+    history = format_recent_history(messages, HISTORY_LIMIT)
     user_request = state.get("user_request", "未知诉求")
-    
+
     # 获取并格式化流转历史
     trace_logs = state.get("trace_history", [])
     trace_history_str = format_trace_history(trace_logs, 5)
@@ -51,6 +52,7 @@ async def manager_node(state: TravelState) -> Dict[str, Any]:
         is_safe=is_safe,
         is_core_complete=is_core_complete,
         hashes_count=hashes_count,
+        research_history=research_history if research_history else "[]",
         history=history,
         user_request=user_request,
         trace_history=trace_history_str,
@@ -88,7 +90,8 @@ async def manager_node(state: TravelState) -> Dict[str, Any]:
         detail={
             "decision": next_node,
             "reason": reason,
-            "hashes_count": hashes_count
+            "hashes_count": hashes_count,
+            "research_history": research_history[-3:],
         }
     )
 

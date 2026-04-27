@@ -118,6 +118,7 @@ class ResearchManifest(BaseModel):
     active_queries: List[SearchTask] = Field(default_factory=list, description="当前循环待执行的查询任务列表，由 QueryGenerator 节点生成")
     verified_results: List[RetrievalMetadata] = Field(default_factory=list, description="已通过 Critic 验证的结果索引")
     feedback_history: List[str] = Field(default_factory=list, description="Critic 给出的打回反馈原因Log")
+    research_history: List[str] = Field(default_factory=list, description="每轮研究的 user_request 记录，用于 Manager 判断已有结果是否属于当前诉求轮次")
 
 # ==============================================================================
 # ManagerOutput Output Schema

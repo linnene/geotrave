@@ -76,10 +76,15 @@ async def query_generator_node(state: TravelState) -> Dict[str, Any]:
         result = QueryGeneratorOutput(**parsed_json)
         
         # 4. Update ResearchManifest
+        old_manifest = state.get("research_data")
+        old_history = old_manifest.research_history if old_manifest else []
+        current_request = state.get("user_request", "")
+
         new_research_data = ResearchManifest(
             active_queries=result.tasks,
-            verified_results=[],   # 新一轮生成清空旧的（或增量，取决于策略）
-            feedback_history=[]
+            verified_results=[],
+            feedback_history=[],
+            research_history=old_history + [current_request],
         )
 
         trace = build_trace(
