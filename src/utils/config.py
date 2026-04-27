@@ -39,23 +39,14 @@ PLANNER_MODEL_API_KEY = os.getenv("PLANNER_MODEL_API_KEY", GLOBAL_MODEL_API_KEY)
 PLANNER_MODEL_BASE_URL = os.getenv("PLANNER_MODEL_BASE_URL", GLOBAL_MODEL_BASE_URL)
 PLANNER_MODEL_ID = os.getenv("PLANNER_MODEL_ID", GLOBAL_MODEL_ID)
 
-# --- 3. Embedding (知识库向量模型) ---
-EMBEDDING_MODEL_API_KEY = os.getenv("EMBEDDING_MODEL_API_KEY", "")
-EMBEDDING_MODEL_BASE_URL = os.getenv("EMBEDDING_MODEL_BASE_URL", "")
-EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "models/text-embedding-004")
-
-# --- 4. Agent Tuning Parameters ---
+# --- 3. Agent Tuning Parameters ---
 PLANNING_TEMPERATURE = 0.7
 MAX_TOKENS = 4096
 LLM_TIMEOUT = 60
 
-# --- 5. System Base Configuration ---
+# --- 4. System Base Configuration ---
 # Checkpoint 数据库配置 (Sqlite)
 CHECKPOINT_DB_PATH = os.getenv("CHECKPOINT_DB_PATH", "data/checkpointer/checkpoints.sqlite")
-
-# ChromaDB 向量数据库配置
-CHROMA_DB_DIR = os.getenv("CHROMA_DB_DIR", "./data/chroma")
-DB_TIMEOUT = 60
 
 # 日志配置
 LOG_LEVEL = os.getenv("LOG_LEVEL", "DEBUG")
