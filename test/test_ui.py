@@ -10,7 +10,7 @@ from typing import cast
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from langchain_core.messages import HumanMessage, AIMessage
-from src.agent.graph import travel_app
+from src.agent.graph import get_travel_app
 from src.agent.state.state import TravelState
 
 # 配置页面
@@ -102,7 +102,8 @@ if prompt := st.chat_input("输入指令..."):
             
             # 手动运行异步 Graph
             async def run_agent():
-                return await travel_app.ainvoke(input_state, config=config)
+                app = await get_travel_app()
+                return await app.ainvoke(input_state, config=config)
             
             try:
                 final_state = asyncio.run(run_agent())

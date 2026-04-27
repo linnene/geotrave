@@ -1,0 +1,28 @@
+# 敏感信息与版本控制
+.env
+.git
+.github
+.gitignore
+
+# 本地虚拟环境与编译缓存 (极其重要)
+.venv
+__pycache__
+*.pyc
+*.pyo
+.pytest_cache
+
+# IDE 与本地配置
+.vscode
+.python-version
+
+# 数据与状态持久化目录 (由 docker-compose 运行时挂载)
+data/
+
+# 非运行环境必需的代码与静态资源
+# test/
+script/
+docs/
+assets/
+README.md
+.env.example
+docker-compose.yml

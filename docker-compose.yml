@@ -1,0 +1,23 @@
+services:
+  geotrave-api:
+    image: teadark/geotrave-api:latest
+    build: .
+    container_name: geotrave-api
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+      - ./.env:/app/.env
+    restart: always
+
+  geotrave-ui:
+    image: teadark/geotrave-ui:latest
+    build: .
+    container_name: geotrave-ui
+    command: ["streamlit", "run", "test/test_ui.py", "--server.port", "8501", "--server.address", "0.0.0.0"]
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./data:/app/data
+      - ./.env:/app/.env
+    restart: always
