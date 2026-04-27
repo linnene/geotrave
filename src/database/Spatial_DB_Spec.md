@@ -23,38 +23,56 @@
 
 ## 2. 组件拓扑
 
-```
-┌─────────────────────────────────────────────────────┐
-│                   Agent Layer                        │
-│  query_generator ──► search ──► spatial_search      │
-│                              ──► route_search        │
-└──────────────────────┬──────────────────────────────┘
-                       │ asyncpg / SQLAlchemy
-┌──────────────────────▼──────────────────────────────┐
-│              PostgreSQL + Extensions                 │
-│  ┌──────────────┐  ┌──────────────┐                 │
-│  │   PostGIS     │  │   pgRouting  │                 │
-│  │  (几何/GiST)  │  │  (Dijkstra)  │                 │
-│  └──────────────┘  └──────────────┘                 │
-│         │                  │                         │
-│         ▼                  ▼                         │
-│  ┌──────────────────────────────────┐               │
-│  │         OSM 路网底表              │               │
-│  │  planet_osm_road / point / line  │               │
-│  │  + 自定义 POI 物化视图            │               │
-│  └──────────────────────────────────┘               │
-└─────────────────────────────────────────────────────┘
-```
-
-导入管线：
+### 2.1 运行时架构
 
 ```
-OSM .pbf 文件 ─► osm2pgsql ─► PostgreSQL/PostGIS 库
-                                 │
-                                 ├── planet_osm_point  (景点/餐厅/酒店)
-                                 ├── planet_osm_line   (道路)
-                                 ├── planet_osm_roads  (主干路网)
-                                 └── planet_osm_polygon (建筑/区域)
+┌──────────────────────────────────────────────────────────┐
+│                      Docker Compose                       │
+│                                                          │
+│  ┌──────────────────────┐   ┌──────────────────────────┐│
+│  │   geotrave-app       │   │   geotrave-db            ││
+│  │   (FastAPI + Agent)  │   │   (PostgreSQL 17)        ││
+│  │                      │   │   ├── PostGIS 3.5        ││
+│  │   asyncpg ───────────┼───┼──► ├── pgRouting 3.5     ││
+│  │                      │   │   ├── OSM 底表           ││
+│  └──────────────────────┘   │   └── 自定义视图          ││
+│                             │   ports: 5432             ││
+│                             └──────────────────────────┘│
+│                                        │                 │
+│                             ┌──────────▼──────────────┐ │
+│                             │  geotrave-db-init       │ │
+│                             │  (oneshot 导入服务)      │ │
+│                             │  osm2pgsql + 视图/SQL    │ │
+│                             └─────────────────────────┘ │
+└──────────────────────────────────────────────────────────┘
+```
+
+### 2.2 镜像分层
+
+```
+postgis/postgis:17-3.5          ← 官方 PostGIS 基础镜像
+        │
+        ▼
+Dockerfile.postgis              ← 安装 pgRouting + osm2pgsql
+        │
+        ▼
+geotrave-db:latest              ← 可发布/分发的最终镜像
+```
+
+### 2.3 数据导入管线
+
+```
+OSM .pbf 文件 ─► osm2pgsql (init container) ─► PostgreSQL/PostGIS 库
+                                                   │
+                  init/01-views.sql ───────────────┤
+                  init/02-topology.sql ────────────┤
+                                                   │
+                                                   ├── planet_osm_point  (景点/餐厅/酒店)
+                                                   ├── planet_osm_line   (道路)
+                                                   ├── planet_osm_roads  (主干路网)
+                                                   └── planet_osm_polygon (建筑/区域)
+                                                   ├── geotrave_poi      (物化视图)
+                                                   └── routing_ways      (视图)
 ```
 
 ---
@@ -170,16 +188,120 @@ SELECT * FROM pgr_dijkstra(
 
 ## 5. 分阶段实现计划
 
-### Phase 1 — 环境与数据准备
+### Phase 1 — 镜像构建与数据准备
+
+#### 1.1 项目文件布局
+
+```
+database/
+├── postgis/
+│   ├── Dockerfile                  # 基于 postgis/postgis:17-3.5 安装 pgRouting + osm2pgsql
+│   ├── docker-compose.yml          # db + app 服务编排
+│   ├── init/
+│   │   ├── 01-extensions.sql       # CREATE EXTENSION postgis; CREATE EXTENSION pgrouting;
+│   │   ├── 02-views.sql            # geotrave_poi + routing_ways 视图
+│   │   ├── 03-indexes.sql          # GIST 空间索引
+│   │   └── 04-topology.sql         # pgr_createTopology() 路网拓扑构建
+│   └── osm_data/                   # .gitignore 排除，存放 .pbf 文件
+│       └── china-latest.osm.pbf    # Geofabrik 下载
+└── Spatial_DB_Spec.md
+```
+
+#### 1.2 Dockerfile.postgis
+
+```dockerfile
+FROM postgis/postgis:17-3.5
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    postgresql-17-pgrouting \
+    osm2pgsql \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY init/ /docker-entrypoint-initdb.d/
+```
+
+说明：
+- `postgis/postgis:17-3.5` 官方镜像已含 PostgreSQL 17 + PostGIS 3.5
+- `postgresql-17-pgrouting` 是 pgRouting 官方 DEB 包，包含 `pgr_dijkstra`、`pgr_drivingDistance` 等全部函数
+- `osm2pgsql` 安装在镜像内，供 init container 使用
+- `init/*.sql` 放入 `/docker-entrypoint-initdb.d/`，容器首次启动时按文件名顺序自动执行
+
+#### 1.3 docker-compose.yml
+
+```yaml
+services:
+  db:
+    build:
+      context: ./postgis
+      dockerfile: Dockerfile
+    image: geotrave-db:latest
+    container_name: geotrave-db
+    environment:
+      POSTGRES_DB: geotrave
+      POSTGRES_USER: geotrave
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-geotrave_dev}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./postgis/osm_data:/osm_data:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U geotrave -d geotrave"]
+      interval: 5s
+      retries: 5
+
+  db-init:
+    image: geotrave-db:latest
+    container_name: geotrave-db-init
+    depends_on:
+      db:
+        condition: service_healthy
+    entrypoint: >
+      sh -c "
+      osm2pgsql -U geotrave -d geotrave -H db -c -s -C 4096 /osm_data/china-latest.osm.pbf &&
+      echo 'OSM import complete.'
+      "
+    volumes:
+      - ./postgis/osm_data:/osm_data:ro
+    profiles:
+      - init
+
+volumes:
+  pgdata:
+```
+
+说明：
+- `db` 服务使用自定义 Dockerfile 构建，首次启动自动执行 `init/*.sql`
+- `db-init` 是带 `profiles: [init]` 的一次性服务，仅在显式指定时运行：`docker compose --profile init up db-init`
+- OSM 数据通过只读卷挂载，导入后数据持久化在 `pgdata` 卷中
+- 镜像可推送到 registry 分发，协作者无需安装任何数据库组件
+
+#### 1.4 操作步骤
+
+```bash
+# 1. 启动数据库（自动创建扩展和视图）
+docker compose up -d db
+
+# 2. 导入 OSM 数据（首次或更新时执行）
+docker compose --profile init up db-init
+
+# 3. 验证
+docker compose exec db psql -U geotrave -d geotrave -c "
+  SELECT postgis_full_version();
+  SELECT count(*) FROM planet_osm_point;
+  SELECT count(*) FROM routing_ways;
+"
+```
 
 | 步骤 | 内容 | 验证方式 |
 |---|---|---|
-| 1.1 | 安装 PostgreSQL 15+、PostGIS 3.4+、pgRouting 3.5+ | `SELECT postgis_full_version();` |
-| 1.2 | 安装 osm2pgsql，下载目标区域 OSM `.pbf` 文件（如中国或特定省份） | `osm2pgsql --version` |
-| 1.3 | 执行 osm2pgsql 导入，生成 `planet_osm_*` 表 | `SELECT count(*) FROM planet_osm_point;` |
-| 1.4 | 创建 `geotrave_poi` 和 `routing_ways` 视图，建立 GIST 空间索引 | 视图可查询，索引存在 |
+| 1.1 | 编写 `Dockerfile` + `docker-compose.yml` | `docker compose build` 成功 |
+| 1.2 | 编写 `init/*.sql`（扩展、视图、索引、拓扑） | `docker compose up -d db` 后视图存在 |
+| 1.3 | 下载目标区域 OSM `.pbf`（如中国或特定省份）到 `osm_data/` | 文件存在且大小 >100MB |
+| 1.4 | 执行 `db-init` 导入 OSM 数据 | `SELECT count(*) FROM planet_osm_point` > 0 |
+| 1.5 | 构建并推送镜像 `geotrave-db:latest` 到 registry | `docker push` 成功，他人可 `docker pull` |
 
-**交付物**：可查询的 PostgreSQL 空间数据库，含完整 OSM 底表。
+**交付物**：可推送到 registry 的 Docker 镜像 + docker-compose.yml，一键启动含完整 OSM 底表的空间数据库。
 
 ### Phase 2 — 数据库连接层
 
@@ -188,7 +310,7 @@ SELECT * FROM pgr_dijkstra(
 | 2.1 | 在 `pyproject.toml` 添加 `asyncpg`、`geoalchemy2` 依赖 | `uv sync` 成功 |
 | 2.2 | 创建 `src/database/postgis/__init__.py`、`connection.py` — asyncpg 连接池管理 | 连接池创建并返回健康连接 |
 | 2.3 | 创建 `src/database/postgis/config.py` — `POSTGIS_DSN` 环境变量提取 | 配置可正确加载 |
-| 2.4 | 在 `.env` 添加 `POSTGIS_DSN=postgresql://user:pass@localhost:5432/geotrave` | 连接串可被读取 |
+| 2.4 | 在 `.env` 添加 `POSTGIS_DSN=postgresql://geotrave:geotrave_dev@db:5432/geotrave` | 连接串可被读取 |
 
 **交付物**：Agent 节点可通过 `from src.database.postgis import get_pool` 获取连接池。
 
