@@ -123,13 +123,88 @@ def _parse_lnglat(raw: str) -> tuple[float, float]:
     return float(parts[0]), float(parts[1])
 
 
+async def _geocode(place_name: str) -> tuple[float, float]:
+    """Resolve a place name to (lng, lat) via PostGIS planet_osm_point.
+
+    Tries exact name match first, then fuzzy match, and finally
+    retries with common Japanese place-name suffixes stripped (e.g.
+    "札幌駅" → "札幌" when the station is stored without "駅").
+    """
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            """
+            SELECT ST_X(ST_Transform(way, 4326)) AS lng,
+                   ST_Y(ST_Transform(way, 4326)) AS lat
+            FROM planet_osm_point
+            WHERE name = $1
+            LIMIT 1
+            """,
+            place_name,
+        )
+        if row is None:
+            # Fuzzy match
+            row = await conn.fetchrow(
+                """
+                SELECT ST_X(ST_Transform(way, 4326)) AS lng,
+                       ST_Y(ST_Transform(way, 4326)) AS lat
+                FROM planet_osm_point
+                WHERE name ILIKE $1
+                   OR amenity ILIKE $1
+                   OR tourism ILIKE $1
+                   OR railway ILIKE $1
+                   OR public_transport ILIKE $1
+                LIMIT 1
+                """,
+                f"%{place_name}%",
+            )
+        if row is None:
+            # Retry without common suffixes (駅, 寺, 神社, 公園, 城, 温泉)
+            for suffix in ("駅", "寺", "神社", "公園", "城", "温泉", "空港"):
+                if place_name.endswith(suffix) and len(place_name) > len(suffix):
+                    stripped = place_name[: -len(suffix)]
+                    row = await conn.fetchrow(
+                        """
+                        SELECT ST_X(ST_Transform(way, 4326)) AS lng,
+                               ST_Y(ST_Transform(way, 4326)) AS lat
+                        FROM planet_osm_point
+                        WHERE name = $1
+                        LIMIT 1
+                        """,
+                        stripped,
+                    )
+                    if row is not None:
+                        break
+        if row is None:
+            raise ValueError(
+                f"无法找到地点 '{place_name}' 的坐标，请尝试更具体的地名或直接提供坐标 'lng,lat'"
+            )
+        return float(row["lng"]), float(row["lat"])
+
+
+async def _resolve_location(raw: str) -> tuple[float, float]:
+    """Resolve a location string to (lng, lat).
+
+    If the string contains a comma and both parts parse as floats, treat it as
+    'lng,lat' coordinates. Otherwise geocode it as a place name via PostGIS.
+    """
+    if "," in raw:
+        parts = [p.strip() for p in raw.split(",")]
+        if len(parts) == 2:
+            try:
+                return float(parts[0]), float(parts[1])
+            except ValueError:
+                pass
+    return await _geocode(raw)
+
+
 @register_tool(
     name="spatial_search",
     description="基于地理位置检索 POI，支持空间范围过滤与类别筛选。查询半径内的餐厅、景点、住宿等。",
     parameters={
-        "center": "string (中心点坐标 'lng,lat')",
+        "center": "string (中心点：支持地名如'札幌站' 或坐标 'lng,lat')",
         "radius_m": "int (搜索半径，米)",
-        "category": "string (可选: accommodation/dining/attraction/transport)",
+        "category": "string (可选: restaurant/attraction/hotel/transport)",
         "limit": "int (返回条数上限，默认 10)",
     },
 )
@@ -140,7 +215,7 @@ async def execute_spatial_search(task: SearchTask) -> RetrievalMetadata:
     category = params.get("category")
     limit = int(params.get("limit", 10))
 
-    lng, lat = _parse_lnglat(center)
+    lng, lat = await _resolve_location(center)
     pool = await get_pool()
 
     query = """
@@ -202,8 +277,8 @@ async def execute_spatial_search(task: SearchTask) -> RetrievalMetadata:
     name="route_search",
     description="计算两点间最短路径距离/时间，或某点的等时圈范围。",
     parameters={
-        "origin": "string (起点 'lng,lat')",
-        "destination": "string (可选: 终点 'lng,lat')",
+        "origin": "string (起点：支持地名如'札幌站' 或坐标 'lng,lat')",
+        "destination": "string (可选: 终点，支持地名或坐标)",
         "mode": "string ('shortest' | 'isochrone')",
         "isochrone_minutes": "int (等时圈分钟数，默认 15)",
     },
@@ -219,8 +294,8 @@ async def execute_route_search(task: SearchTask) -> RetrievalMetadata:
 
     async with pool.acquire() as conn:
         if mode == "shortest" and destination:
-            org_lng, org_lat = _parse_lnglat(origin)
-            dst_lng, dst_lat = _parse_lnglat(destination)
+            org_lng, org_lat = await _resolve_location(origin)
+            dst_lng, dst_lat = await _resolve_location(destination)
 
             # Find nearest routing vertices
             src = await conn.fetchval(
@@ -265,7 +340,7 @@ async def execute_route_search(task: SearchTask) -> RetrievalMetadata:
             )
 
         elif mode == "isochrone":
-            org_lng, org_lat = _parse_lnglat(origin)
+            org_lng, org_lat = await _resolve_location(origin)
             walk_speed_ms = 1.39  # 5 km/h in m/s
             distance_limit = walk_speed_ms * isochrone_minutes * 60
 
