@@ -1,17 +1,14 @@
 """
 Tool definitions and registered functions for Search node.
 
-These tools are the concrete implementations available for executing SearchTask.
-For each tool, we register:
-- A function that performs the task (current implementations are placeholders / minimal examples)
-- A metadata dict describing name, description, and parameter schema.
-
-The metadata list can be injected directly into QueryGenerator's prompt to inform
-the LLM which tools are available and how to call them.
+Tools are registered via the @register_tool decorator, which automatically
+populates TOOL_METADATA (used by QueryGenerator) and TOOL_DISPATCH (used by
+Search node). No manual metadata list is required.
 """
 
+import functools
 import time
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from src.agent.state import RetrievalMetadata, SearchTask
 from src.utils.logger import get_logger
@@ -19,13 +16,48 @@ from src.utils.logger import get_logger
 logger = get_logger("SearchTools")
 
 # ---------------------------------------------------------------------------
+# Auto‑registration machinery
+# ---------------------------------------------------------------------------
+
+TOOL_METADATA: List[Dict[str, Any]] = []
+TOOL_DISPATCH: Dict[str, Any] = {}
+
+
+def register_tool(name: str, description: str, parameters: Dict[str, str]):
+    """
+    Decorator that automatically registers a tool's metadata and dispatch entry.
+    After decoration the tool is immediately usable by both the QueryGenerator
+    (via TOOL_METADATA) and the Search node (via TOOL_DISPATCH).
+    """
+    def decorator(func):
+        @functools.wraps(func)
+        async def wrapper(task: SearchTask) -> RetrievalMetadata:
+            logger.info(f"Executing tool '{name}' with params: {task.parameters}")
+            return await func(task)
+
+        TOOL_METADATA.append({
+            "name": name,
+            "description": description,
+            "parameters": parameters,
+        })
+        TOOL_DISPATCH[name] = wrapper
+        logger.debug(f"Registered tool: {name}")
+        return wrapper
+    return decorator
+
+
+# ---------------------------------------------------------------------------
 # Registered tool implementations (mock outputs)
 # ---------------------------------------------------------------------------
 
+@register_tool(
+    name="web_search",
+    description="搜索互联网获取最新旅游信息、攻略、评价等。",
+    parameters={"query": "string (搜索关键词)"},
+)
 async def execute_web_search(task: SearchTask) -> RetrievalMetadata:
     """
     Mock implementation of web search.
-    Returns a placeholder RetrievalMetadata.
     """
     params = task.parameters
     query = params.get("query", "mock query")
@@ -40,10 +72,17 @@ async def execute_web_search(task: SearchTask) -> RetrievalMetadata:
     )
 
 
+@register_tool(
+    name="vector_db",
+    description="查询本地旅游知识库，获取结构化的景点、餐厅、酒店底表信息。",
+    parameters={
+        "query": "string (检索指令)",
+        "collection": "string (可选: attractions, restaurants, hotels)",
+    },
+)
 async def execute_vector_search(task: SearchTask) -> RetrievalMetadata:
     """
     Mock implementation of vector database search.
-    Returns a placeholder RetrievalMetadata.
     """
     params = task.parameters
     query = params.get("query", "mock query")
@@ -63,59 +102,34 @@ async def execute_vector_search(task: SearchTask) -> RetrievalMetadata:
 # Additional tool stubs (declared but not yet implemented)
 # ---------------------------------------------------------------------------
 
+@register_tool(
+    name="flight_api",
+    description="查询实时航班信息、票价（尚未实现）。",
+    parameters={
+        "origin": "string (出发地代码/名称)",
+        "destination": "string (目的地代码/名称)",
+        "date": "string (出发日期)",
+    },
+)
 async def execute_flight_search(task: SearchTask) -> RetrievalMetadata:
     """
     Placeholder for flight API search.
-    To be implemented when flight data source is available.
     """
     raise NotImplementedError("Flight search is not yet implemented.")
 
 
+@register_tool(
+    name="hotel_api",
+    description="查询酒店可用性、价格（尚未实现）。",
+    parameters={
+        "destination": "string (目的地)",
+        "check_in": "string (入住日期)",
+        "check_out": "string (退房日期)",
+        "guests": "int (入住人数)",
+    },
+)
 async def execute_hotel_search(task: SearchTask) -> RetrievalMetadata:
     """
     Placeholder for hotel database search.
-    To be implemented when accommodation data source is available.
     """
     raise NotImplementedError("Hotel search is not yet implemented.")
-
-
-# ---------------------------------------------------------------------------
-# Tool metadata for prompt injection
-# ---------------------------------------------------------------------------
-
-TOOL_METADATA: List[Dict[str, Any]] = [
-    {
-        "name": "web_search",
-        "description": "搜索互联网获取最新旅游信息、攻略、评价等。",
-        "parameters": {
-            "query": "string (搜索关键词)"
-        },
-    },
-    {
-        "name": "vector_db",
-        "description": "查询本地旅游知识库，获取结构化的景点、餐厅、酒店底表信息。",
-        "parameters": {
-            "query": "string (检索指令)",
-            "collection": "string (可选: attractions, restaurants, hotels)"
-        },
-    },
-    {
-        "name": "flight_api",
-        "description": "查询实时航班信息、票价（尚未实现）。",
-        "parameters": {
-            "origin": "string (出发地代码/名称)",
-            "destination": "string (目的地代码/名称)",
-            "date": "string (出发日期)"
-        },
-    },
-    {
-        "name": "hotel_api",
-        "description": "查询酒店可用性、价格（尚未实现）。",
-        "parameters": {
-            "destination": "string (目的地)",
-            "check_in": "string (入住日期)",
-            "check_out": "string (退房日期)",
-            "guests": "int (入住人数)"
-        },
-    },
-]
