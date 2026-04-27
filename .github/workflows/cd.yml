@@ -49,10 +49,9 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            mkdir -p ~/geotrave
-            cd ~/geotrave
-            # If docker-compose.yml doesn't exist on server, you might need to scp it first 
-            # or keep a copy there.
+            mkdir -p /home/geotrave
+            cd /home/geotrave
+            # 如果 docker-compose.yml 还在旧位置，请记得手动移动到 /home/geotrave
             docker compose pull
             docker compose up -d
             docker image prune -f
