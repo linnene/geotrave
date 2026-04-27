@@ -35,11 +35,14 @@ async def get_travel_app():
         from src.agent.nodes.reply.node import reply_node
         from src.agent.nodes.manager.node import manager_node
         from src.agent.nodes.query_generator.node import query_generator_node
+        from src.agent.nodes.search.node import search_node
+
         workflow.add_node("gateway", gateway_node)
         workflow.add_node("analyst", analyst_node)
         workflow.add_node("reply", reply_node)
         workflow.add_node("manager", manager_node)
-        workflow.add_node("query_generator", query_generator_node) 
+        workflow.add_node("query_generator", query_generator_node)
+        workflow.add_node("search", search_node)
 
         # 3. Define Edges
         workflow.set_entry_point("gateway")
@@ -68,10 +71,9 @@ async def get_travel_app():
             
             # 建立映射表防止节点未注册
             mapping = {
-                "query_generator": "query_generator", # 临时映射
-                "recommender": "reply", # 临时映射
-                
-                "planner": "reply", # 临时映射
+                "query_generator": "query_generator",
+                "recommender": "reply",   # 临时映射
+                "planner": "reply",       # 临时映射
                 "analyst": "analyst",
                 "reply": "reply"
             }
@@ -89,7 +91,9 @@ async def get_travel_app():
 
         # Analyst flow: 始终回到 Manager，由全局大脑决定下一步
         workflow.add_edge("analyst", "manager")
-        workflow.add_edge("query_generator", "manager")
+        # query_generator 产出任务后自动进入 search 节点执行，search 完成后返回 manager
+        workflow.add_edge("query_generator", "search")
+        workflow.add_edge("search", "manager")
 
         # After replying, wait for next user input
         workflow.add_edge("reply", END)
@@ -98,14 +102,16 @@ async def get_travel_app():
         # Initialize checkpointer
         checkpointer = await SqliteCheckpointer.get_instance()
         
-        # Attach serializer
+        # Attach serializer (register all state Pydantic models used in TravelState)
         serializer = JsonPlusSerializer(
             allowed_msgpack_modules=[
                 ('src.agent.state.schema', 'RouteMetadata'),
                 ('src.agent.state.schema', 'UserProfile'),
                 ('src.agent.state.schema', 'TraceLog'),
                 ('src.agent.state.schema', 'ResearchManifest'),
-                ('src.agent.state.schema', 'ExecutionSigns')
+                ('src.agent.state.schema', 'ExecutionSigns'),
+                ('src.agent.state.schema', 'SearchTask'),
+                ('src.agent.state.schema', 'RetrievalMetadata'),
             ]
         )
         checkpointer.serde = serializer
