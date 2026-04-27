@@ -38,3 +38,5 @@
 - [ ] 单元测试全绿（`test/unit/`）
 - [ ] 集成测试全绿（`test/integration/`，需 PostGIS 运行）
 - [ ] E2E 手动测试：完整对话 → QueryGenerator 生成 spatial_search + 地理编码成功
+
+向服务器上传新的Dockerfile
