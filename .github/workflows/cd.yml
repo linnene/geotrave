@@ -70,7 +70,7 @@ jobs:
                 environment:
                   POSTGRES_DB: geotrave
                   POSTGRES_USER: geotrave
-                  POSTGRES_PASSWORD: ${DB_PASSWORD:?必须设置数据库密码}
+                  POSTGRES_PASSWORD: ${DB_PASSWORD:-geotrave_dev}
                 ports:
                   - "5432:5432"
                 volumes:
@@ -89,7 +89,7 @@ jobs:
                   db:
                     condition: service_healthy
                 environment:
-                  POSTGIS_DSN: postgresql://geotrave:${DB_PASSWORD:?}@db:5432/geotrave
+                  POSTGIS_DSN: postgresql://geotrave:${DB_PASSWORD:-geotrave_dev}@db:5432/geotrave
                 ports:
                   - "8000:8000"
                 restart: unless-stopped
