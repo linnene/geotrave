@@ -42,6 +42,11 @@ However, keep technical terms (like 'Asyncio', 'Lock', 'StateGraph') in English 
 - **强反馈断言**：禁止使用无意义的断言报错。失败时必须输出：输入参数、预期结果、实际结果、错误触发时的特定状态。
 - **清单维护**：在测试根目录维护 `TEST_MANIFEST.md`，记录覆盖维度矩阵、P0/P1 项目列表以及高风险项的评估标准。
 
-## 5. 环境与交互约束 (System & UI)
+## 5. 提交规范 (Commit Discipline)
+- **每次改动后必须提交**：每完成一轮代码修改（无论涉及多少个文件），必须立即执行 `git add` + `git commit`，生成一条语义清晰的 commit message。
+- **原子提交**：一次 commit 只包含一组逻辑相关的变更；避免将无关改动混在同一个 commit 中。
+- **message 规范**：遵循项目现有风格（中文简述 + 英文细节），以 `chore:` / `feat:` / `fix:` / `refactor:` 开头。
+
+## 6. 环境与交互约束 (System & UI)
 - **中文交流**：除代码注释、文件头及技术文档外，所有与用户的沟通、任务进度描述必须使用简体中文。
 - **路径适配**：在 Windows 环境下，确保路径解析正确，尊重 Windows 文件系统权限。
