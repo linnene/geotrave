@@ -12,11 +12,6 @@ a unidirectional dependency graph (e.g., `from src.utils import logger, config`)
 from src.utils.logger import logger, get_logger
 from src.utils.config import (
     LOG_LEVEL,
-    CHROMA_DB_DIR,
-    DB_TIMEOUT, # Additional configs can be managed here collectively
-    EMBEDDING_MODEL_API_KEY,
-    EMBEDDING_MODEL_BASE_URL,
-    EMBEDDING_MODEL,
     ANALYST_MODEL_API_KEY,
     ANALYST_MODEL_BASE_URL,
     ANALYST_MODEL_ID,
@@ -31,18 +26,9 @@ from src.utils.config import (
 __all__ = [
     "logger",
     "get_logger",
-    
-    # Pre-exported frequently accessed config constants
-    "CHROMA_DB_DIR",
-    "DB_TIMEOUT",
+
     "LOG_LEVEL",
-    
-    # Embedding Configuration
-    "EMBEDDING_MODEL",
-    "EMBEDDING_MODEL_API_KEY",
-    "EMBEDDING_MODEL_BASE_URL",
-    
-    # Models Configurations
+
     "ANALYST_MODEL_API_KEY",
     "ANALYST_MODEL_BASE_URL",
     "ANALYST_MODEL_ID",

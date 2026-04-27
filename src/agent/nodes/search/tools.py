@@ -8,7 +8,7 @@ Search node). No manual metadata list is required.
 
 import functools
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from src.agent.state import RetrievalMetadata, SearchTask
 from src.utils.logger import get_logger
@@ -69,32 +69,6 @@ async def execute_web_search(task: SearchTask) -> RetrievalMetadata:
         hash_key=hash_key,
         source=f"web_search: {query}",
         relevance_score=0.8,
-    )
-
-
-@register_tool(
-    name="vector_db",
-    description="查询本地旅游知识库，获取结构化的景点、餐厅、酒店底表信息。",
-    parameters={
-        "query": "string (检索指令)",
-        "collection": "string (可选: attractions, restaurants, hotels)",
-    },
-)
-async def execute_vector_search(task: SearchTask) -> RetrievalMetadata:
-    """
-    Mock implementation of vector database search.
-    """
-    params = task.parameters
-    query = params.get("query", "mock query")
-    collection = params.get("collection", "default")
-
-    logger.info(f"Mock vector search for: {query} (collection={collection})")
-
-    hash_key = f"mock_vec_{query}_{int(time.time() * 1000)}"
-    return RetrievalMetadata(
-        hash_key=hash_key,
-        source=f"vector_db/{collection}: {query}",
-        relevance_score=0.9,
     )
 
 
