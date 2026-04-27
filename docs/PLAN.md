@@ -19,7 +19,7 @@
 ## 3. Manager 路由代码级护栏
 
 - [ ] `graph.py:manager_router` 增加强制逻辑：
-  - 每次新用户消息的首个路由必须是 `analyst`（准入控制）
+  - 每次新用户消息的首个路由除了GateWay（安全路由）必须是 `analyst`
   - `is_core_complete=True` 且研究过期时，禁止跳过 `query_generator`
 - [ ] 可能需要新增一个标记位（如 `analyst_visited_this_round`）到 ExecutionSigns
 
