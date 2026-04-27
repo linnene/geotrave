@@ -11,7 +11,7 @@ the LLM which tools are available and how to call them.
 """
 
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from src.agent.state import RetrievalMetadata, SearchTask
 from src.utils.logger import get_logger
