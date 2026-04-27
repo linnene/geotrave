@@ -1,4 +1,4 @@
-﻿"""
+"""
 Module: src.agent.schema
 Responsibility: Defines all Pydantic models for structured data and Agent 2.0 communication.
 Parent Module: src.agent
