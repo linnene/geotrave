@@ -163,7 +163,7 @@ async def execute_spatial_search(task: SearchTask) -> RetrievalMetadata:
             FROM geotrave_poi
             WHERE ST_DWithin(geom::geography,
                        ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography, $3)
-              AND category = $4
+              AND (category = $4 OR sub_category = $4)
             ORDER BY dist_m
             LIMIT $5
         """
