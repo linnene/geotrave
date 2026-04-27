@@ -29,6 +29,15 @@ if "chat_history" not in st.session_state:
 if "latest_state" not in st.session_state:
     st.session_state.latest_state = {}
 
+# 获取异步运行环境
+def get_or_create_event_loop():
+    try:
+        return asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        return loop
+
 # 侧边栏：实时状态监控
 with st.sidebar:
     st.header("🔍 实时状态监控")
@@ -106,7 +115,9 @@ if prompt := st.chat_input("输入指令..."):
                 return await app.ainvoke(input_state, config=config)
             
             try:
-                final_state = asyncio.run(run_agent())
+                # 使用当前线程的 loop 运行异步任务，避免 asyncio.run 频繁关闭导致 aiosqlite 连接失效
+                loop = get_or_create_event_loop()
+                final_state = loop.run_until_complete(run_agent())
                 st.session_state.latest_state = final_state
                 
                 # 获取最后一条 AI 消息
