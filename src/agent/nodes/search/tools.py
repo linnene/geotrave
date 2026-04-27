@@ -159,8 +159,8 @@ async def _geocode(place_name: str) -> tuple[float, float]:
                 f"%{place_name}%",
             )
         if row is None:
-            # Retry without common suffixes (駅, 寺, 神社, 公園, 城, 温泉)
-            for suffix in ("駅", "寺", "神社", "公園", "城", "温泉", "空港"):
+            # Retry without common CJK suffixes (Japanese + Chinese + Korean)
+            for suffix in ("駅", "站", "寺", "神社", "公園", "公园", "城", "温泉", "空港", "机场"):
                 if place_name.endswith(suffix) and len(place_name) > len(suffix):
                     stripped = place_name[: -len(suffix)]
                     row = await conn.fetchrow(
