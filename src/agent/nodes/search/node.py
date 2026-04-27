@@ -10,7 +10,7 @@ from typing import Any, Dict, List
 
 from src.agent.nodes.search import tools
 from src.agent.nodes.utils import build_trace
-from src.agent.state import ResearchManifest, RetrievalMetadata, SearchTask, TraceLog
+from src.agent.state import ResearchManifest, RetrievalMetadata, SearchTask
 from src.utils.logger import get_logger
 
 logger = get_logger("SearchNode")
@@ -53,12 +53,11 @@ async def search_node(state: Dict[str, Any]) -> Dict[str, Any]:
     logger.info("Executing search tasks at [SearchNode]...")
 
     research_data: ResearchManifest = state.get("research_data")
-    trace_history: List[TraceLog] = state.get("trace_history", [])
 
     if not research_data:
         logger.warning("No research_data found, skipping search.")
         trace = build_trace("search", "SKIPPED", int((time.time() - start_time) * 1000), {"reason": "research_data missing"})
-        return {"trace_history": trace_history + [trace]}
+        return {"trace_history": [trace]}
 
     tasks: List[SearchTask] = research_data.active_queries
     if not tasks:
@@ -66,7 +65,7 @@ async def search_node(state: Dict[str, Any]) -> Dict[str, Any]:
         trace = build_trace("search", "SUCCESS", int((time.time() - start_time) * 1000), {"task_count": 0})
         return {
             "research_data": research_data,
-            "trace_history": trace_history + [trace],
+            "trace_history": [trace],
         }
 
     results, has_errors = await _execute_tasks(tasks)
@@ -90,5 +89,5 @@ async def search_node(state: Dict[str, Any]) -> Dict[str, Any]:
     logger.info(f"Search execution completed with status: {status}")
     return {
         "research_data": updated_manifest,
-        "trace_history": trace_history + [trace],
+        "trace_history": [trace],
     }
