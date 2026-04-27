@@ -11,14 +11,21 @@ from src.database.checkpointer import SqliteCheckpointer
 import src.agent.state.state as state_mod
 
 # Factory function to get or create the app
-_app = None
+# Use a dictionary to store loop-specific app instances to avoid "Lock bound to different loop" errors
+_apps = {}
 
 async def get_travel_app():
     """
     Async factory to initialize the graph with an async checkpointer.
     """
-    global _app
-    if _app is None:
+    global _apps
+    import asyncio
+    current_loop = asyncio.get_running_loop()
+    
+    # Check for closed loops in cache
+    _apps = {loop: app for loop, app in _apps.items() if not loop.is_closed()}
+    
+    if current_loop not in _apps:
         # 1. Initialize Graph with state schema
         workflow = StateGraph(state_mod.TravelState)
 
@@ -91,17 +98,10 @@ async def get_travel_app():
         # Initialize checkpointer
         checkpointer = await SqliteCheckpointer.get_instance()
         
-        # Cleanup default session on startup to ensure a fresh state
-        try:
-            await SqliteCheckpointer.delete_checkpoint("session1")
-        except Exception as e:
-            from src.utils.logger import get_logger
-            get_logger("Graph").warning(f"Failed to cleanup default session: {e}")
-
         # Attach serializer
         serializer = JsonPlusSerializer(
             allowed_msgpack_modules=[
-                ('src.agent.state.sc·hema', 'RouteMetadata'),
+                ('src.agent.state.schema', 'RouteMetadata'),
                 ('src.agent.state.schema', 'UserProfile'),
                 ('src.agent.state.schema', 'TraceLog'),
                 ('src.agent.state.schema', 'ResearchManifest'),
@@ -111,5 +111,5 @@ async def get_travel_app():
         checkpointer.serde = serializer
         
         # Compile with checkpointer
-        _app = workflow.compile(checkpointer=checkpointer)
-    return _app
+        _apps[current_loop] = workflow.compile(checkpointer=checkpointer)
+    return _apps[current_loop]
