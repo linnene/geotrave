@@ -75,6 +75,7 @@ async def search_node(state: Dict[str, Any]) -> Dict[str, Any]:
         active_queries=[],
         verified_results=research_data.verified_results + results,
         feedback_history=research_data.feedback_history,
+        research_history=research_data.research_history,
     )
 
     latency_ms = int((time.time() - start_time) * 1000)
