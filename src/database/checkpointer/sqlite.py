@@ -18,84 +18,70 @@ class SqliteCheckpointer:
     """
     Utility class to manage the lifecycle and instance of an Async SQLite checkpointer.
     """
-    _saver_cm: Optional[Any] = None
-    _instance: Optional[AsyncSqliteSaver] = None
+    _instances: dict[asyncio.AbstractEventLoop, AsyncSqliteSaver] = {}
+    _cms: dict[asyncio.AbstractEventLoop, Any] = {}
     _db_path: str = CHECKPOINT_DB_PATH
-    _bound_loop: Optional[asyncio.AbstractEventLoop] = None
 
     @classmethod
     async def get_instance(cls, db_path: Optional[str] = None) -> AsyncSqliteSaver:
         """
-        Returns a singleton instance of the AsyncSqliteSaver.
+        Returns a loop-bound instance of the AsyncSqliteSaver.
         """
         current_loop = asyncio.get_running_loop()
         
         if db_path:
             cls._db_path = db_path
             
-        # If the event loop has changed (common in Streamlit/FastAPI hot reloads),
-        # we must reset the instance because SQLite/Asyncio locks are bound to the loop.
-        if cls._instance is not None and cls._bound_loop != current_loop:
-            logger.warning("Event loop changed! Re-initializing SqliteCheckpointer to avoid Lock collision.")
-            try:
-                # Try to close the old connection context if possible
-                if cls._saver_cm:
-                    await cls._saver_cm.__aexit__(None, None, None)
-            except Exception as e:
-                logger.error(f"Error while closing old checkpointer: {e}")
-            cls._instance = None
-            cls._saver_cm = None
+        # Clean up stale instances for closed loops
+        cls._instances = {loop: inst for loop, inst in cls._instances.items() if not loop.is_closed()}
+        cls._cms = {loop: cm for loop, cm in cls._cms.items() if not loop.is_closed()}
 
-        if cls._instance is None:
+        if current_loop not in cls._instances:
             # Ensure directory exists
             os.makedirs(os.path.dirname(cls._db_path), exist_ok=True)
-            logger.info(f"Initializing Async SQLite Checkpointer at: {cls._db_path}")
+            logger.info(f"Initializing Loop-Bound Async SQLite Checkpointer at: {cls._db_path} for loop {id(current_loop)}")
             
             # AsyncSqliteSaver.from_conn_string returns an async context manager
-            cls._saver_cm = AsyncSqliteSaver.from_conn_string(cls._db_path)
+            cm = AsyncSqliteSaver.from_conn_string(cls._db_path)
             # Enter the context manager to get the actual AsyncSqliteSaver instance
-            cls._instance = await cls._saver_cm.__aenter__()
-            cls._bound_loop = current_loop
+            instance = await cm.__aenter__()
             
-        if cls._instance is None:
-            raise RuntimeError("Failed to initialize AsyncSqliteSaver instance")
+            cls._cms[current_loop] = cm
+            cls._instances[current_loop] = instance
             
-        return cls._instance
+        return cls._instances[current_loop]
 
     @classmethod
     async def delete_checkpoint(cls, thread_id: str):
         """
         Deletes all checkpoints associated with a specific thread_id.
         """
-        if cls._instance is None:
-            await cls.get_instance()
+        instance = await cls.get_instance()
         
         logger.info(f"Cleaning up checkpoints for thread_id: {thread_id}")
-        # AsyncSqliteSaver uses a central connection pool. 
-        # We can execute raw SQL on the underlying connection.
-        if cls._instance is not None:
-            async with cls._instance.conn.execute(
-                "DELETE FROM checkpoints WHERE thread_id = ?", (thread_id,)
-            ):
-                await cls._instance.conn.commit()
-            
-            async with cls._instance.conn.execute(
-                "DELETE FROM writes WHERE thread_id = ?", (thread_id,)
-            ):
-                await cls._instance.conn.commit()
-        else:
-            logger.warning("No active AsyncSqliteSaver instance found for cleanup.")
+        async with instance.conn.execute(
+            "DELETE FROM checkpoints WHERE thread_id = ?", (thread_id,)
+        ):
+            await instance.conn.commit()
+        
+        async with instance.conn.execute(
+            "DELETE FROM writes WHERE thread_id = ?", (thread_id,)
+        ):
+            await instance.conn.commit()
 
     @classmethod
-    async def close(cls):
+    async def close_all(cls):
         """
-        Gracefully closes the checkpointer connection.
+        Gracefully closes all checkpointer connections.
         """
-        if cls._saver_cm:
-            logger.info("Closing Async SQLite Checkpointer connection")
-            await cls._saver_cm.__aexit__(None, None, None)
-            cls._instance = None
-            cls._saver_cm = None
+        for loop, cm in cls._cms.items():
+            try:
+                if not loop.is_closed():
+                    await cm.__aexit__(None, None, None)
+            except Exception as e:
+                logger.error(f"Error while closing checkpointer for loop {id(loop)}: {e}")
+        cls._instances.clear()
+        cls._cms.clear()
     def connection(cls):
         """
         Context manager for clean checkpointer session management.
