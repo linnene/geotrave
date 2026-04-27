@@ -96,6 +96,7 @@ class RetrievalMetadata(BaseModel):
     hash_key: str = Field(..., description="异步 KV 库中的存储键 (Content Hash)")
     source: str = Field(..., description="数据来源标题或链接")
     relevance_score: float = Field(default=0.0, description="Critic 打出的相关性评分")
+    payload: Dict[str, Any] = Field(default_factory=dict, description="检索结果的完整数据载荷")
 
 class SearchTask(BaseModel):
     """具体的搜索任务定义，支持动态参数"""
