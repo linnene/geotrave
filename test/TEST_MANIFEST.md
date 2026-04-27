@@ -7,9 +7,9 @@
 | `src/api/schema.py` | `test/unit/test_api_schemas.py` | 0 | 1 | 0 | 1 |
 | `src/database/postgis/config.py` | `test/unit/database/postgis/test_config.py` | 1 | 1 | 0 | 2 |
 | `src/database/postgis/connection.py` | `test/unit/database/postgis/test_connection.py` | 1 | 2 | 1 | 4 |
-| `src/agent/nodes/search/tools.py` | `test/unit/agent/nodes/search/test_tools.py` | 2 | 6 | 1 | 9 |
+| `src/agent/nodes/search/tools.py` | `test/unit/agent/nodes/search/test_tools.py` | 2 | 9 | 2 | 13 |
 | `src/agent/nodes/search/tools.py` | `test/integration/test_spatial_tools.py` | 4 | 0 | 0 | 4 |
-| **Total** | | **8** | **10** | **2** | **20** |
+| **Total** | | **8** | **13** | **3** | **24** |
 
 ## P0 — Blocker Items
 
@@ -38,6 +38,10 @@
 | 8 | `test_route_search_invalid_mode` | Search Tools |
 | 9 | `test_route_search_shortest_missing_destination` | Search Tools |
 | 10 | `test_parse_lnglat_invalid_format` | Search Tools |
+| 11 | `test_resolve_location_coords` | Search Tools |
+| 12 | `test_geocode_by_name` | Search Tools |
+| 13 | `test_geocode_suffix_stripping` | Search Tools |
+| 14 | `test_geocode_not_found` | Search Tools |
 
 ## High-Risk Evaluation Items
 
