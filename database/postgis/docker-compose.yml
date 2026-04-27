@@ -25,6 +25,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    environment:
+      PGPASSWORD: ${DB_PASSWORD:-geotrave_dev}
     entrypoint: >
       sh -c "
       osm2pgsql -U geotrave -d geotrave -H db -c -s -C 4096 /osm_data/china-latest.osm.pbf &&
