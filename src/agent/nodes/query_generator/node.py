@@ -17,28 +17,11 @@ def _get_format_instructions() -> str:
 
 def _get_tools_documentation() -> str:
     """
-    TODO: 之后这里应该从一个统一的工具注册中心动态获取文档。
-    目前先提供一个结构化的占位符，演示注入逻辑。
+    动态从 Search 节点的工具注册中心获取可用工具列表，
+    以保证提示词中的工具信息与实际可执行工具一致。
     """
-    # 模拟从 LangChain 工具对象中提取 metadata
-    tools = [
-        {
-            "name": "web_search",
-            "description": "搜索互联网获取最新旅游信息、攻略、评价等。",
-            "parameters": {
-                "query": "string (搜索关键词)"
-            }
-        },
-        {
-            "name": "vector_db",
-            "description": "查询本地旅游知识库，获取结构化的景点、餐厅、酒店底表信息。",
-            "parameters": {
-                "query": "string (检索指令)",
-                "collection": "string (可选: attractions, restaurants, hotels)"
-            }
-        }
-    ]
-    return json.dumps(tools, indent=2, ensure_ascii=False)
+    from src.agent.nodes.search.tools import TOOL_METADATA
+    return json.dumps(TOOL_METADATA, indent=2, ensure_ascii=False)
 
 async def query_generator_node(state: TravelState) -> Dict[str, Any]:
     """
@@ -93,7 +76,6 @@ async def query_generator_node(state: TravelState) -> Dict[str, Any]:
         result = QueryGeneratorOutput(**parsed_json)
         
         # 4. Update ResearchManifest
-        # 直接将 SearchTask 列表赋值给 ResearchManifest.active_queries，不再打包成字符串
         new_research_data = ResearchManifest(
             active_queries=result.tasks,
             verified_results=[],   # 新一轮生成清空旧的（或增量，取决于策略）
