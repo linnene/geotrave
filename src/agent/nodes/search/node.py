@@ -3,8 +3,7 @@ from typing import Dict, Any, List
 
 from src.agent.state import TraceLog, ResearchManifest, SearchTask, RetrievalMetadata
 from src.utils.logger import get_logger
-from src.crawler.fetcher import ContentFetcher
-from src.database.vector_db.service import search_similar_documents
+from src.agent.nodes.search import tools  # <-- 工具函数与元数据在此
 
 logger = get_logger("SearchNode")
 
@@ -45,10 +44,10 @@ async def search_node(state: Dict[str, Any]) -> Dict[str, Any]:
             "trace_history": trace_history + [trace],
         }
 
-    # Tool dispatcher (no LLM involved)
+    # Tool dispatcher (uses functions from the tools module)
     tool_dispatcher = {
-        "web_search": _execute_web_search,
-        "vector_db": _execute_vector_search,
+        "web_search": tools.execute_web_search,
+        "vector_db": tools.execute_vector_search,
     }
 
     new_results: List[RetrievalMetadata] = []
@@ -104,59 +103,3 @@ async def search_node(state: Dict[str, Any]) -> Dict[str, Any]:
         "research_data": updated_manifest,
         "trace_history": trace_history + [trace],
     }
-
-
-async def _execute_web_search(task: SearchTask) -> RetrievalMetadata:
-    """
-    Executes a web search via ContentFetcher.
-    """
-    params = task.parameters
-    query = params.get("query", "")
-    fetcher = ContentFetcher()
-
-    # Placeholder: use a generic search URL; in production this should interface
-    # with a real search API.
-    url = f"https://www.google.com/search?q={query}"
-    html = await fetcher.fetch_fast(url)
-
-    if html is None:
-        raise RuntimeError(f"Web search for '{query}' returned no content.")
-
-    hash_key = f"web_{query}_{int(time.time() * 1000)}"
-    return RetrievalMetadata(
-        hash_key=hash_key,
-        source=f"web_search: {query}",
-        relevance_score=0.8,  # placeholder score
-    )
-
-
-async def _execute_vector_search(task: SearchTask) -> RetrievalMetadata:
-    """
-    Queries the local knowledge base via vector search.
-    """
-    params = task.parameters
-    query = params.get("query", "")
-    collection = params.get("collection", "default")
-
-    results = await search_similar_documents(query, k=3)
-
-    if not results:
-        return RetrievalMetadata(
-            hash_key=f"vec_empty_{query}_{int(time.time() * 1000)}",
-            source=f"vector_db/{collection}",
-            relevance_score=0.0,
-        )
-
-    # Take the first result's metadata to generate a RetrievalMetadata entry.
-    first = results[0]
-    if isinstance(first, (list, tuple)) and len(first) >= 2:
-        doc_text, meta = first[0], first[1]
-    else:
-        doc_text, meta = str(first), {}
-
-    hash_key = meta.get("hash", f"vec_{query}_{int(time.time() * 1000)}")
-    return RetrievalMetadata(
-        hash_key=hash_key,
-        source=f"vector_db/{collection}: {query}",
-        relevance_score=0.9,  # placeholder score
-    )
