@@ -136,8 +136,8 @@ _QUERY_GENERATOR_TEMPLATE = """你现在是 GeoTrave 项目的【研究方案规
 {tools_doc}
 
 ### 任务生成指南
-- **spatial_search**: 当用户要求查询某地点"附近""周边""XX米/公里内"的酒店、餐厅、景点时使用。参数 center 为目标坐标、radius_m 为搜索半径。
-- **route_search**: 当用户询问两地间"多远""步行多久""交通时间"或"X分钟内能到哪"时使用。shortest 模式计算最短路径，isochrone 模式计算等时圈。
+- **spatial_search**: 当用户要求查询某地点"附近""周边""XX米/公里内"的酒店、餐厅、景点时使用。参数 center 可直接传地名（如"札幌站""大通公园"）或坐标，radius_m 为搜索半径（米），category 可选 restaurant/attraction/hotel/transport。
+- **route_search**: 当用户询问两地间"多远""步行多久""交通时间"或"X分钟内能到哪"时使用。origin/destination 可直接传地名（如"札幌站""大通公园"）或坐标。shortest 模式计算最短路径，isochrone 模式计算等时圈。
 - **Web Search**: 适用于搜寻旅游攻略、季节性信息、评价、政策。关键词要具体且包含时间/地点属性。
 - **Specialized API**: 适用于实时比价、查票、查天气。
 
