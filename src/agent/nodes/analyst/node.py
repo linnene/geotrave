@@ -10,11 +10,11 @@ import time
 import json
 from typing import Dict, Any
 
-from src.agent.state import TraceLog, TravelState, AnalystOutput, ExecutionSigns
+from src.agent.state import TravelState, AnalystOutput, ExecutionSigns
 from src.utils.llm_factory import LLMFactory
 from src.utils.prompt import analyst_prompt_template
 from src.utils.logger import get_logger
-from src.agent.nodes.utils import format_recent_history
+from src.agent.nodes.utils import build_trace, format_recent_history
 from .config import TEMPERATURE, HISTORY_LIMIT, MAX_TOKENS
 
 logger = get_logger("AnalystNode")
@@ -88,9 +88,9 @@ async def analyst_node(state: TravelState) -> Dict[str, Any]:
         logger.error(f"Analyst execution failed: {str(e)}", exc_info=True)
         # Fallback to existing profile if extraction fails
         return {
-            "trace_history": [TraceLog(
-                node="analyst",
-                status="FAIL",
+            "trace_history": [build_trace(
+                "analyst",
+                "FAIL",
                 latency_ms=int((time.time() - start_time) * 1000),
                 detail={"error": str(e)}
             )]
@@ -114,9 +114,9 @@ async def analyst_node(state: TravelState) -> Dict[str, Any]:
                 "total": usage.get("total_tokens", 0)
             }
 
-    trace = TraceLog(
-        node="analyst",
-        status="SUCCESS",
+    trace = build_trace(
+        "analyst",
+        "SUCCESS",
         latency_ms=int((time.time() - start_time) * 1000),
         detail={
             "is_core_complete": is_core_complete,

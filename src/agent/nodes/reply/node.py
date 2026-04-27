@@ -9,10 +9,11 @@ import time
 from typing import Dict, Any
 
 from langchain_core.messages import AIMessage
-from src.agent.state import TraceLog, TravelState
+from src.agent.state import TravelState
 from src.utils.llm_factory import LLMFactory
 from src.utils.prompt import reply_prompt_template
 from src.utils.logger import get_logger
+from src.agent.nodes.utils import build_trace
 from .config import TEMPERATURE, MAX_TOKENS
 
 logger = get_logger("ReplyNode")
@@ -65,9 +66,9 @@ async def reply_node(state: TravelState) -> Dict[str, Any]:
     logger.debug(f"Generated reply: {reply_text}...")
 
     # 3. Audit & State Assembly
-    trace = TraceLog(
-        node="reply",
-        status="SUCCESS",
+    trace = build_trace(
+        "reply",
+        "SUCCESS",
         latency_ms=int((time.time() - start_time) * 1000),
         detail={
             "missing_fields": missing_fields,

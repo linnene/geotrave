@@ -2,11 +2,11 @@ import time
 import json
 from typing import Dict, Any
 
-from src.agent.state import TraceLog, TravelState, QueryGeneratorOutput, ResearchManifest
+from src.agent.state import TravelState, QueryGeneratorOutput, ResearchManifest
 from src.utils.llm_factory import LLMFactory
 from src.utils.prompt import query_generator_prompt_template
 from src.utils.logger import get_logger
-from src.agent.nodes.utils import format_recent_history
+from src.agent.nodes.utils import build_trace, format_recent_history
 from .config import TEMPERATURE, HISTORY_LIMIT, MAX_TOKENS
 
 logger = get_logger("QueryGeneratorNode")
@@ -82,9 +82,9 @@ async def query_generator_node(state: TravelState) -> Dict[str, Any]:
             feedback_history=[]
         )
 
-        trace = TraceLog(
-            node="query_generator",
-            status="SUCCESS",
+        trace = build_trace(
+            "query_generator",
+            "SUCCESS",
             latency_ms=int((time.time() - start_time) * 1000),
             detail={
                 "task_count": len(result.tasks),
@@ -99,9 +99,9 @@ async def query_generator_node(state: TravelState) -> Dict[str, Any]:
 
     except Exception as e:
         logger.error(f"QueryGenerator execution failed: {str(e)}", exc_info=True)
-        trace = TraceLog(
-            node="query_generator",
-            status="FAIL",
+        trace = build_trace(
+            "query_generator",
+            "FAIL",
             latency_ms=int((time.time() - start_time) * 1000),
             detail={"error": str(e)}
         )

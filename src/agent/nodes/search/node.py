@@ -9,14 +9,11 @@ import time
 from typing import Any, Dict, List
 
 from src.agent.nodes.search import tools
+from src.agent.nodes.utils import build_trace
 from src.agent.state import ResearchManifest, RetrievalMetadata, SearchTask, TraceLog
 from src.utils.logger import get_logger
 
 logger = get_logger("SearchNode")
-
-
-def _build_trace(status: str, latency_ms: int, detail: dict) -> TraceLog:
-    return TraceLog(node="search", status=status, latency_ms=latency_ms, detail=detail)
 
 
 async def _execute_tasks(tasks: List[SearchTask]) -> tuple[List[RetrievalMetadata], bool]:
@@ -60,13 +57,13 @@ async def search_node(state: Dict[str, Any]) -> Dict[str, Any]:
 
     if not research_data:
         logger.warning("No research_data found, skipping search.")
-        trace = _build_trace("SKIPPED", int((time.time() - start_time) * 1000), {"reason": "research_data missing"})
+        trace = build_trace("search", "SKIPPED", int((time.time() - start_time) * 1000), {"reason": "research_data missing"})
         return {"trace_history": trace_history + [trace]}
 
     tasks: List[SearchTask] = research_data.active_queries
     if not tasks:
         logger.info("No active queries present.")
-        trace = _build_trace("SUCCESS", int((time.time() - start_time) * 1000), {"task_count": 0})
+        trace = build_trace("search", "SUCCESS", int((time.time() - start_time) * 1000), {"task_count": 0})
         return {
             "research_data": research_data,
             "trace_history": trace_history + [trace],
@@ -82,7 +79,8 @@ async def search_node(state: Dict[str, Any]) -> Dict[str, Any]:
 
     latency_ms = int((time.time() - start_time) * 1000)
     status = "FAIL" if has_errors else "SUCCESS"
-    trace = _build_trace(
+    trace = build_trace(
+        "search",
         status,
         latency_ms,
         {"executed_tasks": len(tasks), "collected_results": len(results)},
