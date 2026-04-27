@@ -14,70 +14,48 @@ import time
 from typing import Any, Dict, List, Optional
 
 from src.agent.state import RetrievalMetadata, SearchTask
-from src.crawler.fetcher import ContentFetcher
-from src.database.vector_db.service import search_similar_documents
 from src.utils.logger import get_logger
 
 logger = get_logger("SearchTools")
 
 # ---------------------------------------------------------------------------
-# Registered tool implementations
+# Registered tool implementations (mock outputs)
 # ---------------------------------------------------------------------------
 
 async def execute_web_search(task: SearchTask) -> RetrievalMetadata:
     """
-    Executes a web search via ContentFetcher.
-    Currently a simplistic example; replace with real search API integration.
+    Mock implementation of web search.
+    Returns a placeholder RetrievalMetadata.
     """
     params = task.parameters
-    query = params.get("query", "")
-    fetcher = ContentFetcher()
+    query = params.get("query", "mock query")
 
-    # Placeholder: use a generic search URL
-    url = f"https://www.google.com/search?q={query}"
-    html = await fetcher.fetch_fast(url)
+    logger.info(f"Mock web search for: {query}")
 
-    if html is None:
-        raise RuntimeError(f"Web search for '{query}' returned no content.")
-
-    hash_key = f"web_{query}_{int(time.time() * 1000)}"
+    hash_key = f"mock_web_{query}_{int(time.time() * 1000)}"
     return RetrievalMetadata(
         hash_key=hash_key,
         source=f"web_search: {query}",
-        relevance_score=0.8,   # placeholder score
+        relevance_score=0.8,
     )
 
 
 async def execute_vector_search(task: SearchTask) -> RetrievalMetadata:
     """
-    Queries the local knowledge base via vector search.
-    This is the only currently working real implementation.
+    Mock implementation of vector database search.
+    Returns a placeholder RetrievalMetadata.
     """
     params = task.parameters
-    query = params.get("query", "")
+    query = params.get("query", "mock query")
     collection = params.get("collection", "default")
 
-    results = await search_similar_documents(query, k=3)
+    logger.info(f"Mock vector search for: {query} (collection={collection})")
 
-    if not results:
-        return RetrievalMetadata(
-            hash_key=f"vec_empty_{query}_{int(time.time() * 1000)}",
-            source=f"vector_db/{collection}",
-            relevance_score=0.0,
-        )
-
-    # Take the first result's metadata to generate a RetrievalMetadata entry.
-    first = results[0]
-    if isinstance(first, (list, tuple)) and len(first) >= 2:
-        doc_text, meta = first[0], first[1]
-    else:
-        doc_text, meta = str(first), {}
-
-    hash_key = meta.get("hash", f"vec_{query}_{int(time.time() * 1000)}")
+    hash_key = f"mock_vec_{query}_{int(time.time() * 1000)}"
     return RetrievalMetadata(
         hash_key=hash_key,
         source=f"vector_db/{collection}: {query}",
-        relevance_score=0.9,   # placeholder score
+        relevance_score=0.9,
     )
 
 
