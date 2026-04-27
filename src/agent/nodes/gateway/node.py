@@ -11,11 +11,11 @@ import json
 from typing import Dict, Any
 
 from langchain_core.messages import HumanMessage
-from src.agent.state import ExecutionSigns, TraceLog, TravelState, GatewayOutput
+from src.agent.state import ExecutionSigns, TravelState, GatewayOutput
 from src.utils.llm_factory import LLMFactory
 from src.utils.prompt import gateway_prompt_template
 from src.utils.logger import get_logger
-from src.agent.nodes.utils import format_recent_history
+from src.agent.nodes.utils import build_trace, format_recent_history
 from .config import TEMPERATURE, HISTORY_LIMIT, MAX_TOKENS
 
 logger = get_logger("GatewayNode")
@@ -116,9 +116,10 @@ async def gateway_node(state: TravelState) -> Dict[str, Any]:
             }
 
 
-    trace = TraceLog(
-        node="gateway",
-        status="SUCCESS" if is_valid else ("REJECTED" if category in ["malicious", "chitchat"] else "FAIL"),
+    status = "SUCCESS" if is_valid else ("REJECTED" if category in ["malicious", "chitchat"] else "FAIL")
+    trace = build_trace(
+        "gateway",
+        status,
         latency_ms=int((time.time() - start_time) * 1000),
         detail={"category": category, "reason": reason},
         token_usage=token_usage
