@@ -5,6 +5,7 @@ description = "Real-time tourism planning engine based on multi-agent collaborat
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "asyncpg>=0.30.0",
     "crawl4ai>=0.8.6",
     "ddgs>=9.12.1",
     "fastapi>=0.135.3",
