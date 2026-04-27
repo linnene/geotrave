@@ -6,6 +6,7 @@ Dependencies: langgraph.checkpoint.sqlite.aio, src.utils.logger
 """
 
 import os
+import asyncio
 from typing import Optional, Any
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from src.utils.logger import get_logger
@@ -20,15 +21,31 @@ class SqliteCheckpointer:
     _saver_cm: Optional[Any] = None
     _instance: Optional[AsyncSqliteSaver] = None
     _db_path: str = CHECKPOINT_DB_PATH
+    _bound_loop: Optional[asyncio.AbstractEventLoop] = None
 
     @classmethod
     async def get_instance(cls, db_path: Optional[str] = None) -> AsyncSqliteSaver:
         """
         Returns a singleton instance of the AsyncSqliteSaver.
         """
+        current_loop = asyncio.get_running_loop()
+        
         if db_path:
             cls._db_path = db_path
             
+        # If the event loop has changed (common in Streamlit/FastAPI hot reloads),
+        # we must reset the instance because SQLite/Asyncio locks are bound to the loop.
+        if cls._instance is not None and cls._bound_loop != current_loop:
+            logger.warning("Event loop changed! Re-initializing SqliteCheckpointer to avoid Lock collision.")
+            try:
+                # Try to close the old connection context if possible
+                if cls._saver_cm:
+                    await cls._saver_cm.__aexit__(None, None, None)
+            except Exception as e:
+                logger.error(f"Error while closing old checkpointer: {e}")
+            cls._instance = None
+            cls._saver_cm = None
+
         if cls._instance is None:
             # Ensure directory exists
             os.makedirs(os.path.dirname(cls._db_path), exist_ok=True)
@@ -38,6 +55,7 @@ class SqliteCheckpointer:
             cls._saver_cm = AsyncSqliteSaver.from_conn_string(cls._db_path)
             # Enter the context manager to get the actual AsyncSqliteSaver instance
             cls._instance = await cls._saver_cm.__aenter__()
+            cls._bound_loop = current_loop
             
         if cls._instance is None:
             raise RuntimeError("Failed to initialize AsyncSqliteSaver instance")

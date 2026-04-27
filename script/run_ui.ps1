@@ -1,0 +1,1 @@
+uv run streamlit run test/test_ui.py
