@@ -1,11 +1,49 @@
-import time
-from typing import Dict, Any, List
+"""
+Module: src.agent.nodes.search.node
+Responsibility: Executes search tasks from ResearchManifest using registered tool handlers.
+Parent Module: src.agent.nodes.search
+Dependencies: src.agent.state, src.utils.logger, src.agent.nodes.search.tools
+"""
 
-from src.agent.state import TraceLog, ResearchManifest, SearchTask, RetrievalMetadata
+import time
+from typing import Any, Dict, List
+
+from src.agent.nodes.search import tools
+from src.agent.state import ResearchManifest, RetrievalMetadata, SearchTask, TraceLog
 from src.utils.logger import get_logger
-from src.agent.nodes.search import tools  # <-- 工具函数与元数据在此
 
 logger = get_logger("SearchNode")
+
+
+def _build_trace(status: str, latency_ms: int, detail: dict) -> TraceLog:
+    return TraceLog(node="search", status=status, latency_ms=latency_ms, detail=detail)
+
+
+async def _execute_tasks(tasks: List[SearchTask]) -> tuple[List[RetrievalMetadata], bool]:
+    results: List[RetrievalMetadata] = []
+    has_errors = False
+
+    for idx, task in enumerate(tasks):
+        handler = tools.TOOL_DISPATCH.get(task.tool_name)
+        if handler is None:
+            logger.error(f"Unsupported tool '{task.tool_name}' in task {idx}.")
+            has_errors = True
+            continue
+
+        try:
+            results.append(await handler(task))
+        except Exception as e:
+            logger.error(f"Failed to execute tool '{task.tool_name}' for task {idx}: {e}", exc_info=True)
+            has_errors = True
+            results.append(
+                RetrievalMetadata(
+                    hash_key=f"error_{task.tool_name}_{idx}",
+                    source="execution_error",
+                    relevance_score=0.0,
+                )
+            )
+
+    return results, has_errors
 
 
 async def search_node(state: Dict[str, Any]) -> Dict[str, Any]:
@@ -14,86 +52,40 @@ async def search_node(state: Dict[str, Any]) -> Dict[str, Any]:
     Reads active queries from ResearchManifest, executes tools without LLM,
     and appends verified results to the manifest.
     """
-    
     start_time = time.time()
     logger.info("Executing search tasks at [SearchNode]...")
 
     research_data: ResearchManifest = state.get("research_data")
-    trace_history: list = state.get("trace_history", [])
+    trace_history: List[TraceLog] = state.get("trace_history", [])
 
     if not research_data:
         logger.warning("No research_data found, skipping search.")
-        trace = TraceLog(
-            node="search",
-            status="SKIPPED",
-            latency_ms=int((time.time() - start_time) * 1000),
-            detail={"reason": "research_data missing"},
-        )
+        trace = _build_trace("SKIPPED", int((time.time() - start_time) * 1000), {"reason": "research_data missing"})
         return {"trace_history": trace_history + [trace]}
 
     tasks: List[SearchTask] = research_data.active_queries
     if not tasks:
         logger.info("No active queries present.")
-        trace = TraceLog(
-            node="search",
-            status="SUCCESS",
-            latency_ms=int((time.time() - start_time) * 1000),
-            detail={"task_count": 0},
-        )
+        trace = _build_trace("SUCCESS", int((time.time() - start_time) * 1000), {"task_count": 0})
         return {
             "research_data": research_data,
             "trace_history": trace_history + [trace],
         }
 
-    # Tool dispatcher (uses the automatically built dispatch map)
-    tool_dispatcher = tools.TOOL_DISPATCH
+    results, has_errors = await _execute_tasks(tasks)
 
-    new_results: List[RetrievalMetadata] = []
-    error_occurred = False
-
-    for idx, task in enumerate(tasks):
-        tool_name = task.tool_name
-        handler = tool_dispatcher.get(tool_name)
-        if handler is None:
-            logger.error(f"Unsupported tool '{tool_name}' in task {idx}.")
-            error_occurred = True
-            continue
-
-        try:
-            result_meta = await handler(task)
-            new_results.append(result_meta)
-        except Exception as e:
-            logger.error(
-                f"Failed to execute tool '{tool_name}' for task {idx}: {e}",
-                exc_info=True,
-            )
-            error_occurred = True
-            # Append an error entry so that the loop still has one item per task
-            new_results.append(
-                RetrievalMetadata(
-                    hash_key=f"error_{tool_name}_{idx}",
-                    source="execution_error",
-                    relevance_score=0.0,
-                )
-            )
-
-    # Update research manifest: clear active queries, append new results
     updated_manifest = ResearchManifest(
         active_queries=[],
-        verified_results=research_data.verified_results + new_results,
+        verified_results=research_data.verified_results + results,
         feedback_history=research_data.feedback_history,
     )
 
     latency_ms = int((time.time() - start_time) * 1000)
-    status = "FAIL" if error_occurred else "SUCCESS"
-    trace = TraceLog(
-        node="search",
-        status=status,
-        latency_ms=latency_ms,
-        detail={
-            "executed_tasks": len(tasks),
-            "collected_results": len(new_results),
-        },
+    status = "FAIL" if has_errors else "SUCCESS"
+    trace = _build_trace(
+        status,
+        latency_ms,
+        {"executed_tasks": len(tasks), "collected_results": len(results)},
     )
 
     logger.info(f"Search execution completed with status: {status}")
