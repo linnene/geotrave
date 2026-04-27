@@ -29,3 +29,5 @@ data/checkpointer/
 .idea/
 docs/*.md
 .github/*.md
+
+script/start_claude.ps1

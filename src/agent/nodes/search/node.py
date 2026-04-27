@@ -14,6 +14,7 @@ async def search_node(state: Dict[str, Any]) -> Dict[str, Any]:
     Reads active queries from ResearchManifest, executes tools without LLM,
     and appends verified results to the manifest.
     """
+    
     start_time = time.time()
     logger.info("Executing search tasks at [SearchNode]...")
 
