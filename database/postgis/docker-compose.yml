@@ -29,7 +29,7 @@ services:
       PGPASSWORD: ${DB_PASSWORD:-geotrave_dev}
     entrypoint: >
       sh -c "
-      osm2pgsql -U geotrave -d geotrave -H db -c -s -C 4096 /osm_data/china-latest.osm.pbf &&
+      osm2pgsql -U geotrave -d geotrave -H db -c -s -C 4096 /osm_data/hokkaido-260426.osm.pbf &&
       psql -U geotrave -d geotrave -h db -f /scripts/02-views.sql &&
       psql -U geotrave -d geotrave -h db -f /scripts/03-indexes.sql &&
       psql -U geotrave -d geotrave -h db -f /scripts/04-topology.sql &&
