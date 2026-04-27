@@ -2,7 +2,7 @@ name: CD - Build and Deploy
 
 on:
   push:
-    branches: [ "master"]
+    branches: ["master"]
 
 jobs:
   build-and-push:
@@ -19,6 +19,15 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push DB
+        uses: docker/build-push-action@v5
+        with:
+          context: database/postgis
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/geotrave-db:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Build and push API
         uses: docker/build-push-action@v5
@@ -51,7 +60,58 @@ jobs:
           script: |
             mkdir -p /home/geotrave
             cd /home/geotrave
-            # 如果 docker-compose.yml 还在旧位置，请记得手动移动到 /home/geotrave
+
+            # Write unified compose file (DB + API + UI, single network)
+            cat > docker-compose.yml << 'COMPOSE_EOF'
+            services:
+              db:
+                image: ${{ secrets.DOCKERHUB_USERNAME }}/geotrave-db:latest
+                container_name: geotrave-db
+                environment:
+                  POSTGRES_DB: geotrave
+                  POSTGRES_USER: geotrave
+                  POSTGRES_PASSWORD: ${DB_PASSWORD:?必须设置数据库密码}
+                ports:
+                  - "5432:5432"
+                volumes:
+                  - pgdata:/var/lib/postgresql/data
+                  - ${OSM_DATA_DIR:-/home/geotrave/osm_data}:/osm_data:ro
+                healthcheck:
+                  test: ["CMD-SHELL", "pg_isready -U geotrave -d geotrave"]
+                  interval: 5s
+                  retries: 5
+                restart: unless-stopped
+
+              api:
+                image: ${{ secrets.DOCKERHUB_USERNAME }}/geotrave-api:latest
+                container_name: geotrave-api
+                depends_on:
+                  db:
+                    condition: service_healthy
+                environment:
+                  POSTGIS_DSN: postgresql://geotrave:${DB_PASSWORD:?}@db:5432/geotrave
+                ports:
+                  - "8000:8000"
+                restart: unless-stopped
+
+              ui:
+                image: ${{ secrets.DOCKERHUB_USERNAME }}/geotrave-ui:latest
+                container_name: geotrave-ui
+                depends_on:
+                  - api
+                ports:
+                  - "8501:8501"
+                restart: unless-stopped
+
+            volumes:
+              pgdata:
+            COMPOSE_EOF
+
+            # Pull latest images (all services)
             docker compose pull
-            docker compose up -d
+
+            # Recreate containers, keep data volumes intact
+            docker compose up -d --remove-orphans
+
+            # Clean up old images (never removes volumes)
             docker image prune -f
