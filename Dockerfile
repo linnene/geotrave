@@ -41,7 +41,7 @@ RUN playwright install-deps chromium && \
 COPY . .
 
 # Ensure data directories exist
-RUN mkdir -p data/chroma data/checkpointer
+RUN mkdir -p database/checkpointer
 
 # Expose FastAPI port
 EXPOSE 8000

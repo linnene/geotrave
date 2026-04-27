@@ -20,7 +20,7 @@ ENV/
 .claude/
 
 # Databases
-data/checkpointer/
+database/checkpointer/
 
 *.sqlite3
 *.db
