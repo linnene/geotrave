@@ -242,7 +242,7 @@ async def execute_route_search(task: SearchTask) -> RetrievalMetadata:
                 SELECT seq, node, edge, cost, agg_cost
                 FROM pgr_dijkstra(
                     'SELECT osm_id AS id, source, target, length_m AS cost, length_m AS reverse_cost FROM routing_network',
-                    $1, $2, directed := false
+                    $1::bigint, $2::bigint, directed := false
                 )
                 """, src, tgt)
 
@@ -281,7 +281,7 @@ async def execute_route_search(task: SearchTask) -> RetrievalMetadata:
                 SELECT node, edge, cost, agg_cost
                 FROM pgr_drivingDistance(
                     'SELECT osm_id AS id, source, target, length_m AS cost FROM routing_network',
-                    $1, $2, directed := false
+                    $1::bigint, $2::float8, directed := false
                 )
                 """, src, distance_limit)
 
