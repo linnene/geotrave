@@ -1,9 +1,9 @@
-name: CD - App Build and Deploy
+name: CD - DB Build and Deploy
 
 on:
   push:
     branches: ["master"]
-    paths-ignore:
+    paths:
       - 'database/postgis/**'
 
 jobs:
@@ -22,12 +22,12 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and push App
+      - name: Build and push DB
         uses: docker/build-push-action@v5
         with:
-          context: .
+          context: database/postgis
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/geotrave:latest
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/geotrave-db:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -35,7 +35,7 @@ jobs:
     needs: build-and-push
     runs-on: ubuntu-latest
     steps:
-      - name: Deploy App to Server
+      - name: Deploy DB to Server
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_HOST }}
@@ -44,12 +44,12 @@ jobs:
           script: |
             cd /home/ubuntu/geotrave-repo
             git fetch origin master && git reset --hard origin/master
-            sudo cp docker-compose.yml /home/geotrave/
+            sudo cp docker-compose.db.yml /home/geotrave/
             cd /home/geotrave
 
-            echo "=== App Compose deployed ==="
-            head -3 docker-compose.yml
+            echo "=== DB Compose deployed ==="
+            head -3 docker-compose.db.yml
 
-            docker compose pull app
-            docker compose up -d
+            docker compose -f docker-compose.db.yml pull db
+            docker compose -f docker-compose.db.yml up -d
             docker image prune -f

@@ -1,9 +1,6 @@
 services:
   db:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: geotrave-db:latest
+    image: teadark/geotrave-db:latest
     container_name: geotrave-db
     environment:
       POSTGRES_DB: geotrave
@@ -13,15 +10,15 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./osm_data:/osm_data:ro
+      - ${OSM_DATA_DIR:-/home/geotrave/osm_data}:/osm_data:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U geotrave -d geotrave"]
       interval: 5s
       retries: 5
+    restart: unless-stopped
 
   db-init:
-    image: geotrave-db:latest
-    container_name: geotrave-db-init
+    image: teadark/geotrave-db:latest
     depends_on:
       db:
         condition: service_healthy
@@ -36,7 +33,7 @@ services:
       echo 'OSM import and setup complete.'
       "
     volumes:
-      - ./osm_data:/osm_data:ro
+      - ${OSM_DATA_DIR:-/home/geotrave/osm_data}:/osm_data:ro
     profiles:
       - init
 
