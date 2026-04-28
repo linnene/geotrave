@@ -49,70 +49,7 @@ def register_tool(name: str, description: str, parameters: Dict[str, str]):
 
 
 # ---------------------------------------------------------------------------
-# Registered tool implementations (mock outputs)
-# ---------------------------------------------------------------------------
-
-@register_tool(
-    name="web_search",
-    description="搜索互联网获取最新旅游信息、攻略、评价等。",
-    parameters={"query": "string (搜索关键词)"},
-)
-async def execute_web_search(task: SearchTask) -> RetrievalMetadata:
-    """
-    Mock implementation of web search.
-    """
-    params = task.parameters
-    query = params.get("query", "mock query")
-
-    logger.info(f"Mock web search for: {query}")
-
-    hash_key = f"mock_web_{query}_{int(time.time() * 1000)}"
-    return RetrievalMetadata(
-        hash_key=hash_key,
-        source=f"web_search: {query}",
-        relevance_score=0.8,
-    )
-
-
-# ---------------------------------------------------------------------------
-# Additional tool stubs (declared but not yet implemented)
-# ---------------------------------------------------------------------------
-
-@register_tool(
-    name="flight_api",
-    description="查询实时航班信息、票价（尚未实现）。",
-    parameters={
-        "origin": "string (出发地代码/名称)",
-        "destination": "string (目的地代码/名称)",
-        "date": "string (出发日期)",
-    },
-)
-async def execute_flight_search(task: SearchTask) -> RetrievalMetadata:
-    """
-    Placeholder for flight API search.
-    """
-    raise NotImplementedError("Flight search is not yet implemented.")
-
-
-@register_tool(
-    name="hotel_api",
-    description="查询酒店可用性、价格（尚未实现）。",
-    parameters={
-        "destination": "string (目的地)",
-        "check_in": "string (入住日期)",
-        "check_out": "string (退房日期)",
-        "guests": "int (入住人数)",
-    },
-)
-async def execute_hotel_search(task: SearchTask) -> RetrievalMetadata:
-    """
-    Placeholder for hotel database search.
-    """
-    raise NotImplementedError("Hotel search is not yet implemented.")
-
-
-# ---------------------------------------------------------------------------
-# PostGIS spatial tools (Phase 3)
+# PostGIS spatial tools
 # ---------------------------------------------------------------------------
 
 def _parse_lnglat(raw: str) -> tuple[float, float]:
@@ -126,9 +63,9 @@ def _parse_lnglat(raw: str) -> tuple[float, float]:
 async def _geocode(place_name: str) -> tuple[float, float]:
     """Resolve a place name to (lng, lat) via PostGIS planet_osm_point.
 
-    Tries exact name match first, then fuzzy match, and finally
-    retries with common Japanese place-name suffixes stripped (e.g.
-    "札幌駅" → "札幌" when the station is stored without "駅").
+    Tries exact name match, then fuzzy match, then progressively truncates
+    the name from the right one character at a time (e.g. "札幌駅大通" →
+    "札幌駅大" → "札幌駅" → "札幌"), retrying exact match at each step.
     """
     pool = await get_pool()
     async with pool.acquire() as conn:
@@ -159,22 +96,22 @@ async def _geocode(place_name: str) -> tuple[float, float]:
                 f"%{place_name}%",
             )
         if row is None:
-            # Retry without common CJK suffixes (Japanese + Chinese + Korean)
-            for suffix in ("駅", "站", "寺", "神社", "公園", "公园", "城", "温泉", "空港", "机场"):
-                if place_name.endswith(suffix) and len(place_name) > len(suffix):
-                    stripped = place_name[: -len(suffix)]
-                    row = await conn.fetchrow(
-                        """
-                        SELECT ST_X(ST_Transform(way, 4326)) AS lng,
-                               ST_Y(ST_Transform(way, 4326)) AS lat
-                        FROM planet_osm_point
-                        WHERE name = $1
-                        LIMIT 1
-                        """,
-                        stripped,
-                    )
-                    if row is not None:
-                        break
+            # Progressive truncation: strip one char at a time from the right
+            stripped = place_name
+            while len(stripped) > 1:
+                stripped = stripped[:-1]
+                row = await conn.fetchrow(
+                    """
+                    SELECT ST_X(ST_Transform(way, 4326)) AS lng,
+                           ST_Y(ST_Transform(way, 4326)) AS lat
+                    FROM planet_osm_point
+                    WHERE name = $1
+                    LIMIT 1
+                    """,
+                    stripped,
+                )
+                if row is not None:
+                    break
         if row is None:
             raise ValueError(
                 f"无法找到地点 '{place_name}' 的坐标，请尝试更具体的地名或直接提供坐标 'lng,lat'"
@@ -378,3 +315,22 @@ async def execute_route_search(task: SearchTask) -> RetrievalMetadata:
 
         else:
             raise ValueError(f"Unsupported route_search mode: {mode}")
+
+
+@register_tool(
+    name="web_search",
+    description="搜索互联网获取非空间类旅游信息（攻略、评价、政策、季节性信息），空间查询请使用 spatial_search/route_search。",
+    parameters={"query": "string (搜索关键词)"},
+)
+async def execute_web_search(task: SearchTask) -> RetrievalMetadata:
+    params = task.parameters
+    query = params.get("query", "mock query")
+
+    logger.info(f"Mock web search for: {query}")
+
+    hash_key = f"mock_web_{query}_{int(time.time() * 1000)}"
+    return RetrievalMetadata(
+        hash_key=hash_key,
+        source=f"web_search: {query}",
+        relevance_score=0.8,
+    )

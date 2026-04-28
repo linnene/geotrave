@@ -121,30 +121,29 @@ async def test_geocode_by_name():
 
 @pytest.mark.priority("P1")
 @pytest.mark.asyncio
-async def test_geocode_suffix_stripping():
+async def test_geocode_truncation():
     """
     Priority: P1
-    Description: _geocode strips common suffixes when exact/fuzzy match fails.
-    E.g. "札幌駅" matches station named "札幌" after stripping "駅".
+    Description: _geocode progressively truncates the name from the right
+    when exact and fuzzy match fail. E.g. "札幌駅大通" → "札幌駅大" → "札幌駅"
+    matches station named "札幌" after two truncation steps.
     """
     from src.agent.nodes.search.tools import _resolve_location
 
     mock_pool = _mock_pool(fetch_rows=[], fetchval_values=None)
-    # First call: exact match "札幌駅" → None
-    # Second call: fuzzy match "%札幌駅%" → None
-    # Third call: stripped "札幌" exact match → success
     mock_conn = AsyncMock()
     mock_conn.fetchrow = AsyncMock(side_effect=[
-        None,                           # exact "札幌駅"
-        None,                           # fuzzy "%札幌駅%"
-        MagicMock(__getitem__=lambda self, k: {"lng": 141.3509, "lat": 43.0686}[k]),  # stripped "札幌"
+        None,                           # exact "札幌駅大通"
+        None,                           # fuzzy "%札幌駅大通%"
+        None,                           # truncation "札幌駅大"
+        MagicMock(__getitem__=lambda self, k: {"lng": 141.3509, "lat": 43.0686}[k]),  # truncation "札幌駅"
     ])
     mock_ctx = AsyncMock()
     mock_ctx.__aenter__.return_value = mock_conn
     mock_pool.acquire = MagicMock(return_value=mock_ctx)
 
     with patch("src.agent.nodes.search.tools.get_pool", new=AsyncMock(return_value=mock_pool)):
-        lng, lat = await _resolve_location("札幌駅")
+        lng, lat = await _resolve_location("札幌駅大通")
 
     assert lng == 141.3509, f"经度应为 141.3509，实际: {lng}"
     assert lat == 43.0686, f"纬度应为 43.0686，实际: {lat}"
