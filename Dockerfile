@@ -41,10 +41,8 @@ RUN playwright install-deps chromium && \
 COPY . .
 
 # Ensure data directories exist
-RUN mkdir -p data/chroma data/checkpointer
+RUN mkdir -p database/checkpointer
 
-# Expose FastAPI port
-EXPOSE 8000
+EXPOSE 8000 8501
 
-# Run the application
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["sh", "-c", "uvicorn src.main:app --host 0.0.0.0 --port 8000 & streamlit run test/test_ui.py --server.port 8501 --server.address 0.0.0.0 & wait"]
