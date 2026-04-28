@@ -1,0 +1,5 @@
+# Ignore large OSM data files
+*.osm.pbf
+*.osm.bz2
+*.osm.gz
+*.pbf

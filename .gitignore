@@ -20,7 +20,7 @@ ENV/
 .claude/
 
 # Databases
-data/checkpointer/
+database/checkpointer/
 
 *.sqlite3
 *.db
@@ -30,6 +30,8 @@ data/checkpointer/
 .vscode/
 .idea/
 docs/*.md
+!docs/STASH.md
+!docs/PLAN.md
 .github/*.md
 
 script/start_claude.ps1
