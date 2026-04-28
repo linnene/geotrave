@@ -316,21 +316,3 @@ async def execute_route_search(task: SearchTask) -> RetrievalMetadata:
         else:
             raise ValueError(f"Unsupported route_search mode: {mode}")
 
-
-@register_tool(
-    name="web_search",
-    description="搜索互联网获取非空间类旅游信息（攻略、评价、政策、季节性信息），空间查询请使用 spatial_search/route_search。",
-    parameters={"query": "string (搜索关键词)"},
-)
-async def execute_web_search(task: SearchTask) -> RetrievalMetadata:
-    params = task.parameters
-    query = params.get("query", "mock query")
-
-    logger.info(f"Mock web search for: {query}")
-
-    hash_key = f"mock_web_{query}_{int(time.time() * 1000)}"
-    return RetrievalMetadata(
-        hash_key=hash_key,
-        source=f"web_search: {query}",
-        relevance_score=0.8,
-    )

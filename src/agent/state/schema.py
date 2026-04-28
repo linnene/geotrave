@@ -100,11 +100,11 @@ class RetrievalMetadata(BaseModel):
 
 class SearchTask(BaseModel):
     """具体的搜索任务定义，支持动态参数"""
-    tool_name: str = Field(..., description="拟调用的工具名称（如 web_search, flight_api）")
+    tool_name: str = Field(..., description="拟调用的工具名称（如 spatial_search, route_search）")
     dimension: Literal["transportation", "accommodation", "dining", "attraction", "general", "weather", "policy"] = Field(..., description="搜索维度")
     parameters: Dict[str, Any] = Field(
-        default_factory=dict, 
-        description="针对该工具的具体调用参数。如果是 web_search，通常包含 {'query': '...'}; 如果是 API，可能包含 {'origin': '...', 'destination': '...'}"
+        default_factory=dict,
+        description="针对该工具的具体调用参数。spatial_search 需 center/radius_m/category/limit；route_search 需 origin/destination/mode"
     )
     rationale: str = Field(..., description="生成该任务的原因，以及期望获取的信息点内容")
 

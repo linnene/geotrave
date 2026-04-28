@@ -77,6 +77,91 @@ def test_parse_lnglat_invalid_format():
 
 
 # ---------------------------------------------------------------------------
+# TOOL_METADATA & TOOL_DISPATCH — registration integrity
+# ---------------------------------------------------------------------------
+
+@pytest.mark.priority("P0")
+def test_tool_metadata_populated():
+    """
+    Priority: P0
+    Description: TOOL_METADATA is populated after module import with exactly
+    spatial_search and route_search entries.
+    """
+    import src.agent.nodes.search.tools as t
+
+    assert len(t.TOOL_METADATA) >= 2, (
+        f"TOOL_METADATA 至少应有 2 条，实际: {len(t.TOOL_METADATA)}"
+    )
+    names = {e["name"] for e in t.TOOL_METADATA}
+    assert "spatial_search" in names, f"缺失 spatial_search，当前: {names}"
+    assert "route_search" in names, f"缺失 route_search，当前: {names}"
+
+
+@pytest.mark.priority("P0")
+def test_tool_metadata_structure():
+    """
+    Priority: P0
+    Description: Every TOOL_METADATA entry has name, description, parameters keys
+    with correct types.
+    """
+    import src.agent.nodes.search.tools as t
+
+    for entry in t.TOOL_METADATA:
+        assert isinstance(entry["name"], str), (
+            f"name 应为 str，实际: {type(entry['name'])}"
+        )
+        assert isinstance(entry["description"], str), (
+            f"{entry['name']} 的 description 应为 str"
+        )
+        assert isinstance(entry["parameters"], dict), (
+            f"{entry['name']} 的 parameters 应为 dict"
+        )
+        assert len(entry["parameters"]) > 0, (
+            f"{entry['name']} 至少应有 1 个参数"
+        )
+
+
+@pytest.mark.priority("P0")
+def test_tool_dispatch_matches_metadata():
+    """
+    Priority: P0
+    Description: Every tool in TOOL_METADATA has a corresponding async handler
+    in TOOL_DISPATCH, and there are no orphan dispatch entries.
+    """
+    import src.agent.nodes.search.tools as t
+
+    meta_names = {e["name"] for e in t.TOOL_METADATA}
+    dispatch_names = set(t.TOOL_DISPATCH.keys())
+
+    # 全部 metadata 中的工具都必须有对应的 dispatch handler
+    missing_handlers = meta_names - dispatch_names
+    assert len(missing_handlers) == 0, (
+        f"TOOL_METADATA 中有 {missing_handlers} 未在 TOOL_DISPATCH 中注册"
+    )
+
+    # TOOL_DISPATCH 不应有多余条目
+    orphans = dispatch_names - meta_names
+    assert len(orphans) == 0, (
+        f"TOOL_DISPATCH 中存在未声明的条目: {orphans}"
+    )
+
+@pytest.mark.priority("P1")
+def test_tool_dispatch_callable():
+    """
+    Priority: P1
+    Description: Every dispatch entry is an async-callable function.
+    """
+    import inspect
+    import src.agent.nodes.search.tools as t
+
+    for name, handler in t.TOOL_DISPATCH.items():
+        assert callable(handler), f"{name} 的 handler 不可调用"
+        assert inspect.iscoroutinefunction(handler), (
+            f"{name} 的 handler 应为 async 函数"
+        )
+
+
+# ---------------------------------------------------------------------------
 # _resolve_location & _geocode
 # ---------------------------------------------------------------------------
 
