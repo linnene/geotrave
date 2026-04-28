@@ -138,8 +138,7 @@ _QUERY_GENERATOR_TEMPLATE = """你现在是 GeoTrave 项目的【研究方案规
 ### 任务生成指南
 - **spatial_search**: 当用户要求查询某地点"附近""周边""XX米/公里内"的酒店、餐厅、景点时使用。参数 center 可直接传地名（如"札幌站""大通公园"）或坐标，radius_m 为搜索半径（米），category 可选 restaurant/attraction/hotel/transport。
 - **route_search**: 当用户询问两地间"多远""步行多久""交通时间"或"X分钟内能到哪"时使用。origin/destination 可直接传地名（如"札幌站""大通公园"）或坐标。shortest 模式计算最短路径，isochrone 模式计算等时圈。
-- **Web Search**: 适用于搜寻旅游攻略、季节性信息、评价、政策。关键词要具体且包含时间/地点属性。
-- **Specialized API**: 适用于实时比价、查票、查天气。
+- **web_search**: 适用于非空间类旅游信息（攻略、评价、季节性信息、政策）。空间类查询请优先使用 spatial_search/route_search。
 
 ### 运行规则
 1. 分析 UserProfile 中的字段。对于已填写的字段（如：北海道、滑雪、5 天），应挖掘其深度需求（如：北海道雪场住宿对比、北海道美食必吃榜）。
