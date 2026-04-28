@@ -1,0 +1,44 @@
+services:
+  db:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: geotrave-db:latest
+    container_name: geotrave-db
+    environment:
+      POSTGRES_DB: geotrave
+      POSTGRES_USER: geotrave
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-geotrave_dev}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./osm_data:/osm_data:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U geotrave -d geotrave"]
+      interval: 5s
+      retries: 5
+
+  db-init:
+    image: geotrave-db:latest
+    container_name: geotrave-db-init
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: ${DB_PASSWORD:-geotrave_dev}
+    entrypoint: >
+      sh -c "
+      osm2pgsql -U geotrave -d geotrave -H db -c -s -C 1024 /osm_data/hokkaido-latest.osm.pbf &&
+      psql -U geotrave -d geotrave -h db -f /scripts/02-views.sql &&
+      psql -U geotrave -d geotrave -h db -f /scripts/03-indexes.sql &&
+      psql -U geotrave -d geotrave -h db -f /scripts/04-topology.sql &&
+      echo 'OSM import and setup complete.'
+      "
+    volumes:
+      - ./osm_data:/osm_data:ro
+    profiles:
+      - init
+
+volumes:
+  pgdata:

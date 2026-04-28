@@ -80,8 +80,8 @@ Add new tools by writing an async function and decorating it. The function recei
 
 ### Database
 
-- **ChromaDB** (`src/database/vector_db/`): Local vector store for travel knowledge RAG. Persisted at `data/chroma/`.
-- **SQLite Checkpointer** (`src/database/checkpointer/sqlite.py`): LangGraph checkpoint persistence using `AsyncSqliteSaver`. Instances are loop-bound to prevent cross-loop lock errors. Path configured via `CHECKPOINT_DB_PATH` (default: `data/checkpointer/checkpoints.sqlite`).
+- **PostGIS + pgRouting** (`database/postgis/`): Geospatial database engine for POI search, route computation, and OSM data. Docker-based deployment.
+- **SQLite Checkpointer** (`src/database/checkpointer/sqlite.py`): LangGraph checkpoint persistence using `AsyncSqliteSaver`. Instances are loop-bound to prevent cross-loop lock errors. Path configured via `CHECKPOINT_DB_PATH` (default: `database/checkpointer/checkpoints.sqlite`).
 
 ### Key Patterns
 

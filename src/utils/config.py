@@ -46,7 +46,7 @@ LLM_TIMEOUT = 60
 
 # --- 4. System Base Configuration ---
 # Checkpoint 数据库配置 (Sqlite)
-CHECKPOINT_DB_PATH = os.getenv("CHECKPOINT_DB_PATH", "data/checkpointer/checkpoints.sqlite")
+CHECKPOINT_DB_PATH = os.getenv("CHECKPOINT_DB_PATH", "database/checkpointer/checkpoints.sqlite")
 
 # 日志配置
 LOG_LEVEL = os.getenv("LOG_LEVEL", "DEBUG")
