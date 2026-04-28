@@ -94,6 +94,5 @@ Add new tools by writing an async function and decorating it. The function recei
 
 - Gateway, Analyst, Manager, QueryGenerator, Search, Reply nodes are implemented.
 - Recommender and Planner nodes are stubbed (`manager_router` maps them to `"reply"`).
-- Search tools (`web_search`, `vector_db`) are mock implementations producing placeholder `RetrievalMetadata`.
-- `flight_api` and `hotel_api` tools are registered but raise `NotImplementedError`.
+- Search tools (`spatial_search`, `route_search`) are PostGIS-backed and fully functional.
 - Tests are minimal: API schema validation tests in `test/unit/` and an eval script stub.
