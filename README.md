@@ -2,107 +2,169 @@
   <img src="assets/GeoTrave.png" alt="GeoTrave Logo" width="400" />
 </p>
 
----
+# GeoTrave — Multi-Agent Travel Planning Engine
 
-<p align="">
-  <img src="assets/GeoTrave_sign.png" alt="GeoTrave Logo"/>
-</p>
+GeoTrave 是一个基于 **LangGraph** 的多智能体旅行规划系统，通过 Manager 编排的 Agent 拓扑结构将自然语言对话转化为结构化的旅行调研与行程方案。
 
-# GeoTrave: High-Performance Multi-Agent Travel Architect
+## Architecture
 
-GeoTrave is a sophisticated travel planning engine built on **LangGraph**, utilizing a robust multi-agent orchestration to transform complex natural language into structured, executable travel itineraries.
-
-
-## Documentation Guide
-
-- **[Project Plan](docs/PLAN.md)**: Current development roadmap, phase milestones, and architectural evolution.
-- **[Evaluation Spec](docs/EVAL.md)**: Metrics for agent performance, benchmark datasets, and RAGAS scoring criteria.
-- **[Test Manifest](test/TEST_MANIFEST.md)**: Technical documentation for the 3-layer testing framework (Unit, Integration, E2E).
-- **[Node](docs/NODE.md)**: About each node
-
-
-## Core_Architectural_Features
-<p>
-  <img src="assets/Gragh.png" width = "500"/>
-</p>
-
-### Multi_Agent_Orchestration
-- **Gateway_Layer (Router)**: High-fidelity intent classification and security gating to ensure precise task routing.
-- **Extraction_Layer (Analyzer)**: Structural entity extraction and persistent profile construction from conversational history.
-- **Augmentation_Layer (Researcher)**: Parallel execution of multi-source data acquisition, integrating local Vector DB (RAG), web search, and weather APIs.
-
-### High_Performance_Engine
-- **Async_First_Design**: Fully non-blocking execution utilizing Python `asyncio`. Internal blocking I/O (ChromaDB/DDGS) is offloaded to managed thread pools via `asyncio.to_thread`.
-- **Intelligent_RAG_Filtering**: Large-scale retrieval results are processed through a chunked, parallel filtering system (15 items per batch) to minimize latency while maximizing context relevance.
-- **Singleton_LLM_Factory**: Centralized model management providing optimized instance reuse and standardized configuration.
-
-
-
-## Getting_Started
-
-### Prerequisites
-- Python `3.12+`
-- [uv](https://astral.sh/uv) (Package Management)
-
-### Environment_Configuration
-Create a `.env` file based on the project requirements:
-```python
-# LLM Configurations
-ANALYZER_MODEL="gemini-1.5-pro"
-RESEARCHER_MODEL="gemini-1.5-flash"
-EMBEDDING_MODEL="text-embedding-004"
-
-# API Keys
-GOOGLE_API_KEY="your_api_key"
-TAVILY_API_KEY="your_api_key"
+```
+gateway → manager → (analyst | query_generator → search | reply) → manager → ...
 ```
 
-### Installation_and_Execution
+| 节点 | 职责 |
+|---|---|
+| **Gateway** | 安全网关 — 意图分类 (legal/malicious/chitchat) + PII 脱敏 |
+| **Manager** | 总调度官 — LLM 驱动的路由决策，读取状态信号决定下一步 |
+| **Analyst** | 需求分析 — 从对话中提取结构化 UserProfile，判定信息完备性 |
+| **QueryGenerator** | 研究规划 — 基于画像和上下文制定多维度检索方案，选择工具 |
+| **Search** | 工具执行 — 无 LLM，按 SearchTask 调度 PostGIS/web 工具 |
+| **Reply** | 对话出口 — 生成人情味回复，循循善诱收集缺失信息 |
+
+后链节点 **Recommender** / **Planner** 处于设计阶段，当前路由至 Reply。
+
+## Tech Stack
+
+| 层 | 技术 |
+|---|---|
+| **Agent 框架** | LangGraph + LangChain |
+| **LLM** | ChatOpenAI 通用接口（DeepSeek / OpenAI / 任意兼容 provider） |
+| **地理空间** | PostGIS 3.5 + pgRouting 3.8 on PostgreSQL 17 |
+| **数据源** | OpenStreetMap (osm2pgsql 导入) |
+| **API** | FastAPI + uvicorn |
+| **持久化** | SQLite Checkpointer（LangGraph 状态） + PostgreSQL（地理数据） |
+| **部署** | Docker Compose（db + api + ui），GitHub Actions CD |
+| **测试** | pytest + pytest-asyncio (strict mode) |
+
+## Quick Start
+
+### 前置条件
+
+- Python 3.12+
+- [uv](https://astral.sh/uv)
+- Docker（运行 PostGIS）
+
+### 1. 启动 PostGIS 数据库
+
 ```bash
-# Clone repository
-git clone https://github.com/linnene/geotrave.git
-cd geotrave
+cd database/postgis
+docker compose up -d db
 ```
 
-## Testing_Framework
-GeoTrave utilizes a comprehensive testing suite to ensure high reliability across all agent nodes.
+首次使用需导入 OSM 数据（仅一次）：
 
 ```bash
-# Run all tests (Unit, Integration, E2E)
-uv run pytest test/ -v
+# 下载 OSM 数据
+mkdir -p osm_data
+wget -P osm_data https://download.geofabrik.de/asia/japan/hokkaido-latest.osm.pbf
 
-# Run high-priority (P0) tests only
-uv run pytest -m "priority('P0')"
+# 导入
+docker compose --profile init run --rm db-init
+```
 
-# Sync dependencies
+### 2. 配置环境变量
+
+```bash
+cp .env.example .env
+```
+
+必填项：
+
+```bash
+# LLM
+GLOBAL_MODEL_API_KEY=your_api_key
+GLOBAL_MODEL_BASE_URL=https://api.deepseek.com/v1
+GLOBAL_MODEL_ID=deepseek-chat
+
+# PostGIS (本地开发默认即可)
+POSTGIS_DSN=postgresql://geotrave:geotrave_dev@localhost:5432/geotrave
+```
+
+### 3. 安装依赖并启动
+
+```bash
 uv sync
+uv run python -m src.main
+```
 
-# Launch Backend API
-$env:PYTHONPATH="."
-uv run python src/main.py
+API 运行在 `http://localhost:8000`，访问 `/docs` 查看 Swagger。
 
-# Or use .ps1 to setup quickly
-./scripts/set.ps1
+### 4. 调试 UI（可选）
 
-# Launch Diagnostic UI
+```bash
 uv run streamlit run test/test_ui.py
 ```
 
-## Evaluation_and_Quality_Assurance
-GeoTrave utilizes a data-driven testing framework built on `pytest` and `pytest-asyncio` for comprehensive workflow validation.
+## Testing
 
-| Dimension | Metric | Tool |
-| :--- | :--- | :--- |
-| **Logic** | State Transition Integrity | [test/eval/test_agent_workflow.py](test/eval/test_agent_workflow.py) |
-| **Performance** | Async Throughput | [script/run_eval.ps1](script/run_eval.ps1) |
-| **RAG** | Retrieval Precision | [docs/EVAL.md](docs/EVAL.md) |
-
-## Repository_Structure
 ```bash
-src/
-├── agent/       # StateGraph logic and Node definitions
-├── database/    # ChromaDB (Vector DB) and RAG logic
-├── api/         # FastAPI endpoints and schemas
-└── utils/       # LLM Factory, Config, and Logger
+# 全部测试
+uv run pytest test/ -v --asyncio-mode=strict
+
+# 仅单元测试
+uv run pytest test/unit/ -v --asyncio-mode=strict
+
+# 仅 P0
+uv run pytest test/ -m "priority('P0')" -v --asyncio-mode=strict
 ```
 
+集成测试需要运行中的 PostGIS，`POSTGIS_DSN` 为空时自动跳过。
+
+## Deployment
+
+推送到 `master` 分支触发 GitHub Actions CD：
+
+1. **构建**: `geotrave-db` / `geotrave-api` / `geotrave-ui` 三个镜像
+2. **推送**: Docker Hub
+3. **部署**: SSH → 服务器 `docker compose up -d`（数据卷不清空）
+
+首次部署后需在服务器上手动导入 OSM（仅一次）：
+
+```bash
+cd /home/geotrave
+docker compose --profile init run --rm db-init
+```
+
+## Repository Structure
+
+```
+src/
+├── agent/
+│   ├── graph.py              # LangGraph StateGraph 拓扑
+│   ├── state/                # TravelState + Pydantic schema
+│   └── nodes/
+│       ├── gateway/          # 安全网关
+│       ├── manager/          # LLM 路由调度
+│       ├── analyst/          # 需求提取
+│       ├── query_generator/  # 研究方案规划
+│       ├── search/           # 工具执行 + @register_tool
+│       └── reply/            # 对话回复
+├── api/                      # FastAPI 路由 + schema
+├── database/
+│   ├── checkpointer/         # SQLite 状态持久化
+│   └── postgis/              # asyncpg 连接池
+└── utils/                    # LLM Factory, Prompt, Logger
+
+database/
+├── postgis/                  # Dockerfile + SQL 脚本 + compose
+│   ├── init/                 # PostgreSQL 扩展初始化
+│   ├── scripts/              # 视图/索引/拓扑 SQL
+│   └── osm_data/             # OSM 数据文件 (gitignored)
+└── checkpointer/             # SQLite checkpoint (gitignored)
+
+test/
+├── unit/                     # 单元测试（目录镜像 src 结构）
+├── integration/              # 集成测试（需 PostGIS）
+└── TEST_MANIFEST.md          # 测试覆盖矩阵
+
+.github/workflows/
+├── Agent-node-test.yml       # CI — 测试
+└── cd.yml                    # CD — 构建 + 部署
+```
+
+## Documentation
+
+- **[PLAN.md](docs/PLAN.md)** — 下一步开发计划
+- **[STASH.md](docs/STASH.md)** — 搁置工作清单
+- **[TEST_MANIFEST.md](test/TEST_MANIFEST.md)** — 测试覆盖矩阵
+- **[Spatial_DB_Spec.md](src/database/Spatial_DB_Spec.md)** — PostGIS 地理空间架构规格
