@@ -33,7 +33,7 @@ async def test_spatial_search_returns_real_data():
     Priority: P0
     Description: spatial_search returns actual POI data from live PostGIS.
     """
-    from src.agent.nodes.search.tools import execute_spatial_search
+    from src.agent.nodes.research.search.tools import execute_spatial_search
 
     _reset_pool()
 
@@ -69,7 +69,7 @@ async def test_spatial_search_category_filter():
     Priority: P0
     Description: Category filter correctly matches both amenity and tourism tags.
     """
-    from src.agent.nodes.search.tools import execute_spatial_search
+    from src.agent.nodes.research.search.tools import execute_spatial_search
 
     _reset_pool()
 
@@ -103,7 +103,7 @@ async def test_route_search_shortest_path():
     Priority: P0
     Description: route_search shortest mode computes real shortest path.
     """
-    from src.agent.nodes.search.tools import execute_route_search
+    from src.agent.nodes.research.search.tools import execute_route_search
 
     _reset_pool()
 
@@ -143,7 +143,7 @@ async def test_route_search_isochrone():
     Priority: P0
     Description: route_search isochrone mode returns reachable nodes.
     """
-    from src.agent.nodes.search.tools import execute_route_search
+    from src.agent.nodes.research.search.tools import execute_route_search
 
     _reset_pool()
 
