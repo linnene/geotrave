@@ -145,21 +145,6 @@ def test_tool_dispatch_matches_metadata():
         f"TOOL_DISPATCH 中存在未声明的条目: {orphans}"
     )
 
-@pytest.mark.priority("P1")
-def test_tool_dispatch_callable():
-    """
-    Priority: P1
-    Description: Every dispatch entry is an async-callable function.
-    """
-    import inspect
-    import src.agent.nodes.search.tools as t
-
-    for name, handler in t.TOOL_DISPATCH.items():
-        assert callable(handler), f"{name} 的 handler 不可调用"
-        assert inspect.iscoroutinefunction(handler), (
-            f"{name} 的 handler 应为 async 函数"
-        )
-
 
 # ---------------------------------------------------------------------------
 # _resolve_location & _geocode

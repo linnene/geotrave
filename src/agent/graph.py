@@ -47,34 +47,31 @@ async def get_travel_app():
         # 3. Define Edges
         workflow.set_entry_point("gateway")
 
-        # Gateway Routing: 仅根据 execution_signs 判断去向
+        # Gateway Routing: 不安全内容直达 reply，安全内容固定进入 analyst
         def gateway_router(state: state_mod.TravelState) -> str:
             signs = state.get("execution_signs")
             if signs and not signs.is_safe:
                 return "reply"
-            # 正常放行通过 (根据架构图，Gateway流向应为Reply或Manager)
-            return "manager"
+            return "analyst"
 
         workflow.add_conditional_edges(
             "gateway",
             gateway_router,
             {
-                "manager": "manager",
+                "analyst": "analyst",
                 "reply": "reply"
             }
         )
 
-        # Manager Routing: Manager决策路由
+        # Manager Routing: Post-analyst 路由，Manager 不再负责 analyst 的分发
         def manager_router(state: state_mod.TravelState) -> str:
             route = state.get("route_metadata")
             target = route.next_node if route else "reply"
-            
-            # 建立映射表防止节点未注册
+
             mapping = {
                 "query_generator": "query_generator",
                 "recommender": "reply",   # 临时映射
                 "planner": "reply",       # 临时映射
-                "analyst": "analyst",
                 "reply": "reply"
             }
             return mapping.get(target, "reply")
@@ -83,13 +80,12 @@ async def get_travel_app():
             "manager",
             manager_router,
             {
-                "analyst": "analyst",
                 "reply": "reply",
                 "query_generator": "query_generator"
             }
         )
 
-        # Analyst flow: 始终回到 Manager，由全局大脑决定下一步
+        # Analyst → Manager: 需求提取完成后交给 Manager 做后续路由
         workflow.add_edge("analyst", "manager")
         # query_generator 产出任务后自动进入 search 节点执行，search 完成后返回 manager
         workflow.add_edge("query_generator", "search")
