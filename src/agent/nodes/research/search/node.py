@@ -11,7 +11,7 @@ import time
 from datetime import datetime, timezone
 from typing import Any, Dict, List
 
-from src.agent.nodes.search import tools
+from . import tools
 from src.agent.nodes.utils import build_trace
 from src.agent.state import ResearchManifest, SearchTask
 from src.agent.state.schema import ResearchResult

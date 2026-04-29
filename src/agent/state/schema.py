@@ -185,10 +185,10 @@ class AnalystOutput(BaseModel):
 
 class ManagerOutput(BaseModel):
     """Manager 节点结构化输出 — 控制全局路由。"""
-    next_stage: Literal["query_generator", "recommender", "planner", "reply"] = Field(
+    next_stage: Literal["research_loop", "recommender", "planner", "reply"] = Field(
         ...,
         description=(
-            "Next routing target. query_generator: start/continue research; "
+            "Next routing target. research_loop: execute research subgraph (QG→Search→Critic⇄QG|Hash); "
             "recommender: recommend items; planner: generate itinerary; reply: respond to user"
         )
     )

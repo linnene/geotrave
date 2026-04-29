@@ -21,7 +21,7 @@ from src.agent.state.schema import ResearchLoopInternal
 @pytest.mark.asyncio
 async def test_qg_injects_feedback_into_prompt():
     """Critic 反馈被注入到 LLM prompt 中。"""
-    from src.agent.nodes.query_generator.node import query_generator_node
+    from src.agent.nodes.research.query_generator.node import query_generator_node
 
     loop_state = ResearchLoopInternal(feedback="需要补充交通维度的调研")
     manifest = ResearchManifest(loop_state=loop_state)
@@ -43,7 +43,7 @@ async def test_qg_injects_feedback_into_prompt():
     })
 
     with patch(
-        "src.agent.nodes.query_generator.node.LLMFactory.get_model",
+        "src.agent.nodes.research.query_generator.node.LLMFactory.get_model",
         return_value=MagicMock(bind=MagicMock(return_value=MagicMock(ainvoke=AsyncMock(return_value=mock_llm)))),
     ):
         result = await query_generator_node(state)
@@ -57,7 +57,7 @@ async def test_qg_injects_feedback_into_prompt():
 @pytest.mark.asyncio
 async def test_qg_injects_passed_queries_into_prompt():
     """已通过查询列表被注入到 LLM prompt 中（prompt 中可见）。"""
-    from src.agent.nodes.query_generator.node import query_generator_node
+    from src.agent.nodes.research.query_generator.node import query_generator_node
 
     passed_queries = [
         '{"keyword": "东京酒店"}',
@@ -89,7 +89,7 @@ async def test_qg_injects_passed_queries_into_prompt():
     mock_bound.ainvoke = AsyncMock(side_effect=capture_prompt)
 
     with patch(
-        "src.agent.nodes.query_generator.node.LLMFactory.get_model",
+        "src.agent.nodes.research.query_generator.node.LLMFactory.get_model",
         return_value=MagicMock(bind=MagicMock(return_value=mock_bound)),
     ):
         await query_generator_node(state)
@@ -108,7 +108,7 @@ async def test_qg_injects_passed_queries_into_prompt():
 @pytest.mark.asyncio
 async def test_qg_preserves_loop_state():
     """model_copy 保留已有 loop_state（feedback、passed_queries 等不丢失）。"""
-    from src.agent.nodes.query_generator.node import query_generator_node
+    from src.agent.nodes.research.query_generator.node import query_generator_node
 
     loop_state = ResearchLoopInternal(
         feedback="上次反馈",
@@ -135,7 +135,7 @@ async def test_qg_preserves_loop_state():
     })
 
     with patch(
-        "src.agent.nodes.query_generator.node.LLMFactory.get_model",
+        "src.agent.nodes.research.query_generator.node.LLMFactory.get_model",
         return_value=MagicMock(bind=MagicMock(return_value=MagicMock(ainvoke=AsyncMock(return_value=mock_llm)))),
     ):
         result = await query_generator_node(state)
@@ -150,7 +150,7 @@ async def test_qg_preserves_loop_state():
 @pytest.mark.asyncio
 async def test_qg_preserves_research_hashes():
     """model_copy 保留已有 research_hashes。"""
-    from src.agent.nodes.query_generator.node import query_generator_node
+    from src.agent.nodes.research.query_generator.node import query_generator_node
 
     existing_hashes = {"东京酒店": ["hash_abc123"], "大阪美食": ["hash_def456"]}
     manifest = ResearchManifest(research_hashes=existing_hashes)
@@ -172,7 +172,7 @@ async def test_qg_preserves_research_hashes():
     })
 
     with patch(
-        "src.agent.nodes.query_generator.node.LLMFactory.get_model",
+        "src.agent.nodes.research.query_generator.node.LLMFactory.get_model",
         return_value=MagicMock(bind=MagicMock(return_value=MagicMock(ainvoke=AsyncMock(return_value=mock_llm)))),
     ):
         result = await query_generator_node(state)
@@ -185,7 +185,7 @@ async def test_qg_preserves_research_hashes():
 @pytest.mark.asyncio
 async def test_qg_appends_research_history():
     """每次调用在 research_history 末尾追加当前 user_request。"""
-    from src.agent.nodes.query_generator.node import query_generator_node
+    from src.agent.nodes.research.query_generator.node import query_generator_node
 
     manifest = ResearchManifest(research_history=["第一次查东京", "第二次查大阪"])
     state = {
@@ -201,7 +201,7 @@ async def test_qg_appends_research_history():
     })
 
     with patch(
-        "src.agent.nodes.query_generator.node.LLMFactory.get_model",
+        "src.agent.nodes.research.query_generator.node.LLMFactory.get_model",
         return_value=MagicMock(bind=MagicMock(return_value=MagicMock(ainvoke=AsyncMock(return_value=mock_llm)))),
     ):
         result = await query_generator_node(state)
@@ -219,7 +219,7 @@ async def test_qg_appends_research_history():
 @pytest.mark.asyncio
 async def test_qg_creates_manifest_when_none():
     """无 research_data 时创建新 ResearchManifest。"""
-    from src.agent.nodes.query_generator.node import query_generator_node
+    from src.agent.nodes.research.query_generator.node import query_generator_node
 
     state = {
         "messages": [],
@@ -238,7 +238,7 @@ async def test_qg_creates_manifest_when_none():
     })
 
     with patch(
-        "src.agent.nodes.query_generator.node.LLMFactory.get_model",
+        "src.agent.nodes.research.query_generator.node.LLMFactory.get_model",
         return_value=MagicMock(bind=MagicMock(return_value=MagicMock(ainvoke=AsyncMock(return_value=mock_llm)))),
     ):
         result = await query_generator_node(state)
@@ -258,7 +258,7 @@ async def test_qg_creates_manifest_when_none():
 @pytest.mark.asyncio
 async def test_qg_empty_feedback_and_passed_queries():
     """首轮调研：feedback 和 passed_queries 均为空时使用默认占位文本。"""
-    from src.agent.nodes.query_generator.node import query_generator_node
+    from src.agent.nodes.research.query_generator.node import query_generator_node
 
     manifest = ResearchManifest()
     state = {
@@ -279,7 +279,7 @@ async def test_qg_empty_feedback_and_passed_queries():
     mock_bound.ainvoke = AsyncMock(side_effect=lambda p: captured_prompt.append(p) or FakeLLM())
 
     with patch(
-        "src.agent.nodes.query_generator.node.LLMFactory.get_model",
+        "src.agent.nodes.research.query_generator.node.LLMFactory.get_model",
         return_value=MagicMock(bind=MagicMock(return_value=mock_bound)),
     ):
         await query_generator_node(state)
@@ -292,7 +292,7 @@ async def test_qg_empty_feedback_and_passed_queries():
 @pytest.mark.asyncio
 async def test_qg_llm_error_graceful():
     """LLM 调用失败时返回 FAIL trace，不崩溃。"""
-    from src.agent.nodes.query_generator.node import query_generator_node
+    from src.agent.nodes.research.query_generator.node import query_generator_node
 
     state = {
         "research_data": ResearchManifest(),
@@ -301,7 +301,7 @@ async def test_qg_llm_error_graceful():
     }
 
     with patch(
-        "src.agent.nodes.query_generator.node.LLMFactory.get_model",
+        "src.agent.nodes.research.query_generator.node.LLMFactory.get_model",
         return_value=MagicMock(
             bind=MagicMock(
                 return_value=MagicMock(ainvoke=AsyncMock(side_effect=RuntimeError("LLM 超时")))
@@ -320,7 +320,7 @@ async def test_qg_llm_error_graceful():
 @pytest.mark.asyncio
 async def test_qg_content_list_merge():
     """LLM 返回 content 为 list 时正确合并。"""
-    from src.agent.nodes.query_generator.node import query_generator_node
+    from src.agent.nodes.research.query_generator.node import query_generator_node
 
     state = {
         "research_data": ResearchManifest(),
@@ -336,7 +336,7 @@ async def test_qg_content_list_merge():
     mock_llm.content = [{"text": task_json}]
 
     with patch(
-        "src.agent.nodes.query_generator.node.LLMFactory.get_model",
+        "src.agent.nodes.research.query_generator.node.LLMFactory.get_model",
         return_value=MagicMock(bind=MagicMock(return_value=MagicMock(ainvoke=AsyncMock(return_value=mock_llm)))),
     ):
         result = await query_generator_node(state)

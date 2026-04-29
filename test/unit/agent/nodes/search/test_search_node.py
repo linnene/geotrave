@@ -19,7 +19,7 @@ from src.agent.state.schema import ResearchLoopInternal, ResearchResult
 @pytest.mark.priority("P0")
 def test_generate_summary_poi_list():
     """POI 列表: 提取前 5 条 name。"""
-    from src.agent.nodes.search.node import _generate_summary
+    from src.agent.nodes.research.search.node import _generate_summary
 
     payload = {
         "pois": [
@@ -38,7 +38,7 @@ def test_generate_summary_poi_list():
 @pytest.mark.priority("P1")
 def test_generate_summary_poi_truncation():
     """POI 超过 5 条: 显示前 5 + 总数。"""
-    from src.agent.nodes.search.node import _generate_summary
+    from src.agent.nodes.research.search.node import _generate_summary
 
     pois = [{"name": f"地点{i}"} for i in range(10)]
     result = _generate_summary({"pois": pois})
@@ -52,7 +52,7 @@ def test_generate_summary_poi_truncation():
 @pytest.mark.priority("P0")
 def test_generate_summary_shortest_route():
     """最短路径: 显示起终点、距离、步行时间。"""
-    from src.agent.nodes.search.node import _generate_summary
+    from src.agent.nodes.research.search.node import _generate_summary
 
     payload = {
         "mode": "shortest",
@@ -71,7 +71,7 @@ def test_generate_summary_shortest_route():
 @pytest.mark.priority("P0")
 def test_generate_summary_isochrone():
     """等时圈: 显示原点、分钟数、可达节点、最大距离。"""
-    from src.agent.nodes.search.node import _generate_summary
+    from src.agent.nodes.research.search.node import _generate_summary
 
     payload = {
         "mode": "isochrone",
@@ -90,7 +90,7 @@ def test_generate_summary_isochrone():
 @pytest.mark.priority("P1")
 def test_generate_summary_fallback_json():
     """未知类型: fallback 为 JSON 字符串前 500 字符。"""
-    from src.agent.nodes.search.node import _generate_summary
+    from src.agent.nodes.research.search.node import _generate_summary
 
     payload = {"custom_field": "custom_value", "nested": {"a": 1}}
     result = _generate_summary(payload)
@@ -108,7 +108,7 @@ def test_generate_summary_fallback_json():
 @pytest.mark.asyncio
 async def test_execute_tasks_wraps_in_research_result():
     """正常执行: 每个 task 结果包裹为 ResearchResult envelope。"""
-    from src.agent.nodes.search.node import _execute_tasks
+    from src.agent.nodes.research.search.node import _execute_tasks
 
     tasks = [
         SearchTask(
@@ -124,7 +124,7 @@ async def test_execute_tasks_wraps_in_research_result():
     mock_metadata.payload = {"pois": [{"name": "东京塔", "lat": 35.6586, "lng": 139.7454}]}
 
     with patch.dict(
-        "src.agent.nodes.search.tools.TOOL_DISPATCH",
+        "src.agent.nodes.research.search.tools.TOOL_DISPATCH",
         {"test_tool": AsyncMock(return_value=mock_metadata)},
     ):
         results = await _execute_tasks(tasks)
@@ -143,7 +143,7 @@ async def test_execute_tasks_wraps_in_research_result():
 @pytest.mark.asyncio
 async def test_execute_tasks_unsupported_tool():
     """未注册工具: 跳过并记录错误，不崩溃。"""
-    from src.agent.nodes.search.node import _execute_tasks
+    from src.agent.nodes.research.search.node import _execute_tasks
 
     tasks = [
         SearchTask(
@@ -154,7 +154,7 @@ async def test_execute_tasks_unsupported_tool():
         )
     ]
 
-    with patch.dict("src.agent.nodes.search.tools.TOOL_DISPATCH", {}):
+    with patch.dict("src.agent.nodes.research.search.tools.TOOL_DISPATCH", {}):
         results = await _execute_tasks(tasks)
 
     # 未注册工具被跳过，不产生结果
@@ -165,7 +165,7 @@ async def test_execute_tasks_unsupported_tool():
 @pytest.mark.asyncio
 async def test_execute_tasks_handler_exception():
     """handler 抛出异常: 返回 error envelope，不崩溃。"""
-    from src.agent.nodes.search.node import _execute_tasks
+    from src.agent.nodes.research.search.node import _execute_tasks
 
     tasks = [
         SearchTask(
@@ -180,7 +180,7 @@ async def test_execute_tasks_handler_exception():
         raise RuntimeError("数据库连接超时")
 
     with patch.dict(
-        "src.agent.nodes.search.tools.TOOL_DISPATCH",
+        "src.agent.nodes.research.search.tools.TOOL_DISPATCH",
         {"broken_tool": broken_handler},
     ):
         results = await _execute_tasks(tasks)
@@ -202,7 +202,7 @@ async def test_execute_tasks_handler_exception():
 @pytest.mark.asyncio
 async def test_search_node_missing_research_data():
     """无 research_data → SKIPPED trace。"""
-    from src.agent.nodes.search.node import search_node
+    from src.agent.nodes.research.search.node import search_node
 
     state = {"messages": []}
     result = await search_node(state)
@@ -216,7 +216,7 @@ async def test_search_node_missing_research_data():
 @pytest.mark.asyncio
 async def test_search_node_empty_active_queries():
     """空 active_queries → SUCCESS trace，不执行任何工具。"""
-    from src.agent.nodes.search.node import search_node
+    from src.agent.nodes.research.search.node import search_node
 
     manifest = ResearchManifest()
     state = {"research_data": manifest, "messages": []}
@@ -232,7 +232,7 @@ async def test_search_node_empty_active_queries():
 @pytest.mark.asyncio
 async def test_search_node_writes_to_loop_state():
     """正常流程: 结果写入 loop_state.query_results，清空 active_queries。"""
-    from src.agent.nodes.search.node import search_node
+    from src.agent.nodes.research.search.node import search_node
 
     tasks = [
         SearchTask(
@@ -248,7 +248,7 @@ async def test_search_node_writes_to_loop_state():
     mock_metadata.payload = {"pois": [{"name": "浅草寺"}]}
 
     with patch.dict(
-        "src.agent.nodes.search.tools.TOOL_DISPATCH",
+        "src.agent.nodes.research.search.tools.TOOL_DISPATCH",
         {"mock_tool": AsyncMock(return_value=mock_metadata)},
     ):
         result = await search_node({"research_data": manifest, "messages": []})
@@ -270,7 +270,7 @@ async def test_search_node_writes_to_loop_state():
 @pytest.mark.asyncio
 async def test_search_node_preserves_existing_loop_state():
     """已有 loop_state 字段时，model_copy 不丢弃已有数据。"""
-    from src.agent.nodes.search.node import search_node
+    from src.agent.nodes.research.search.node import search_node
 
     tasks = [
         SearchTask(
@@ -291,7 +291,7 @@ async def test_search_node_preserves_existing_loop_state():
     mock_metadata.payload = {"pois": [{"name": "一兰拉面"}]}
 
     with patch.dict(
-        "src.agent.nodes.search.tools.TOOL_DISPATCH",
+        "src.agent.nodes.research.search.tools.TOOL_DISPATCH",
         {"mock_tool": AsyncMock(return_value=mock_metadata)},
     ):
         result = await search_node({"research_data": manifest, "messages": []})

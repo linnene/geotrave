@@ -24,7 +24,7 @@ from src.agent.state.schema import (
 @pytest.mark.priority("P0")
 def test_blacklist_filter_hit():
     """黑名单命中 → 结果被拒绝，未命中 → 通过。"""
-    from src.agent.nodes.research.critic import blacklist_filter
+    from src.agent.nodes.research.critic.node import blacklist_filter
 
     results = {
         "q1": ResearchResult(
@@ -56,7 +56,7 @@ def test_blacklist_filter_hit():
 @pytest.mark.priority("P1")
 def test_blacklist_filter_all_pass():
     """所有结果均不命中黑名单 → 全部通过。"""
-    from src.agent.nodes.research.critic import blacklist_filter
+    from src.agent.nodes.research.critic.node import blacklist_filter
 
     results = {
         "q1": ResearchResult(
@@ -78,7 +78,7 @@ def test_blacklist_filter_all_pass():
 @pytest.mark.priority("P1")
 def test_blacklist_filter_case_insensitive():
     """黑名单匹配不区分大小写。"""
-    from src.agent.nodes.research.critic import blacklist_filter
+    from src.agent.nodes.research.critic.node import blacklist_filter
 
     results = {
         "q1": ResearchResult(
@@ -104,7 +104,7 @@ def test_blacklist_filter_case_insensitive():
 @pytest.mark.priority("P0")
 def test_code_filter_unsafe_tag():
     """safety_tag=unsafe → 直接拒绝。"""
-    from src.agent.nodes.research.critic import code_filter
+    from src.agent.nodes.research.critic.node import code_filter
 
     results = [
         CriticResult(
@@ -134,7 +134,7 @@ def test_code_filter_unsafe_tag():
 @pytest.mark.priority("P0")
 def test_code_filter_low_relevance():
     """relevance_score < 60 → 拒绝。"""
-    from src.agent.nodes.research.critic import code_filter
+    from src.agent.nodes.research.critic.node import code_filter
 
     results = [
         CriticResult(
@@ -155,7 +155,7 @@ def test_code_filter_low_relevance():
 @pytest.mark.priority("P0")
 def test_code_filter_low_utility():
     """utility_score < 60 → 拒绝。"""
-    from src.agent.nodes.research.critic import code_filter
+    from src.agent.nodes.research.critic.node import code_filter
 
     results = [
         CriticResult(
@@ -176,7 +176,7 @@ def test_code_filter_low_utility():
 @pytest.mark.priority("P1")
 def test_code_filter_all_pass():
     """所有分数和 tag 均达标 → 全部通过。"""
-    from src.agent.nodes.research.critic import code_filter
+    from src.agent.nodes.research.critic.node import code_filter
 
     results = [
         CriticResult(
@@ -209,7 +209,7 @@ def test_code_filter_all_pass():
 @pytest.mark.priority("P0")
 def test_should_continue_loop_enough_passed_and_llm_false():
     """pass_count >= MIN 且 LLM 认为充分 → 退出循环。"""
-    from src.agent.nodes.research.critic import should_continue_loop
+    from src.agent.nodes.research.critic.node import should_continue_loop
 
     continue_loop, reason = should_continue_loop(
         pass_count=4, llm_continue_loop=False, loop_iter=1
@@ -222,7 +222,7 @@ def test_should_continue_loop_enough_passed_and_llm_false():
 @pytest.mark.priority("P0")
 def test_should_continue_loop_not_enough_passed():
     """pass_count 不达标 → 继续循环，即使 LLM 认为充分。"""
-    from src.agent.nodes.research.critic import should_continue_loop
+    from src.agent.nodes.research.critic.node import should_continue_loop
 
     continue_loop, reason = should_continue_loop(
         pass_count=1, llm_continue_loop=False, loop_iter=1
@@ -234,7 +234,7 @@ def test_should_continue_loop_not_enough_passed():
 @pytest.mark.priority("P0")
 def test_should_continue_loop_max_loops_exceeded():
     """达到 MAX_LOOPS 硬上限 → 强制退出。"""
-    from src.agent.nodes.research.critic import should_continue_loop
+    from src.agent.nodes.research.critic.node import should_continue_loop
 
     continue_loop, reason = should_continue_loop(
         pass_count=1, llm_continue_loop=True, loop_iter=3
@@ -247,7 +247,7 @@ def test_should_continue_loop_max_loops_exceeded():
 @pytest.mark.priority("P1")
 def test_should_continue_loop_llm_wants_more():
     """LLM 要求继续 → 继续循环（即使 pass_count 达标）。"""
-    from src.agent.nodes.research.critic import should_continue_loop
+    from src.agent.nodes.research.critic.node import should_continue_loop
 
     continue_loop, reason = should_continue_loop(
         pass_count=5, llm_continue_loop=True, loop_iter=1
@@ -264,7 +264,7 @@ def test_should_continue_loop_llm_wants_more():
 @pytest.mark.priority("P1")
 def test_aggregate_loop_summary():
     """验证统计值计算正确。"""
-    from src.agent.nodes.research.critic import aggregate_loop_summary
+    from src.agent.nodes.research.critic.node import aggregate_loop_summary
 
     passed = [
         CriticResult(
@@ -294,7 +294,7 @@ def test_aggregate_loop_summary():
 @pytest.mark.priority("P2")
 def test_aggregate_loop_summary_empty():
     """空列表 → 各项均为 0。"""
-    from src.agent.nodes.research.critic import aggregate_loop_summary
+    from src.agent.nodes.research.critic.node import aggregate_loop_summary
 
     summary = aggregate_loop_summary([], total_count=3)
 
@@ -311,7 +311,7 @@ def test_aggregate_loop_summary_empty():
 @pytest.mark.priority("P1")
 def test_load_blacklist_returns_list():
     """YAML 文件加载成功且包含关键词。"""
-    from src.agent.nodes.research.critic import load_blacklist
+    from src.agent.nodes.research.critic.node import load_blacklist
 
     blacklist = load_blacklist()
 
@@ -330,7 +330,7 @@ def test_load_blacklist_returns_list():
 @pytest.mark.asyncio
 async def test_critic_node_empty_results_skips():
     """query_results 为空 → 直接跳过，返回 SKIPPED trace。"""
-    from src.agent.nodes.research.critic import critic_node
+    from src.agent.nodes.research.critic.node import critic_node
 
     loop_state = ResearchLoopInternal(query_results={})
     manifest = ResearchManifest(loop_state=loop_state)
@@ -349,7 +349,7 @@ async def test_critic_node_empty_results_skips():
 @pytest.mark.asyncio
 async def test_critic_node_full_pipeline():
     """完整三层过滤管线：Layer1 黑名单 → Layer2 mock LLM → Layer3 阈值过滤。"""
-    from src.agent.nodes.research.critic import critic_node
+    from src.agent.nodes.research.critic.node import critic_node
 
     # 准备 2 条结果: 1 条正常，1 条含黑名单关键词
     loop_state = ResearchLoopInternal(
@@ -385,7 +385,7 @@ async def test_critic_node_full_pipeline():
     ]
 
     with patch(
-        "src.agent.nodes.research.critic.llm_score_batch",
+        "src.agent.nodes.research.critic.node.llm_score_batch",
         new=AsyncMock(return_value=(mock_critic_results, False, "已充分")),
     ):
         result = await critic_node(state)
@@ -424,7 +424,7 @@ async def test_critic_node_full_pipeline():
 @pytest.mark.asyncio
 async def test_critic_node_llm_error_graceful():
     """Layer 2 LLM 调用失败 → 不中断流程，继续处理。"""
-    from src.agent.nodes.research.critic import critic_node
+    from src.agent.nodes.research.critic.node import critic_node
 
     loop_state = ResearchLoopInternal(
         query_results={
@@ -442,7 +442,7 @@ async def test_critic_node_llm_error_graceful():
 
     # Mock LLM 抛出异常
     with patch(
-        "src.agent.nodes.research.critic.llm_score_batch",
+        "src.agent.nodes.research.critic.node.llm_score_batch",
         new=AsyncMock(side_effect=Exception("LLM timeout")),
     ):
         result = await critic_node(state)
@@ -459,7 +459,7 @@ async def test_critic_node_llm_error_graceful():
 @pytest.mark.asyncio
 async def test_critic_node_accumulates_all_passed():
     """多轮调用间 all_passed_results 正确累积。"""
-    from src.agent.nodes.research.critic import critic_node
+    from src.agent.nodes.research.critic.node import critic_node
 
     # 模拟第二轮: 已有历史通过结果
     previous_passed = [
@@ -497,7 +497,7 @@ async def test_critic_node_accumulates_all_passed():
     ]
 
     with patch(
-        "src.agent.nodes.research.critic.llm_score_batch",
+        "src.agent.nodes.research.critic.node.llm_score_batch",
         new=AsyncMock(return_value=(mock_results, False, "done")),
     ):
         result = await critic_node(state)
