@@ -24,49 +24,57 @@ def _get_tools_documentation() -> str:
     return json.dumps(TOOL_METADATA, indent=2, ensure_ascii=False)
 
 async def query_generator_node(state: TravelState) -> Dict[str, Any]:
-    """
-    Query Generator Node.
-    Analyzes user profile and request to create a structured multi-dimensional research plan.
+    """Query Generator Node — 多维调研方案规划。
+
+    从 UserProfile 和对话历史出发，生成 SearchTask 列表。
+    支持多轮 Research Loop：接收 Critic 反馈和已通过查询，避免重复生成。
     """
     start_time = time.time()
     logger.info("Generating research plan at [QueryGenerator]...")
 
-    # 1. Prepare Context (注入最近 HISTORY_LIMIT 轮对话历史)
+    # 1. Prepare Context
     messages = state.get("messages", [])
-    
-    # 使用解耦的历史格式化工具
     history = format_recent_history(messages, HISTORY_LIMIT)
 
     user_profile = state.get("user_profile")
     user_request = state.get("user_request", "无明确诉求")
-    
-    # 2. Dynamic Injection
+
+    # 2. Extract loop_state data (Critic feedback + passed queries)
+    research_data = state.get("research_data")
+    loop_state = research_data.loop_state if research_data else None
+    feedback = loop_state.feedback if loop_state else None
+    passed_queries = loop_state.passed_queries if loop_state else []
+
+    feedback_str = feedback if feedback else "无（首轮调研）"
+    passed_queries_str = "\n".join(f"- {q}" for q in passed_queries) if passed_queries else "无（首轮调研）"
+
+    # 3. Dynamic Injection
     tools_doc = _get_tools_documentation()
     format_instructions = _get_format_instructions()
-    
+
     prompt_str = query_generator_prompt_template.format(
         user_profile=user_profile.model_dump_json(indent=2) if user_profile else "{}",
         user_request=user_request,
         tools_doc=tools_doc,
         format_instructions=format_instructions,
         history=history,
-        missing_fields=", ".join(state.get("missing_fields", [])) if state.get("missing_fields") else "无核心缺失"
+        missing_fields=", ".join(state.get("missing_fields", [])) if state.get("missing_fields") else "无核心缺失",
+        feedback=feedback_str,
+        passed_queries=passed_queries_str,
     )
 
-    # 3. LLM Orchestration
+    # 4. LLM Orchestration
     llm = LLMFactory.get_model("QueryGenerator", temperature=TEMPERATURE, max_tokens=MAX_TOKENS)
     bound_llm = llm.bind(response_format={"type": "json_object"})
 
     try:
         raw_result = await bound_llm.ainvoke(prompt_str)
-        
-        # 处理可能的多种 content 类型 (BaseMessage.content 可以是 str 或 list)
+
         raw_content = raw_result.content if hasattr(raw_result, "content") else str(raw_result)
-        
+
         if isinstance(raw_content, list):
-            # 将列表中的文本块合并
             content = "".join([
-                t.get("text", "") if isinstance(t, dict) else str(t) 
+                t.get("text", "") if isinstance(t, dict) else str(t)
                 for t in raw_content
             ])
         else:
@@ -74,18 +82,23 @@ async def query_generator_node(state: TravelState) -> Dict[str, Any]:
 
         parsed_json = json.loads(content)
         result = QueryGeneratorOutput(**parsed_json)
-        
-        # 4. Update ResearchManifest
-        old_manifest = state.get("research_data")
-        old_history = old_manifest.research_history if old_manifest else []
+
+        # 5. Update ResearchManifest — 使用 model_copy 保留 loop_state / research_hashes
+        old_history = research_data.research_history if research_data else []
         current_request = state.get("user_request", "")
 
-        new_research_data = ResearchManifest(
-            active_queries=result.tasks,
-            verified_results=[],
-            feedback_history=[],
-            research_history=old_history + [current_request],
-        )
+        if research_data:
+            new_research_data = research_data.model_copy(
+                update={
+                    "active_queries": result.tasks,
+                    "research_history": old_history + [current_request],
+                }
+            )
+        else:
+            new_research_data = ResearchManifest(
+                active_queries=result.tasks,
+                research_history=[current_request],
+            )
 
         trace = build_trace(
             "query_generator",
@@ -93,13 +106,13 @@ async def query_generator_node(state: TravelState) -> Dict[str, Any]:
             latency_ms=int((time.time() - start_time) * 1000),
             detail={
                 "task_count": len(result.tasks),
-                "strategy": result.research_strategy
+                "strategy": result.research_strategy,
             }
         )
 
         return {
             "research_data": new_research_data,
-            "trace_history": [trace]
+            "trace_history": [trace],
         }
 
     except Exception as e:
