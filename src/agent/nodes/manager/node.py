@@ -34,7 +34,7 @@ async def manager_node(state: TravelState) -> Dict[str, Any]:
     signs = state.get("execution_signs")
     research_manifest = state.get("research_data")
     messages = state.get("messages", [])
-    
+
     is_safe = signs.is_safe if signs else True
     is_core_complete = signs.is_core_complete if signs else False
     hashes_count = len(research_manifest.verified_results) if research_manifest else 0
@@ -47,11 +47,19 @@ async def manager_node(state: TravelState) -> Dict[str, Any]:
     trace_logs = state.get("trace_history", [])
     trace_history_str = format_trace_history(trace_logs, 5)
 
+    # 调研新鲜度：当前 user_request 是否已有对应的调研记录
+    research_matches_current = (
+        research_history[-1] == user_request
+        if research_history
+        else False
+    )
+
     # 2. LLM Orchestration
     prompt_str = manager_prompt_template.format(
         is_safe=is_safe,
         is_core_complete=is_core_complete,
         hashes_count=hashes_count,
+        research_matches_current=research_matches_current,
         research_history=research_history if research_history else "[]",
         history=history,
         user_request=user_request,
