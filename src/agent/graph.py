@@ -34,15 +34,13 @@ async def get_travel_app():
         from src.agent.nodes.analyst.node import analyst_node
         from src.agent.nodes.reply.node import reply_node
         from src.agent.nodes.manager.node import manager_node
-        from src.agent.nodes.query_generator.node import query_generator_node
-        from src.agent.nodes.search.node import search_node
+        from src.agent.nodes.research.subgraph import research_loop_subgraph
 
         workflow.add_node("gateway", gateway_node)
         workflow.add_node("analyst", analyst_node)
         workflow.add_node("reply", reply_node)
         workflow.add_node("manager", manager_node)
-        workflow.add_node("query_generator", query_generator_node)
-        workflow.add_node("search", search_node)
+        workflow.add_node("research_loop", research_loop_subgraph)
 
         # 3. Define Edges
         workflow.set_entry_point("gateway")
@@ -69,9 +67,9 @@ async def get_travel_app():
             target = route.next_node if route else "reply"
 
             mapping = {
-                "query_generator": "query_generator",
-                "recommender": "reply",   # 临时映射
-                "planner": "reply",       # 临时映射
+                "research_loop": "research_loop",
+                "recommender": "reply",
+                "planner": "reply",
                 "reply": "reply"
             }
             return mapping.get(target, "reply")
@@ -81,15 +79,14 @@ async def get_travel_app():
             manager_router,
             {
                 "reply": "reply",
-                "query_generator": "query_generator"
+                "research_loop": "research_loop"
             }
         )
 
         # Analyst → Manager: 需求提取完成后交给 Manager 做后续路由
         workflow.add_edge("analyst", "manager")
-        # query_generator 产出任务后自动进入 search 节点执行，search 完成后返回 manager
-        workflow.add_edge("query_generator", "search")
-        workflow.add_edge("search", "manager")
+        # research_loop 子图闭环完成后回到 Manager 进行下一跳决策
+        workflow.add_edge("research_loop", "manager")
 
         # After replying, wait for next user input
         workflow.add_edge("reply", END)
@@ -107,7 +104,10 @@ async def get_travel_app():
                 ('src.agent.state.schema', 'ResearchManifest'),
                 ('src.agent.state.schema', 'ExecutionSigns'),
                 ('src.agent.state.schema', 'SearchTask'),
-                ('src.agent.state.schema', 'RetrievalMetadata'),
+                ('src.agent.state.schema', 'ResearchLoopInternal'),
+                ('src.agent.state.schema', 'ResearchResult'),
+                ('src.agent.state.schema', 'CriticResult'),
+                ('src.agent.state.schema', 'LoopSummary'),
             ]
         )
         checkpointer.serde = serializer

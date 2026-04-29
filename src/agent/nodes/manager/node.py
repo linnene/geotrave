@@ -9,6 +9,7 @@ import time
 from typing import Dict, Any
 
 from src.agent.state import TravelState, RouteMetadata, ManagerOutput
+from src.agent.state.schema import ResearchLoopInternal
 from src.utils.llm_factory import LLMFactory
 from src.utils.prompt import manager_prompt_template
 from src.utils.logger import get_logger
@@ -37,7 +38,8 @@ async def manager_node(state: TravelState) -> Dict[str, Any]:
 
     is_safe = signs.is_safe if signs else True
     is_core_complete = signs.is_core_complete if signs else False
-    hashes_count = len(research_manifest.verified_results) if research_manifest else 0
+    research_hashes = research_manifest.research_hashes if research_manifest else {}
+    hashes_count = sum(len(v) for v in research_hashes.values())
     research_history = research_manifest.research_history if research_manifest else []
 
     history = format_recent_history(messages, HISTORY_LIMIT)
@@ -81,7 +83,7 @@ async def manager_node(state: TravelState) -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"Manager reasoning failed: {str(e)}", exc_info=True)
         # Fallback to safe logic if LLM fails
-        next_node = "reply" if not is_core_complete else "query_generator"
+        next_node = "reply" if not is_core_complete else "research_loop"
         reason = f"Fallback due to error: {str(e)}"
 
     # 3. Issue Routing Command
@@ -103,7 +105,15 @@ async def manager_node(state: TravelState) -> Dict[str, Any]:
         }
     )
 
-    return {
+    result: Dict[str, Any] = {
         "route_metadata": route,
-        "trace_history": [trace]
+        "trace_history": [trace],
     }
+
+    # 路由到 research_loop 时重置其内部状态，防止上一次循环的 feedback/passed_queries 污染本轮
+    if next_node == "research_loop" and research_manifest:
+        result["research_data"] = research_manifest.model_copy(
+            update={"loop_state": ResearchLoopInternal()}
+        )
+
+    return result

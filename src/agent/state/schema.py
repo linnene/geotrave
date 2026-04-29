@@ -1,164 +1,328 @@
 """
-Module: src.agent.schema
-Responsibility: Defines all Pydantic models for structured data and Agent 2.0 communication.
-Parent Module: src.agent
+Module: src.agent.state.schema
+Responsibility: Pydantic models for Agent 2.0 shared state, LLM output parsing,
+                and Research Loop internal communication.
+Parent Module: src.agent.state
 Dependencies: pydantic, typing, datetime
+
+All Field descriptions use English for open-source readiness.
 """
 
-from typing import List, Optional, Any, Dict
-from pydantic import BaseModel, Field
+from typing import Any, Dict, List, Optional
 from datetime import datetime
+from pydantic import BaseModel, Field
 from typing import Literal
 
+
 # ==============================================================================
-# Graph Control & Audit Models
+# 图控制与审计 — 路由信号与可观测性
 # ==============================================================================
+
 
 class RouteMetadata(BaseModel):
+    """控制面路由指令，仅由 Manager 写入。
+
+    is_error 已废弃，Manager 重构后将移除。下游节点和条件边均不读取此字段。
     """
-    用于控制图流转的元数据 (Control Plane)
-    权限控制：仅允许 Manager (作为 Router) 进行修改。
-    """
-    next_node: str = Field(..., description="下一跳节点名称")
-    reason: str = Field(..., description="流转决策的原因/依据")
-    is_error: bool = Field(default=False, description="是否发生了需要特殊处理的异常")
+    next_node: str = Field(..., description="Target node name for the next hop")
+    reason: str = Field(..., description="Rationale behind the routing decision")
+    is_error: bool = Field(default=False, description="[DEPRECATED] Always False, never checked")
+
 
 class ExecutionSigns(BaseModel):
+    """跨节点信号面 — 各业务节点设置的布尔标记。
+
+    is_loop_exit 由 Hash 节点在子图退出时设置；目前已预留，尚未被条件边消费。
     """
-    统一信号面板 (Signal Plane)
-    用于存放各业务节点产生的、影响流转逻辑的状态位。
-    """
-    is_safe: bool = Field(default=True, description="Gateway 查验结果：是否放行")
-    is_core_complete: bool = Field(default=False, description="Analyst 审计结果：核心信息是否完整")
-    is_loop_exit: bool = Field(default=False, description="Critic 审计结果：是否跳出研究循环")
+    is_safe: bool = Field(default=True, description="Gateway: input passed safety check")
+    is_core_complete: bool = Field(default=False, description="Analyst: core profile fields sufficient")
+    is_loop_exit: bool = Field(default=False, description="Hash: research loop exited cleanly")
+
 
 class TraceLog(BaseModel):
-    """节点执行的详细审计记录 (Observability)"""
-    node: str = Field(..., description="节点名称")
-    status: str = Field(..., description="执行状态: SUCCESS, FAIL, REJECTED, SKIPPED")
-    detail: Dict[str, Any] = Field(default_factory=dict, description="节点执行的关键详情摘要")
-    latency_ms: int = Field(default=0, description="代码+LLM调用总耗时(ms)")
-    token_usage: Dict[str, int] = Field(default_factory=dict, description="Token消耗情况")
-    timestamp: str = Field(default_factory=lambda: datetime.now().isoformat(), description="运行完成的时间戳")
+    """单节点执行审计记录（可观测性）。"""
+    node: str = Field(..., description="Node name")
+    status: str = Field(..., description="Execution status: SUCCESS / FAIL / REJECTED / SKIPPED")
+    detail: Dict[str, Any] = Field(default_factory=dict, description="Key execution details")
+    latency_ms: int = Field(default=0, description="Total wall time including LLM call (ms)")
+    token_usage: Dict[str, int] = Field(default_factory=dict, description="Token usage breakdown")
+    timestamp: str = Field(
+        default_factory=lambda: datetime.now().isoformat(),
+        description="ISO 8601 completion timestamp"
+    )
+
 
 # ==============================================================================
-# Business Data Models
+# 业务领域 — 结构化用户画像与搜索任务定义
 # ==============================================================================
+
 
 class UserProfile(BaseModel):
-    """结构化的用户旅行偏好与约束 (Business Context)"""
-    destination: List[str] = Field(default_factory=list, description="目的地列表")
-    days: Optional[int] = Field(None, description="旅行天数")
-    date: Optional[List[str]] = Field(None, description="日期范围 [开始, 结束]")
-    people_count: Optional[int] = Field(1, description="出行人数")
-    budget_limit: Optional[int] = Field(0, description="总预算上限")
-    
-    accommodation: Optional[str] = Field(None, description="住宿偏好")
-    dining: Optional[str] = Field(None, description="餐饮禁忌或偏好")
-    transportation: Optional[str] = Field(None, description="交通工具偏好")
-    pace: Optional[str] = Field(None, description="旅行节奏 (如: 休闲, 特种兵)")
+    """Analyst 提取的结构化旅行偏好与约束。"""
+    destination: List[str] = Field(default_factory=list, description="Destination names")
+    days: Optional[int] = Field(None, description="Trip duration in days")
+    date: Optional[List[str]] = Field(None, description="Date range [start, end]")
+    people_count: Optional[int] = Field(1, description="Number of travellers")
+    budget_limit: Optional[int] = Field(0, description="Total budget upper bound")
 
-    Flex: Optional[Dict[str, Any]] = Field(default_factory=dict, description="灵活字段，用于存储额外的用户信息或偏好，一些用户明显提及并，且没有被字段规定的信息")
+    # 软偏好
+    accommodation: Optional[str] = Field(None, description="Accommodation style preference")
+    dining: Optional[str] = Field(None, description="Dietary restrictions or cuisine preference")
+    transportation: Optional[str] = Field(None, description="Transport mode preference")
+    pace: Optional[str] = Field(None, description="Trip pace: relaxed / balanced / packed")
+
+    # 无法归入固定字段的信号溢出袋
+    # 例如: {"quiet_destination_preference": "人少", "near_sea": True}
+    Flex: Optional[Dict[str, Any]] = Field(
+        default_factory=dict,
+        description="Overflow for unstructured preferences not covered by named fields"
+    )
+
+    # ------------------------------------------------------------------
+    # Core-UserProfile 完备性审计
+    # ------------------------------------------------------------------
 
     def check_completeness(self) -> tuple[bool, List[str]]:
-        """
-        判断字段填写情况。
-        返回: (是否满足开启搜索的核心条件, 仍缺失的所有字段列表)
-        核心字段(用于控制流转): destination, days/date, people_count, budget_limit
-        所有字段(用于传输给 Reply): UserProfile 类定义的所有字段
-        """
-        # 1. 核心字段校验 (决定是否唤醒 Manager)
-        core_missing = []
-        if not self.destination: core_missing.append("destination")
-        if not (self.days ): core_missing.append("days")
-        if not (self.date): core_missing.append("date")
-        if not self.people_count: core_missing.append("people_count")
-        if self.budget_limit is None: core_missing.append("budget_limit")
-        
-        if len(core_missing) > 0:
-            is_core_complete = False
-        else:
-            is_core_complete = True
+        """审计画像完备性。
 
-        # 2. 扫描所有字段 (用于 Reply 引导)
-        all_missing = []
-        # 获取 UserProfile 定义的所有字段名 (排除 Flex 和方法)
+        返回:
+            (is_core_complete, all_missing_fields)
+
+        核心字段决定是否可启动调研:
+            destination, days/date, people_count, budget_limit。
+        完整缺失字段列表供 Reply 节点引导用户补充信息。
+        """
+        # 1. 核心字段 — 决定是否可启动调研
+        core_missing: List[str] = []
+        if not self.destination:
+            core_missing.append("destination")
+        if not self.days and not self.date:
+            core_missing.append("days_or_date")
+        if not self.people_count:
+            core_missing.append("people_count")
+        if self.budget_limit is None:
+            core_missing.append("budget_limit")
+
+        is_core_complete = len(core_missing) == 0
+
+        # 2. 全部字段 — 供 Reply 节点引导追问
+        all_missing: List[str] = []
         for field_name in self.model_fields.keys():
-            if field_name == "Flex": continue
+            if field_name == "Flex":
+                continue
             val = getattr(self, field_name)
             if val is None or val == "" or val == [] or val == 0:
                 all_missing.append(field_name)
-                
+
         return is_core_complete, all_missing
 
-class RetrievalMetadata(BaseModel):
-    """外部存储数据的索引模型"""
-    hash_key: str = Field(..., description="异步 KV 库中的存储键 (Content Hash)")
-    source: str = Field(..., description="数据来源标题或链接")
-    relevance_score: float = Field(default=0.0, description="Critic 打出的相关性评分")
-    payload: Dict[str, Any] = Field(default_factory=dict, description="检索结果的完整数据载荷")
 
 class SearchTask(BaseModel):
-    """具体的搜索任务定义，支持动态参数"""
-    tool_name: str = Field(..., description="拟调用的工具名称（如 spatial_search, route_search）")
-    dimension: Literal["transportation", "accommodation", "dining", "attraction", "general", "weather", "policy"] = Field(..., description="搜索维度")
+    """QueryGenerator 发出的单条工具调用指令。"""
+    tool_name: str = Field(
+        ...,
+        description="Target tool: spatial_search / route_search"
+    )
+    dimension: Literal[
+        "transportation", "accommodation", "dining", "attraction",
+        "general", "weather", "policy"
+    ] = Field(..., description="Research dimension this task addresses")
     parameters: Dict[str, Any] = Field(
         default_factory=dict,
-        description="针对该工具的具体调用参数。spatial_search 需 center/radius_m/category/limit；route_search 需 origin/destination/mode"
+        description=("Tool-specific arguments. ")
     )
-    rationale: str = Field(..., description="生成该任务的原因，以及期望获取的信息点内容")
+    rationale: str = Field(..., description="Why this task was generated and what it should yield -- [ Later well be drop only works in DEBUG]")
 
-class QueryGeneratorOutput(BaseModel):
-    """Pydantic model for QueryGenerator node output"""
-    tasks: List[SearchTask] = Field(..., description="拆解后的多维度搜索任务列表")
-    research_strategy: str = Field(..., description="整体的研究策略描述。例如：'先通过通用搜索确定热门商圈，再针对性检索高评分民宿'。")
-    focus_areas: List[str] = Field(..., description="本次研究需要重点突破的信息盲区")
 
-class ResearchManifest(BaseModel):
-    """检索循环的状态看板 (Research Loop Context)"""
-    active_queries: List[SearchTask] = Field(default_factory=list, description="当前循环待执行的查询任务列表，由 QueryGenerator 节点生成")
-    verified_results: List[RetrievalMetadata] = Field(default_factory=list, description="已通过 Critic 验证的结果索引")
-    feedback_history: List[str] = Field(default_factory=list, description="Critic 给出的打回反馈原因Log")
-    research_history: List[str] = Field(default_factory=list, description="每轮研究的 user_request 记录，用于 Manager 判断已有结果是否属于当前诉求轮次")
+class RetrievalMetadata(BaseModel):
+    """工具 handler 返回的原始检索结果信封。
 
-# ==============================================================================
-# ManagerOutput Output Schema
-# ==============================================================================
+    Search 节点读取 payload 字段后包裹为 ResearchResult 送入 Critic，
+    不再直接暴露给父图。hash_key 仅用于工具内部追踪。
+    """
+    hash_key: str = Field(..., description="Content-addressable key for KV store lookup")
+    source: str = Field(..., description="Data source label or URL")
+    relevance_score: float = Field(default=0.0, description="Critic-assigned relevance score")
+    payload: Dict[str, Any] = Field(default_factory=dict, description="Full result payload")
 
-class ManagerOutput(BaseModel):
-    """Manager 节点的结构化输出，用于控制全局路由"""
-    next_stage: Literal["query_generator", "recommender", "planner", "reply"] = Field(
-        ...,
-        description="下一阶段的路由目标。query_generator: 启动/继续搜索; recommender: 进行项目推荐; planner: 生成最终计划; reply: 直接回复用户"
-    )
-    rationale: str = Field(..., description="做出此路由决策的详细逻辑依据")
-    priority_notes: Optional[str] = Field(None, description="下一阶段节点的执行重点")
 
 # ==============================================================================
-# GatewayOutput Output Schema
+# LLM 输出 Schema — 每个 LLM 驱动节点的 JSON 解析契约
 # ==============================================================================
+
 
 class GatewayOutput(BaseModel):
-    """Pydantic model for strict LLM output validation"""
-    is_valid: bool = Field(description="是否是一个有效且合规的指令")
-    category: Literal["legal", "malicious", "chitchat"] = Field(description="请求的具体分类")
-    reason: str = Field(description="做出此判断的简短理由或摘要")
-    reply: str = Field(default="", description="如果无效时的回复语；如果合法且涉及PII，此字段应包含脱敏后的文本（若定义要求覆盖输入），否则保持为空。")
-    sanitized_text: Optional[str] = Field(default=None, description="如果检测到 PII 信息，请返回脱敏后的用户输入文本；若无敏感信息，保持为 None。")
+    """Gateway 节点结构化输出。"""
+    is_valid: bool = Field(..., description="Whether the input is valid and compliant")
+    category: Literal["legal", "malicious", "chitchat"] = Field(
+        ..., description="Intent classification"
+    )
+    reason: str = Field(..., description="Brief rationale for the classification")
+    reply: str = Field(
+        default="",
+        description="Rejection reply when invalid; PII-sanitised text when legal with sensitive info"
+    )
+    sanitized_text: Optional[str] = Field(
+        default=None,
+        description="PII-sanitised user input; None if no PII detected"
+    )
 
-# ==============================================================================
-# AnalystOutput Output Schema
-# ==============================================================================
 
 class AnalystOutput(BaseModel):
-    """Pydantic model for Analyst node output"""
-    updated_profile: UserProfile = Field(..., description="经过合并与更新后的完整 UserProfile 对象")
-    missing_fields: List[str] = Field(default_factory=list, description="UserProfile中仍缺失的字段列表")
-    user_request: str = Field(..., description="基于对话历史总结的当前任务核心诉求。例如：'用户想知道5月份去大理有哪些小众景点'。此字段将作为后续 Planner 节点的直接输入。")
-    reason: str = Field(description="本次提取与合并逻辑的简要说明")
+    """Analyst 节点结构化输出。"""
+    updated_profile: UserProfile = Field(
+        ..., description="Merged and updated UserProfile after this round"
+    )
+    missing_fields: List[str] = Field(
+        default_factory=list, description="Fields still missing from UserProfile"
+    )
+    user_request: str = Field(
+        ...,
+        description="Summarised core intent derived from conversation, e.g. 'User wants小众 spots in Dali in May'"
+    )
+    reason: str = Field(..., description="Brief explanation of extraction and merge logic")
+
+
+class ManagerOutput(BaseModel):
+    """Manager 节点结构化输出 — 控制全局路由。"""
+    next_stage: Literal["research_loop", "recommender", "planner", "reply"] = Field(
+        ...,
+        description=(
+            "Next routing target. research_loop: execute research subgraph (QG→Search→Critic⇄QG|Hash); "
+            "recommender: recommend items; planner: generate itinerary; reply: respond to user"
+        )
+    )
+    rationale: str = Field(..., description="Detailed logic behind this routing decision")
+
+
+class QueryGeneratorOutput(BaseModel):
+    """QueryGenerator 节点结构化输出。"""
+    tasks: List[SearchTask] = Field(..., description="Decomposed multi-dimension search task list")
+    research_strategy: str = Field(
+        ...,
+        description="Overall research strategy narrative, e.g. '先通过通用搜索确定热门商圈，再针对性检索高评分民宿'"
+    )
+
 
 # ==============================================================================
-# QueryGenerator Output Schema (continued from above)
+# Research Loop 模型 — 子图内部通信
 # ==============================================================================
-# SearchTask, QueryGeneratorOutput are defined earlier
 
+
+class ResearchResult(BaseModel):
+    """统一信封，包裹每条工具结果后送入 Critic。
+
+    不同工具返回异构形状（POI JSON、网页文本、爬虫输出），此信封将其归一化，
+    使得 Critic 和 Hash 仅依赖本契约，不依赖具体工具的 schema。
+    """
+    tool_name: str = Field(..., description="Tool that produced this result")
+    query: str = Field(..., description="Original query text or serialised parameters")
+    content_type: Literal["json", "text", "html", "url_list"] = Field(
+        ..., description="Shape of the content field"
+    )
+    content: Any = Field(..., description="Full original result (shape governed by content_type)")
+    content_summary: str = Field(
+        ...,
+        description="Short summary (≤500 chars) for Critic LLM scoring; avoids token blow-up on long text"
+    )
+    timestamp: str = Field(
+        default_factory=lambda: datetime.now().isoformat(),
+        description="ISO 8601 creation time"
+    )
+
+
+class CriticResult(BaseModel):
+    """Critic Layer 2 (LLM) 在 Layer 1 (黑名单) 通后产出的单条评估结过果。"""
+    query: str = Field(..., description="Query text this evaluation corresponds to")
+    safety_tag: Literal["safe", "unsafe"] = Field(
+        ..., description="Content safety verdict"
+    )
+    relevance_score: float = Field(
+        ..., ge=0, le=100, description="How well the result answers the query"
+    )
+    utility_score: float = Field(
+        ..., ge=0, le=100, description="How actionable the result is for travel planning"
+    )
+    rationale: str = Field(..., description="Scoring rationale in natural language")
+
+
+class LoopSummary(BaseModel):
+    """单轮 Research Loop 迭代的聚合统计。"""
+    pass_count: int = Field(..., description="Number of results passing all three filter layers")
+    total_count: int = Field(..., description="Total results evaluated this iteration")
+    avg_relevance: float = Field(..., description="Mean relevance score across passed results")
+    avg_utility: float = Field(..., description="Mean utility score across passed results")
+    dimensions_covered: List[str] = Field(
+        default_factory=list,
+        description="Research dimensions covered by passed results"
+    )
+
+
+class ResearchLoopInternal(BaseModel):
+    """子图私有状态。仅 Research Loop 节点读写这些字段。
+
+    嵌套在 ResearchManifest.loop_state 中，父图只看到一个 key。
+    外部节点（Manager、Reply、Recommender、Planner）严禁直接读写。
+    """
+    # --- QueryGenerator 输出（QG 写入，Search 读取并清空）---
+    active_queries: List[SearchTask] = Field(
+        default_factory=list,
+        description="Search tasks generated by QG; Search node consumes then clears them"
+    )
+
+    # --- Search 输出（Search 写入，Critic 读取）---
+    query_results: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="{{query_text: ResearchResult}} key-value pairs from the current iteration"
+    )
+
+    # --- Critic 输出（Critic 写入，Hash 和下一轮 QG 读取）---
+    passed_results: List[CriticResult] = Field(
+        default_factory=list, description="Results passing this iteration's filter"
+    )
+    all_passed_results: List[CriticResult] = Field(
+        default_factory=list, description="Cumulative passed results across all iterations"
+    )
+    passed_queries: List[str] = Field(
+        default_factory=list,
+        description="Query texts that have already passed; QG must deduplicate against these"
+    )
+    feedback: Optional[str] = Field(
+        default=None, description="Critic feedback for the next QueryGenerator iteration"
+    )
+    continue_loop: bool = Field(
+        default=True, description="Critic decision: should the loop keep iterating?"
+    )
+    loop_iteration: int = Field(default=0, description="Current loop iteration count (0-indexed)")
+    loop_summary: Optional[LoopSummary] = Field(
+        default=None, description="Aggregated stats for the most recent iteration"
+    )
+
+
+# ==============================================================================
+# Research Manifest — 父图可见的研究状态视图
+# ==============================================================================
+
+
+class ResearchManifest(BaseModel):
+    """存储在 TravelState.research_data 中的顶层研究状态模型。
+
+    外部契约（Manager、Reply、Recommender、Planner 读取）:
+        research_hashes  — {query: [hash_key, ...]} 映射
+        research_history — 有序的 user_request 字符串列表
+
+    内部契约（仅 Research Loop 子图节点读写）:
+        loop_state       — ResearchLoopInternal（详见该类，含 active_queries 等子图私有字段）
+    """
+    research_hashes: Dict[str, List[str]] = Field(
+        default_factory=dict,
+        description="{{query_text: [hash_key, ...]}} — minimal global-state exposure"
+    )
+    loop_state: ResearchLoopInternal = Field(
+        default_factory=ResearchLoopInternal,
+        description="Subgraph-private state; external nodes must NOT touch"
+    )
+    research_history: List[str] = Field(
+        default_factory=list,
+        description="Ordered list of user_request strings; Manager uses last entry for freshness checks"
+    )
