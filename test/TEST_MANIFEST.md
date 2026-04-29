@@ -9,12 +9,13 @@
 | `src/database/postgis/connection.py` | `test/unit/database/postgis/test_connection.py` | 2 | 2 | 1 | 5 |
 | `src/database/retrieval_db.py` | `test/unit/database/postgis/test_retrieval_db.py` | 3 | 3 | 2 | 8 |
 | `src/agent/nodes/search/tools.py` | `test/unit/agent/nodes/search/test_tools.py` | 5 | 9 | 2 | 16 |
-| `src/agent/nodes/search/node.py` | `test/unit/agent/nodes/search/test_node.py` | 8 | 4 | 0 | 12 |
+| `src/agent/nodes/search/node.py` | `test/unit/agent/nodes/search/test_search_node.py` | 8 | 4 | 0 | 12 |
+| `src/agent/nodes/query_generator/node.py` | `test/unit/agent/nodes/query_generator/test_query_generator.py` | 6 | 3 | 0 | 9 |
 | `src/agent/nodes/research/critic.py` | `test/unit/agent/nodes/research/test_critic.py` | 9 | 7 | 2 | 18 |
 | `src/agent/nodes/research/hash.py` | `test/unit/agent/nodes/research/test_hash.py` | 5 | 3 | 1 | 9 |
 | `src/agent/graph.py` | `test/unit/agent/test_graph_routing.py` | 4 | 0 | 0 | 4 |
 | `src/agent/nodes/search/tools.py` | `test/integration/test_spatial_tools.py` | 4 | 0 | 0 | 4 |
-| **Total** | | **41** | **30** | **8** | **79** |
+| **Total** | | **47** | **33** | **8** | **88** |
 
 ## P0 — Blocker Items
 
@@ -61,6 +62,12 @@
 | 39 | `test_search_node_missing_research_data` — 空状态跳过 | search_node 缺少 research_data 时必须优雅跳过 |
 | 40 | `test_search_node_empty_active_queries` — 空任务跳过 | 无活跃查询时正常返回 |
 | 41 | `test_search_node_writes_to_loop_state` — loop_state 写入 | 结果写入 loop_state.query_results 是整个 Research Loop 的数据入口 |
+| 42 | `test_qg_injects_feedback_into_prompt` — Critic 反馈注入 | QueryGenerator 忽略反馈将导致 Research Loop 迭代无改进 |
+| 43 | `test_qg_injects_passed_queries_into_prompt` — 去重查询注入 | 已通过查询未去重将导致重复搜索浪费资源 |
+| 44 | `test_qg_preserves_loop_state` — model_copy 保留 loop_state | 重建 ResearchManifest 会丢弃 feedback/passed_queries，导致迭代环路断裂 |
+| 45 | `test_qg_preserves_research_hashes` — 保留 research_hashes | research_hashes 丢失将导致 Hash 节点持久化映射被清空 |
+| 46 | `test_qg_appends_research_history` — 追加调研历史 | history 错误将影响后续 LLM 节点上下文质量 |
+| 47 | `test_qg_creates_manifest_when_none` — 无数据时创建 | 首轮调研无 ResearchManifest 时必须正确初始化 |
 
 ## P1 — Critical Items
 
@@ -96,6 +103,9 @@
 | 28 | `test_generate_summary_fallback_json` | Search Node |
 | 29 | `test_execute_tasks_unsupported_tool` | Search Node |
 | 30 | `test_search_node_preserves_existing_loop_state` | Search Node |
+| 31 | `test_qg_empty_feedback_and_passed_queries` | QueryGenerator Node |
+| 32 | `test_qg_llm_error_graceful` | QueryGenerator Node |
+| 33 | `test_qg_content_list_merge` | QueryGenerator Node |
 
 ## P2 — Edge Case Items
 
@@ -119,3 +129,4 @@
 5. **连接池事件循环校验**: `get_pool()` 在返回缓存池前校验 `_pool_loop is current_loop`。容器环境（uvicorn worker 回收/K8s 健康检查重启）中事件循环可能被替换，复用旧池将导致 `RuntimeError: Task got Future attached to a different loop`。`test_get_pool_recreates_on_loop_mismatch` 覆盖此场景。注意：测试中路由函数是 graph.py 闭包逻辑的副本，真实图编译需 async 环境。
 6. **Retrieval DB 表缺失**: `retrieval_results` 表由 `init_retrieval_db()` 在应用启动时创建。若未调用或 DDL 执行失败，Hash 节点的 `batch_store_results` 将抛出 PostgreSQL 错误，整个 Research Loop 持久化链路断裂。`test_init_retrieval_db_executes_ddl` 验证 DDL 正确性。
 7. **Critic 三层过滤失效**: Layer 1 黑名单若加载失败或匹配逻辑错误，不安全内容将进入 LLM 评分环节。Layer 3 阈值若设置不当（过高或过低），将导致有效结果被丢弃或无效结果通过。`test_critic_node_full_pipeline` 覆盖端到端过滤链路。当前测试中 Layer 2 LLM 调用已 mock，真实 LLM 行为需在集成测试中验证。
+8. **ResearchManifest 重建丢失 loop_state**: QueryGenerator 旧代码使用 `ResearchManifest(...)` 新建实例，导致 `loop_state`（feedback、passed_queries、all_passed_results）和 `research_hashes` 被清空。这意味着 Research Loop 多轮迭代中 Critic 反馈和去重信息全部丢失，循环无法正确收敛。已修复为 `model_copy(update=...)` 并在 `test_qg_preserves_loop_state` / `test_qg_preserves_research_hashes` 中守护。

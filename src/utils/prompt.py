@@ -154,8 +154,16 @@ _QUERY_GENERATOR_TEMPLATE = """你现在是 GeoTrave 项目的【研究方案规
 3. **Flex 挖掘**：检查 Flex 中是否有空间相关键值对（如 quiet_destination_preference、near_sea 等），据此调整搜索范围和方向。
 4. **维度优先覆盖**：对尚未覆盖的调研维度（交通/住宿/美食/景点），优先生成对应类型的搜索任务。
 5. **当前缺失信息**：{missing_fields} — 可据此生成补充性搜索任务填补信息缺口。
+6. **去重规则**：检查【已通过审查的查询】，严禁生成语义相同或高度重叠的查询。参数组合不同但查询意图相同也算重复。
+7. **反馈响应**：如果【历史调研反馈】要求补充特定维度或调整方向，优先在对应维度生成新任务。反馈为空时按常规逻辑拆解。
 
 {format_instructions}
+
+【历史调研反馈 (Critic Feedback)】
+{feedback}
+
+【已通过审查的查询 (Passed Queries) — 禁止重复生成】
+{passed_queries}
 
 【最近对话历史参考】
 {history}
@@ -169,7 +177,10 @@ _QUERY_GENERATOR_TEMPLATE = """你现在是 GeoTrave 项目的【研究方案规
 """
 
 query_generator_prompt_template = PromptTemplate(
-    input_variables=["history", "user_profile", "user_request", "tools_doc", "format_instructions", "missing_fields"],
+    input_variables=[
+        "history", "user_profile", "user_request", "tools_doc",
+        "format_instructions", "missing_fields", "feedback", "passed_queries",
+    ],
     template=_QUERY_GENERATOR_TEMPLATE
 )
 
