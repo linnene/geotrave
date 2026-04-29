@@ -107,7 +107,10 @@ async def get_travel_app():
                 ('src.agent.state.schema', 'ResearchManifest'),
                 ('src.agent.state.schema', 'ExecutionSigns'),
                 ('src.agent.state.schema', 'SearchTask'),
-                ('src.agent.state.schema', 'RetrievalMetadata'),
+                ('src.agent.state.schema', 'ResearchLoopInternal'),
+                ('src.agent.state.schema', 'ResearchResult'),
+                ('src.agent.state.schema', 'CriticResult'),
+                ('src.agent.state.schema', 'LoopSummary'),
             ]
         )
         checkpointer.serde = serializer

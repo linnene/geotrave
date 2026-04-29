@@ -3,6 +3,7 @@ import json
 from typing import Dict, Any
 
 from src.agent.state import TravelState, QueryGeneratorOutput, ResearchManifest
+from src.agent.state.schema import ResearchLoopInternal
 from src.utils.llm_factory import LLMFactory
 from src.utils.prompt import query_generator_prompt_template
 from src.utils.logger import get_logger
@@ -83,21 +84,23 @@ async def query_generator_node(state: TravelState) -> Dict[str, Any]:
         parsed_json = json.loads(content)
         result = QueryGeneratorOutput(**parsed_json)
 
-        # 5. Update ResearchManifest — 使用 model_copy 保留 loop_state / research_hashes
+        # 5. Update ResearchManifest — 将 tasks 写入 loop_state.active_queries
         old_history = research_data.research_history if research_data else []
         current_request = state.get("user_request", "")
 
         if research_data:
             new_research_data = research_data.model_copy(
                 update={
-                    "active_queries": result.tasks,
                     "research_history": old_history + [current_request],
+                    "loop_state": research_data.loop_state.model_copy(
+                        update={"active_queries": result.tasks}
+                    ),
                 }
             )
         else:
             new_research_data = ResearchManifest(
-                active_queries=result.tasks,
                 research_history=[current_request],
+                loop_state=ResearchLoopInternal(active_queries=result.tasks),
             )
 
         trace = build_trace(
