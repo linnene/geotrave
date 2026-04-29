@@ -39,7 +39,7 @@ def test_parse_lnglat_valid():
     Priority: P0
     Description: Valid 'lng,lat' string returns (lng, lat) float tuple.
     """
-    from src.agent.nodes.search.tools import _parse_lnglat
+    from src.agent.nodes.research.search.tools import _parse_lnglat
 
     lng, lat = _parse_lnglat("141.35, 43.07")
     assert lng == 141.35, f"经度应为 141.35，实际: {lng}"
@@ -52,7 +52,7 @@ def test_parse_lnglat_no_spaces():
     Priority: P0
     Description: Parsing works without spaces around comma.
     """
-    from src.agent.nodes.search.tools import _parse_lnglat
+    from src.agent.nodes.research.search.tools import _parse_lnglat
 
     lng, lat = _parse_lnglat("139.76,35.68")
     assert lng == 139.76, f"经度应为 139.76，实际: {lng}"
@@ -65,7 +65,7 @@ def test_parse_lnglat_invalid_format():
     Priority: P1
     Description: Invalid coordinate string raises ValueError.
     """
-    from src.agent.nodes.search.tools import _parse_lnglat
+    from src.agent.nodes.research.search.tools import _parse_lnglat
 
     invalid_inputs = ["141.35", "141.35,", "a,b"]
     for val in invalid_inputs:
@@ -87,7 +87,7 @@ def test_tool_metadata_populated():
     Description: TOOL_METADATA is populated after module import with exactly
     spatial_search and route_search entries.
     """
-    import src.agent.nodes.search.tools as t
+    import src.agent.nodes.research.search.tools as t
 
     assert len(t.TOOL_METADATA) >= 2, (
         f"TOOL_METADATA 至少应有 2 条，实际: {len(t.TOOL_METADATA)}"
@@ -104,7 +104,7 @@ def test_tool_metadata_structure():
     Description: Every TOOL_METADATA entry has name, description, parameters keys
     with correct types.
     """
-    import src.agent.nodes.search.tools as t
+    import src.agent.nodes.research.search.tools as t
 
     for entry in t.TOOL_METADATA:
         assert isinstance(entry["name"], str), (
@@ -128,7 +128,7 @@ def test_tool_dispatch_matches_metadata():
     Description: Every tool in TOOL_METADATA has a corresponding async handler
     in TOOL_DISPATCH, and there are no orphan dispatch entries.
     """
-    import src.agent.nodes.search.tools as t
+    import src.agent.nodes.research.search.tools as t
 
     meta_names = {e["name"] for e in t.TOOL_METADATA}
     dispatch_names = set(t.TOOL_DISPATCH.keys())
@@ -157,7 +157,7 @@ async def test_resolve_location_coords():
     Priority: P1
     Description: _resolve_location returns coordinates directly when given 'lng,lat'.
     """
-    from src.agent.nodes.search.tools import _resolve_location
+    from src.agent.nodes.research.search.tools import _resolve_location
 
     lng, lat = await _resolve_location("141.35, 43.07")
     assert lng == 141.35, f"经度应为 141.35，实际: {lng}"
@@ -171,7 +171,7 @@ async def test_geocode_by_name():
     Priority: P1
     Description: _resolve_location falls back to _geocode for place names.
     """
-    from src.agent.nodes.search.tools import _resolve_location
+    from src.agent.nodes.research.search.tools import _resolve_location
 
     mock_row = MagicMock()
     mock_row.__getitem__ = lambda self, k: {"lng": 141.35, "lat": 43.07}[k]
@@ -182,7 +182,7 @@ async def test_geocode_by_name():
     mock_ctx.__aenter__.return_value = mock_conn
     mock_pool.acquire = MagicMock(return_value=mock_ctx)
 
-    with patch("src.agent.nodes.search.tools.get_pool", new=AsyncMock(return_value=mock_pool)):
+    with patch("src.agent.nodes.research.search.tools.get_pool", new=AsyncMock(return_value=mock_pool)):
         lng, lat = await _resolve_location("札幌站")
 
     assert lng == 141.35, f"经度应为 141.35，实际: {lng}"
@@ -198,7 +198,7 @@ async def test_geocode_truncation():
     when exact and fuzzy match fail. E.g. "札幌駅大通" → "札幌駅大" → "札幌駅"
     matches station named "札幌" after two truncation steps.
     """
-    from src.agent.nodes.search.tools import _resolve_location
+    from src.agent.nodes.research.search.tools import _resolve_location
 
     mock_pool = _mock_pool(fetch_rows=[], fetchval_values=None)
     mock_conn = AsyncMock()
@@ -212,7 +212,7 @@ async def test_geocode_truncation():
     mock_ctx.__aenter__.return_value = mock_conn
     mock_pool.acquire = MagicMock(return_value=mock_ctx)
 
-    with patch("src.agent.nodes.search.tools.get_pool", new=AsyncMock(return_value=mock_pool)):
+    with patch("src.agent.nodes.research.search.tools.get_pool", new=AsyncMock(return_value=mock_pool)):
         lng, lat = await _resolve_location("札幌駅大通")
 
     assert lng == 141.3509, f"经度应为 141.3509，实际: {lng}"
@@ -226,7 +226,7 @@ async def test_geocode_not_found():
     Priority: P2
     Description: _geocode raises ValueError when place name not found.
     """
-    from src.agent.nodes.search.tools import _resolve_location
+    from src.agent.nodes.research.search.tools import _resolve_location
 
     mock_pool = _mock_pool(fetch_rows=[], fetchval_values=None)
     mock_conn = AsyncMock()
@@ -235,7 +235,7 @@ async def test_geocode_not_found():
     mock_ctx.__aenter__.return_value = mock_conn
     mock_pool.acquire = MagicMock(return_value=mock_ctx)
 
-    with patch("src.agent.nodes.search.tools.get_pool", new=AsyncMock(return_value=mock_pool)):
+    with patch("src.agent.nodes.research.search.tools.get_pool", new=AsyncMock(return_value=mock_pool)):
         with pytest.raises(ValueError, match="无法找到地点"):
             await _resolve_location("不存在的奇怪地名XYZ123")
 
@@ -251,7 +251,7 @@ async def test_spatial_search_returns_pois():
     Priority: P1
     Description: spatial_search queries DB and returns POI results in payload.
     """
-    from src.agent.nodes.search.tools import execute_spatial_search
+    from src.agent.nodes.research.search.tools import execute_spatial_search
 
     mock_row = MagicMock()
     mock_row.__getitem__ = lambda self, k: {
@@ -268,8 +268,8 @@ async def test_spatial_search_returns_pois():
         rationale="test",
     )
 
-    with patch("src.agent.nodes.search.tools._resolve_location", new=AsyncMock(return_value=(141.35, 43.07))), \
-         patch("src.agent.nodes.search.tools.get_pool", new=AsyncMock(return_value=mock_pool)):
+    with patch("src.agent.nodes.research.search.tools._resolve_location", new=AsyncMock(return_value=(141.35, 43.07))), \
+         patch("src.agent.nodes.research.search.tools.get_pool", new=AsyncMock(return_value=mock_pool)):
         result = await execute_spatial_search(task)
 
     assert isinstance(result, RetrievalMetadata), (
@@ -293,7 +293,7 @@ async def test_spatial_search_empty_result():
     Priority: P2
     Description: spatial_search handles empty result set gracefully.
     """
-    from src.agent.nodes.search.tools import execute_spatial_search
+    from src.agent.nodes.research.search.tools import execute_spatial_search
 
     mock_pool = _mock_pool(fetch_rows=[])
 
@@ -304,8 +304,8 @@ async def test_spatial_search_empty_result():
         rationale="test",
     )
 
-    with patch("src.agent.nodes.search.tools._resolve_location", new=AsyncMock(return_value=(0.0, 0.0))), \
-         patch("src.agent.nodes.search.tools.get_pool", new=AsyncMock(return_value=mock_pool)):
+    with patch("src.agent.nodes.research.search.tools._resolve_location", new=AsyncMock(return_value=(0.0, 0.0))), \
+         patch("src.agent.nodes.research.search.tools.get_pool", new=AsyncMock(return_value=mock_pool)):
         result = await execute_spatial_search(task)
 
     assert result.payload["total"] == 0, (
@@ -327,7 +327,7 @@ async def test_route_search_shortest_path():
     Priority: P1
     Description: route_search shortest mode returns distance and walk time.
     """
-    from src.agent.nodes.search.tools import execute_route_search
+    from src.agent.nodes.research.search.tools import execute_route_search
 
     edge_rows = [
         {"cost": 120.0, "agg_cost": 0},
@@ -346,8 +346,8 @@ async def test_route_search_shortest_path():
         rationale="test",
     )
 
-    with patch("src.agent.nodes.search.tools._resolve_location", new=AsyncMock(side_effect=[(141.35, 43.07), (141.36, 43.08)])), \
-         patch("src.agent.nodes.search.tools.get_pool", new=AsyncMock(return_value=mock_pool)):
+    with patch("src.agent.nodes.research.search.tools._resolve_location", new=AsyncMock(side_effect=[(141.35, 43.07), (141.36, 43.08)])), \
+         patch("src.agent.nodes.research.search.tools.get_pool", new=AsyncMock(return_value=mock_pool)):
         result = await execute_route_search(task)
 
     assert result.payload["mode"] == "shortest", (
@@ -368,7 +368,7 @@ async def test_route_search_isochrone():
     Priority: P1
     Description: route_search isochrone mode returns reachable node count.
     """
-    from src.agent.nodes.search.tools import execute_route_search
+    from src.agent.nodes.research.search.tools import execute_route_search
 
     iso_rows = [
         {"agg_cost": 100.0},
@@ -388,8 +388,8 @@ async def test_route_search_isochrone():
         rationale="test",
     )
 
-    with patch("src.agent.nodes.search.tools._resolve_location", new=AsyncMock(return_value=(141.35, 43.07))), \
-         patch("src.agent.nodes.search.tools.get_pool", new=AsyncMock(return_value=mock_pool)):
+    with patch("src.agent.nodes.research.search.tools._resolve_location", new=AsyncMock(return_value=(141.35, 43.07))), \
+         patch("src.agent.nodes.research.search.tools.get_pool", new=AsyncMock(return_value=mock_pool)):
         result = await execute_route_search(task)
 
     assert result.payload["mode"] == "isochrone", (
@@ -410,7 +410,7 @@ async def test_route_search_invalid_mode():
     Priority: P1
     Description: Unsupported mode raises ValueError.
     """
-    from src.agent.nodes.search.tools import execute_route_search
+    from src.agent.nodes.research.search.tools import execute_route_search
 
     mock_pool = _mock_pool(fetch_rows=[], fetchval_values=[42])
 
@@ -424,8 +424,8 @@ async def test_route_search_invalid_mode():
         rationale="test",
     )
 
-    with patch("src.agent.nodes.search.tools._resolve_location", new=AsyncMock(return_value=(141.35, 43.07))), \
-         patch("src.agent.nodes.search.tools.get_pool", new=AsyncMock(return_value=mock_pool)):
+    with patch("src.agent.nodes.research.search.tools._resolve_location", new=AsyncMock(return_value=(141.35, 43.07))), \
+         patch("src.agent.nodes.research.search.tools.get_pool", new=AsyncMock(return_value=mock_pool)):
         with pytest.raises(ValueError, match="Unsupported route_search mode"):
             await execute_route_search(task)
 
@@ -437,7 +437,7 @@ async def test_route_search_shortest_missing_destination():
     Priority: P1
     Description: shortest mode without destination raises ValueError.
     """
-    from src.agent.nodes.search.tools import execute_route_search
+    from src.agent.nodes.research.search.tools import execute_route_search
 
     mock_pool = _mock_pool(fetch_rows=[], fetchval_values=[42])
 
@@ -448,7 +448,7 @@ async def test_route_search_shortest_missing_destination():
         rationale="test",
     )
 
-    with patch("src.agent.nodes.search.tools._resolve_location", new=AsyncMock(return_value=(141.35, 43.07))), \
-         patch("src.agent.nodes.search.tools.get_pool", new=AsyncMock(return_value=mock_pool)):
+    with patch("src.agent.nodes.research.search.tools._resolve_location", new=AsyncMock(return_value=(141.35, 43.07))), \
+         patch("src.agent.nodes.research.search.tools.get_pool", new=AsyncMock(return_value=mock_pool)):
         with pytest.raises(ValueError, match="Unsupported route_search mode"):
             await execute_route_search(task)
