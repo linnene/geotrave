@@ -29,7 +29,7 @@ def _generate_summary(payload: Dict[str, Any]) -> str:
     # POI 列表型
     pois = payload.get("pois")
     if pois and isinstance(pois, list):
-        names = [p.get("name", "?") for p in pois[:5]]
+        names = [p.get("name") or "?" for p in pois[:5]]
         summary = f"POI: {', '.join(names)}"
         if len(pois) > 5:
             summary += f" ... 共{len(pois)}条"
