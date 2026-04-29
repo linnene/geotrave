@@ -438,11 +438,559 @@ CREATE INDEX idx_research_cache_session ON research_cache(session_id);
 | `src/utils/prompt.py` | Critic prompt 模板 |
 | `test/unit/agent/nodes/research/` (新) | Critic 过滤测试、Hash 测试、子图流转测试 |
 
-### 5.7 验证
+### 5.7 实现计划 (分步)
 
-- [ ] 单元测试：Critic 三层过滤各层独立测试 (黑名单命中/Discard、LLM 评分 mock、代码过滤)
-- [ ] 单元测试：Hash 写入/查询 (mock DB)
-- [ ] 单元测试：循环退出条件 (max_loops、pass_count=0 保底)
-- [ ] 单元测试：passed_queries 去重逻辑
-- [ ] 集成测试：完整子图流转 (mock LLM + 真实 PostGIS)
-- [ ] 所有现有 32 测试无回归
+---
+
+#### Step 1 — Schema 层：新增子图模型 + 更新现有模型
+
+**目标**: 所有新增 Pydantic 模型和 TypedDict 定义到位，现有模型适配子图需求。
+
+**文件**: `src/agent/state/schema.py`, `src/agent/state/state.py`
+
+**具体改动**:
+
+1.1 新增 `ResearchResult` Pydantic model (统一结果 envelope)
+```python
+class ResearchResult(BaseModel):
+    tool_name: str
+    query: str
+    content_type: Literal["json", "text", "html", "url_list"]
+    content: Any
+    content_summary: str  # ≤500 chars
+    timestamp: str
+```
+
+1.2 新增 `CriticResult` Pydantic model
+```python
+class CriticResult(BaseModel):
+    query: str
+    safety_tag: Literal["safe", "unsafe"]
+    relevance_score: float  # 0-100
+    utility_score: float    # 0-100
+    rationale: str
+```
+
+1.3 新增 `LoopSummary` Pydantic model
+```python
+class LoopSummary(BaseModel):
+    pass_count: int
+    total_count: int
+    avg_relevance: float
+    avg_utility: float
+    dimensions_covered: List[str]
+```
+
+1.4 更新 `ResearchManifest` — 新增字段，废弃旧字段
+```python
+class ResearchManifest(BaseModel):
+    # 旧字段 (保留兼容，Research Loop 上线后 deprecated)
+    active_queries: List[SearchTask] = []
+    verified_results: List[RetrievalMetadata] = []
+    
+    # 新字段
+    research_hashes: Dict[str, List[str]] = {}   # {query: [hash_key, ...]}
+    
+    # 保留不变
+    feedback_history: List[str] = []
+    research_history: List[str] = []
+```
+
+1.5 新增 `ResearchLoopInternal` — 子图内部状态（嵌套在 ResearchManifest 中）
+```python
+class ResearchLoopInternal(BaseModel):
+    """Subgraph internal state. Only touched by Research Loop nodes."""
+    query_results: Dict[str, Any] = {}           # {query: ResearchResult}
+    passed_results: List[CriticResult] = []      # 当前轮通过
+    all_passed_results: List[CriticResult] = []  # 所有轮累积
+    passed_queries: List[str] = []               # 已通过 query (去重)
+    feedback: Optional[str] = None               # Critic → QG
+    continue_loop: bool = True
+    loop_iteration: int = 0
+    loop_summary: Optional[LoopSummary] = None
+```
+
+1.6 `ResearchManifest` 中嵌入 `ResearchLoopInternal`
+```python
+class ResearchManifest(BaseModel):
+    ...
+    loop_state: ResearchLoopInternal = Field(default_factory=ResearchLoopInternal)
+```
+
+1.7 更新 `RetrievalMetadata` — 兼容新 envelope
+- `hash_key` 字段保留，语义不变
+- `payload` 字段保留，内容改为 `ResearchResult.dict()`
+
+1.8 `ExecutionSigns` 中 `is_loop_exit` 字段已存在 (line 33)，无需改动，确认由 Hash 节点设置
+
+**产出**: 所有模型可被正确序列化，checkpointer 注册新模型
+
+---
+
+#### Step 2 — 基础设施：Retrieval DB + 黑名单 + Critic Prompt
+
+**目标**: Loop 依赖的外部资源到位。
+
+**文件**: `src/database/retrieval_db.py` (新), `src/agent/nodes/research/blacklist.yaml` (新), `src/utils/prompt.py`
+
+**具体改动**:
+
+2.1 创建 `src/database/retrieval_db.py`
+- `async def init_retrieval_db()` — 建表 (CREATE TABLE IF NOT EXISTS)
+- `async def store_result(hash_key, session_id, payload)` — 写入单条
+- `async def batch_store_results(results: List[dict], session_id)` — 批量写入
+- `async def get_results(hash_keys: List[str])` — 批量查询，返回 `List[dict]`
+- `async def cleanup_session(session_id)` — 对话结束后清理
+
+2.2 创建 `src/agent/nodes/research/blacklist.yaml`
+```yaml
+# 全语种内容安全黑名单
+keywords:
+  - "暴力"
+  - "色情"
+  - ... (中/日/英/韩常见违规词)
+```
+
+2.3 `src/utils/prompt.py` 新增 Critic prompt 模板
+```python
+_CRITIC_TEMPLATE = """你现在是 GeoTrave 检索质量评估员 (Critic)。
+对下面每条 {query: result_summary} 输出评价:
+
+1. safety_tag: "safe" 或 "unsafe"
+   - unsafe: 包含暴力、色情、仇恨、非法、政治敏感内容
+2. relevance_score (0-100): 结果与 query 的相关度
+3. utility_score (0-100): 结果对旅行规划的实用价值
+4. rationale: 评分理由
+
+评分标准:
+| 维度 | 90+ | 70-89 | 60-69 | <60 |
+| 相关性 | 精确匹配 | 大部分相关 | 间接相关 | 无关 |
+| 有效性 | 含地址/价格/时间 | 部分信息 | 泛泛介绍 | 无操作价值 |
+
+注意: 两维度低于 60 分的结果会被系统丢弃。
+
+另外输出:
+- continue_loop: bool — 是否需要补充搜索
+- feedback: str — 如需补充搜索，说明方向
+
+{format_instructions}
+
+待评估结果:
+{results_json}
+"""
+```
+
+**产出**: Retrieval DB 可读写，黑名单可加载，Critic prompt 可用
+
+---
+
+#### Step 3 — Critic 节点
+
+**目标**: 三层过滤管线 + 循环决策逻辑可独立运行和测试。
+
+**文件**: `src/agent/nodes/research/critic.py` (新), `src/agent/nodes/research/config.py` (新)
+
+**具体改动**:
+
+3.1 创建 `src/agent/nodes/research/config.py`
+```python
+PASS_COUNT_MIN = 3
+MAX_LOOPS = 3
+CRITIC_TEMPERATURE = 0.3  # 评分任务需低温度
+CRITIC_BATCH_SIZE = 5
+```
+
+3.2 创建 `src/agent/nodes/research/critic.py`
+
+核心函数:
+
+```python
+# Layer 1 — 黑名单过滤 (纯代码)
+def load_blacklist() -> List[str]:
+    """从 blacklist.yaml 加载关键词列表"""
+
+def blacklist_filter(results: Dict[str, ResearchResult], blacklist: List[str]) -> tuple[Dict, Dict]:
+    """返回 (passed, rejected)"""
+
+# Layer 2 — LLM 评分
+async def llm_score_batch(batch: Dict[str, ResearchResult], format_instructions: str) -> List[CriticResult]:
+    """每组 5 条打包发送 Critic LLM"""
+
+# Layer 3 — 代码过滤
+def code_filter(critic_results: List[CriticResult]) -> tuple[List[CriticResult], List[CriticResult]]:
+    """筛掉 unsafe 或 score<60，返回 (passed, rejected)"""
+
+# 循环决策
+def should_continue_loop(pass_count, pass_count_min, llm_continue_loop, loop_iter, max_loops) -> bool:
+    """混合判断逻辑"""
+
+# 聚合
+def aggregate_loop_summary(passed: List[CriticResult], total: int) -> LoopSummary:
+    """计算 pass_count, avg_relevance, avg_utility, dimensions"""
+
+# 主节点函数
+async def critic_node(state: TravelState) -> Dict[str, Any]:
+    """返回: { research_data: { loop_state: { passed_results, all_passed_results, feedback, continue_loop, loop_summary } }, trace_history: [...] }"""
+```
+
+3.3 Critic 主节点逻辑流程:
+```
+1. 读取 research_data.loop_state.query_results
+2. Layer 1: blacklist_filter() → discard unsafe, keep safe
+3. 将 safe results 按 5 条分批
+4. Layer 2: 每批调用 llm_score_batch() → List[CriticResult]
+5. Layer 3: code_filter() → 筛掉 unsafe + score<60
+6. aggregate_loop_summary() → 统计
+7. should_continue_loop() → 混合判断
+8. 合并所有轮次的 all_passed_results
+9. 返回 state update
+```
+
+**产出**: Critic 节点可独立测试，mock LLM 覆盖三层过滤和循环决策
+
+---
+
+#### Step 4 — Hash 节点
+
+**目标**: 结果持久化 + 全局 State 最小暴露。
+
+**文件**: `src/agent/nodes/research/hash.py` (新)
+
+**具体改动**:
+
+4.1 创建 `src/agent/nodes/research/hash.py`
+
+核心函数:
+
+```python
+import hashlib, json
+
+def generate_hash_key(query: str, content: Any) -> str:
+    """SHA256(query + json_dumps(content, sort_keys=True)[:10])"""
+
+async def persist_results(all_passed_results: List[CriticResult], session_id: str) -> Dict[str, List[str]]:
+    """
+    1. 对每条 passed_result 生成 hash_key
+    2. 写入 Retrieval DB
+    3. 返回 {query: [hash_key, ...]} 映射
+    """
+    from src.database.retrieval_db import batch_store_results
+    mapping = defaultdict(list)
+    records = []
+    for r in all_passed_results:
+        hk = generate_hash_key(r.query, r.result.content)
+        mapping[r.query].append(hk)
+        records.append({"hash_key": hk, "session_id": session_id, "payload": r.model_dump_json()})
+    await batch_store_results(records, session_id)
+    return dict(mapping)
+
+# 主节点函数
+async def hash_node(state: TravelState) -> Dict[str, Any]:
+    """
+    1. 读取 research_data.loop_state.all_passed_results
+    2. persist_results()
+    3. 写入 research_data.research_hashes
+    4. 设置 execution_signs.is_loop_exit = True
+    """
+```
+
+**产出**: Hash 节点可独立测试 (mock Retrieval DB)
+
+---
+
+#### Step 5 — 适配 Search 节点
+
+**目标**: Search 节点输出 `ResearchResult` envelope，写入子图内部 State。
+
+**文件**: `src/agent/nodes/search/tools.py`, `src/agent/nodes/search/node.py`
+
+**具体改动**:
+
+5.1 `tools.py` — 工具 handler 返回值保持不变（仍返回 `RetrievalMetadata`），内容格式不变
+
+5.2 `search/node.py` — 重构 `_execute_tasks`:
+```python
+async def _execute_tasks(tasks: List[SearchTask]) -> Dict[str, ResearchResult]:
+    """Execute all tasks, wrap results in ResearchResult envelope."""
+    results = {}
+    for idx, task in enumerate(tasks):
+        handler = tools.TOOL_DISPATCH.get(task.tool_name)
+        if handler is None:
+            continue
+        try:
+            raw: RetrievalMetadata = await handler(task)
+            # Wrap in envelope
+            envelope = ResearchResult(
+                tool_name=task.tool_name,
+                query=json.dumps(task.parameters, ensure_ascii=False),
+                content_type="json",  # 当前工具均为 JSON，未来动态判断
+                content=raw.payload,
+                content_summary=_generate_summary(raw.payload),  # 截取关键信息
+                timestamp=datetime.now(timezone.utc).isoformat()
+            )
+            results[envelope.query] = envelope
+        except Exception:
+            # 错误 result 也用 envelope 包裹
+            ...
+    return results
+
+def _generate_summary(payload: Dict) -> str:
+    """生成 ≤500 chars 的摘要"""
+    # JSON: 提取前 3 条记录的 name/category 等关键字段
+    # 后续扩展 text/html/url_list 类型
+```
+
+5.3 `search_node` 主函数更新:
+```python
+async def search_node(state: TravelState) -> Dict[str, Any]:
+    query_results = await _execute_tasks(tasks)
+    # 写入子图内部 State，而非 verified_results
+    return {
+        "research_data": {
+            "loop_state": {
+                "query_results": query_results
+            }
+        },
+        "trace_history": [trace]
+    }
+```
+
+**产出**: Search 节点返回 envelope 格式，写入 `loop_state.query_results`
+
+---
+
+#### Step 6 — 适配 QueryGenerator 节点
+
+**目标**: QG 接收 feedback + passed_queries，多轮 Loop 时去重并聚焦缺口。
+
+**文件**: `src/agent/nodes/query_generator/node.py`, `src/utils/prompt.py`
+
+**具体改动**:
+
+6.1 `query_generator/node.py` — 新增输入信号:
+```python
+async def query_generator_node(state: TravelState) -> Dict[str, Any]:
+    loop_state = state.get("research_data", ResearchManifest()).loop_state
+    
+    feedback = loop_state.feedback  # 首轮为 None
+    passed_queries = loop_state.passed_queries  # 已通过 query 列表
+    loop_iteration = loop_state.loop_iteration
+    
+    # 将 feedback 和 passed_queries 注入 prompt
+    prompt_str = query_generator_prompt_template.format(
+        ...
+        feedback=feedback or "首轮检索，无历史反馈",
+        passed_queries=", ".join(passed_queries) if passed_queries else "无",
+        loop_iteration=str(loop_iteration + 1),
+    )
+```
+
+6.2 `src/utils/prompt.py` — QG 模板新增变量:
+```python
+_QUERY_GENERATOR_TEMPLATE = """...
+### 本轮循环定位
+- 这是第 {loop_iteration} 轮搜索
+- 已通过评估的查询: {passed_queries} (本轮不需要重复搜索)
+- 上一轮 Critic 反馈: {feedback}
+
+### 运行规则
+...
+6. **去重**: 不得生成 passed_queries 中已有的搜索任务
+7. **反馈驱动**: 如果 feedback 指明了维度缺口，优先生成对应搜索
+"""
+```
+
+6.3 `query_generator_prompt_template` 更新 input_variables:
+```python
+input_variables=[..., "feedback", "passed_queries", "loop_iteration"],
+```
+
+**产出**: QG 在多轮 Loop 中正确去重和聚焦
+
+---
+
+#### Step 7 — 子图拓扑组装
+
+**目标**: 编译 Research Loop StateGraph，注册到父图。
+
+**文件**: `src/agent/nodes/research/subgraph.py` (新), `src/agent/graph.py`
+
+**具体改动**:
+
+7.1 创建 `src/agent/nodes/research/subgraph.py`
+
+```python
+from langgraph.graph import StateGraph, END
+from src.agent.state.state import TravelState
+
+def build_research_loop_subgraph() -> StateGraph:
+    """Build and compile the Research Loop subgraph."""
+    subgraph = StateGraph(TravelState)
+    
+    # 注册节点
+    from src.agent.nodes.query_generator.node import query_generator_node
+    from src.agent.nodes.search.node import search_node
+    from src.agent.nodes.research.critic import critic_node
+    from src.agent.nodes.research.hash import hash_node
+    
+    subgraph.add_node("query_generator", query_generator_node)
+    subgraph.add_node("search", search_node)
+    subgraph.add_node("critic", critic_node)
+    subgraph.add_node("hash", hash_node)
+    
+    # 入口
+    subgraph.set_entry_point("query_generator")
+    
+    # 固定边
+    subgraph.add_edge("query_generator", "search")
+    subgraph.add_edge("search", "critic")
+    
+    # Critic 条件边: continue_loop → query_generator | exit → hash
+    def critic_router(state: TravelState) -> str:
+        loop_state = state.get("research_data").loop_state if state.get("research_data") else None
+        if loop_state and loop_state.continue_loop:
+            return "query_generator"
+        return "hash"
+    
+    subgraph.add_conditional_edges(
+        "critic",
+        critic_router,
+        {"query_generator": "query_generator", "hash": "hash"}
+    )
+    
+    # 出口
+    subgraph.add_edge("hash", END)
+    
+    return subgraph.compile()
+
+# Compile once at module load (stateless subgraph)
+research_loop_subgraph = build_research_loop_subgraph()
+```
+
+7.2 更新 `src/agent/graph.py`:
+
+```python
+# 新增 import
+from src.agent.nodes.research.subgraph import research_loop_subgraph
+
+# 注册子图为节点 (替代独立的 query_generator 和 search)
+workflow.add_node("research_loop", research_loop_subgraph)
+
+# Manager 路由更新
+def manager_router(state: state_mod.TravelState) -> str:
+    route = state.get("route_metadata")
+    target = route.next_node if route else "reply"
+    mapping = {
+        "query_generator": "research_loop",  # 改为路由到子图
+        "recommender": "reply",
+        "planner": "reply",
+        "reply": "reply"
+    }
+    return mapping.get(target, "reply")
+
+# 条件边更新
+workflow.add_conditional_edges(
+    "manager",
+    manager_router,
+    {
+        "research_loop": "research_loop",  # 新增
+        "reply": "reply"
+    }
+)
+
+# research_loop → manager (替代原来的 query_generator → search → manager)
+workflow.add_edge("research_loop", "manager")
+```
+
+7.3 Checkpointer 序列化器注册新模型:
+```python
+# 在 allowed_msgpack_modules 中新增:
+"src.agent.state.schema.ResearchResult",
+"src.agent.state.schema.CriticResult",
+"src.agent.state.schema.LoopSummary",
+"src.agent.state.schema.ResearchLoopInternal",
+```
+
+7.4 移除旧的独立节点注册 (可选 — 保留作为降级方案):
+- 保留 `query_generator_node` 和 `search_node` 的 import (被 subgraph 内部引用)
+- 但不再在父图中作为独立节点注册
+
+**产出**: Manager 路由到 Research Loop 子图，子图内部完成 QG→Search→Critic⇄QG|Hash 闭环后返回 Manager
+
+---
+
+#### Step 8 — 测试
+
+**目标**: 覆盖子图所有关键路径，现有测试无回归。
+
+**文件**: `test/unit/agent/nodes/research/test_critic.py`, `test/unit/agent/nodes/research/test_hash.py`, `test/unit/agent/nodes/research/test_subgraph.py`, `test/TEST_MANIFEST.md`
+
+**具体改动**:
+
+8.1 `test_critic.py` — Critic 三层过滤测试
+```
+test_blacklist_filter_hit              # P0 — 黑名单命中 → 剔除
+test_blacklist_filter_pass             # P1 — 正常结果通过
+test_blacklist_load_from_yaml          # P1 — YAML 加载正确
+test_llm_score_batch                   # P1 — mock LLM 返回评分
+test_code_filter_unsafe_tag            # P0 — unsafe tag → 剔除
+test_code_filter_low_relevance         # P0 — relevance < 60 → 剔除
+test_code_filter_low_utility           # P0 — utility < 60 → 剔除
+test_should_continue_insufficient      # P0 — 结果不足 → 继续
+test_should_continue_llm_wants_more    # P0 — LLM 要求补充 → 继续
+test_should_continue_both_satisfied    # P0 — 结果够+LLM满意 → 退出
+test_should_continue_max_loops         # P0 — 达到上限 → 强制退出
+test_aggregate_loop_summary            # P1 — 统计正确
+```
+
+8.2 `test_hash.py` — Hash 持久化测试
+```
+test_generate_hash_key_deterministic   # P1 — 相同输入 → 相同 hash
+test_persist_results_writes_db         # P0 — mock DB 写入正确
+test_persist_results_mapping           # P0 — query→hash_keys 映射正确
+```
+
+8.3 `test_subgraph.py` — 子图拓扑测试
+```
+test_subgraph_entry_is_qg              # P0 — 入口为 QueryGenerator
+test_subgraph_critic_loop_back         # P0 — continue_loop → 回环到 QG
+test_subgraph_critic_exit_to_hash      # P0 — 退出 → 流向 Hash
+test_subgraph_hash_to_end              # P0 — Hash → END
+```
+
+8.4 回归验证
+```
+uv run pytest test/ -v --asyncio-mode=strict  # 全部 32 + 新增 = 预期 >50
+```
+
+8.5 更新 `test/TEST_MANIFEST.md` — 新增测试矩阵条目
+
+**产出**: Research Loop 子图有完整测试守护，现有 32 测试无回归
+
+---
+
+### 5.8 实现依赖图
+
+```
+Step 1 (Schema)
+  ├─→ Step 2 (Infrastructure)
+  │     ├─→ Step 3 (Critic)
+  │     ├─→ Step 4 (Hash)
+  │     ├─→ Step 5 (Search 适配)
+  │     └─→ Step 6 (QueryGenerator 适配)
+  └─→ Step 7 (子图组装) ← depends on Steps 3, 4, 5, 6 all done
+        └─→ Step 8 (测试)
+```
+
+Steps 3, 4, 5, 6 可并行开发（各自独立）。
+
+### 5.9 验证
+
+- [ ] Step 1: Schema 模型可正确序列化/反序列化
+- [ ] Step 2: Retrieval DB CRUD 通过；黑名单 YAML 加载正确
+- [ ] Step 3: Critic 三层过滤 + 循环决策逻辑通过 (12 tests)
+- [ ] Step 4: Hash 持久化 + 映射正确 (3 tests)
+- [ ] Step 5: Search 节点输出 ResearchResult envelope 格式正确
+- [ ] Step 6: QueryGenerator prompt 包含 feedback/passed_queries/loop_iteration
+- [ ] Step 7: 父图注册子图成功，Manager 路由到 research_loop
+- [ ] Step 8: 全部测试通过，现有 32 测试无回归
