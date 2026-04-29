@@ -1,0 +1,54 @@
+# 多语种内容安全黑名单 — Critic Layer 1 过滤。
+# 若结果的 content_summary 或 query 包含以下任一关键词，
+# 在进入 LLM (Layer 2) 之前直接丢弃。
+#
+# 保持激进但精准 — 误杀会浪费有效结果。
+
+keywords:
+  # --- Chinese ---
+  - "暴力"
+  - "色情"
+  - "赌博"
+  - "毒品"
+  - "贩毒"
+  - "枪支"
+  - "洗钱"
+  - "裸聊"
+  - "嫖娼"
+  - "卖淫"
+  - "法轮功"
+  - "六四"
+  - "天安门"
+  - "台独"
+  - "港独"
+  - "藏独"
+  - "疆独"
+  - "颠覆"
+  - "暴动"
+  - "恐怖"
+
+  # --- English ---
+  - "violence"
+  - "pornography"
+  - "gambling"
+  - "drug trafficking"
+  - "money laundering"
+  - "terrorist"
+  - "extremism"
+  - "child abuse"
+
+  # --- Japanese ---
+  - "暴力"
+  - "風俗"
+  - "売春"
+  - "麻薬"
+  - "覚醒剤"
+  - "暴力団"
+  - "テロ"
+
+  # --- Korean ---
+  - "폭력"
+  - "마약"
+  - "도박"
+  - "매춘"
+  - "테러"
