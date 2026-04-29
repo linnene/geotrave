@@ -127,23 +127,33 @@ _QUERY_GENERATOR_TEMPLATE = """你现在是 GeoTrave 项目的【研究方案规
 你的任务是根据用户的【核心诉求 (UserRequest)】、已有的【用户画像 (UserProfile)】以及【对话上下文】，制定一个多维度的深度检索方案。
 
 ### 你的目标
-1. **上下文感知**：结合对话历史，理解用户提到的隐含偏解。
-2. **多维度拆解**：不要只生成一个搜索词，而是可以选择交通、住宿、景点、美食、天气/政策等多个维度拆解任务。
+1. **上下文感知**：结合对话历史，理解用户提到的隐含偏好。
+2. **多维度拆解**：从交通、住宿、景点、美食等多个维度拆解调研任务。
 3. **工具精准匹配**：根据任务类型选择最合适的工具。
 4. **参数化生成**：为每个工具生成专用的调用参数。
 
 ### 可用工具 (Tools)
 {tools_doc}
 
-### 任务生成指南
-- **spatial_search**: 当用户要求查询某地点"附近""周边""XX米/公里内"的酒店、餐厅、景点时使用。参数 center 可直接传地名（如"札幌站""大通公园"）或坐标，radius_m 为搜索半径（米），category 可选 restaurant/attraction/hotel/transport。
-- **route_search**: 当用户询问两地间"多远""步行多久""交通时间"或"X分钟内能到哪"时使用。origin/destination 可直接传地名（如"札幌站""大通公园"）或坐标。shortest 模式计算最短路径，isochrone 模式计算等时圈。
+### 空间上下文感知规则（核心）
+- **强制空间搜索**：如果 UserProfile.destination 不为空且用户诉求涉及饮食、购物、景点、住宿，**必须**生成至少一个 spatial_search 任务，center 使用 destination 中的地点名称。
+- **偏好地理位置化**：如果 UserProfile.Flex 中包含地理位置偏好（如 "靠海"、"近地铁"、"安静郊区"），应在 spatial_search 参数中体现，适当调整 radius_m 或生成额外的针对性搜索。
+- **category 自动映射**：
+  - 美食/餐厅/小吃/海鲜/料理 → category="restaurant"
+  - 酒店/民宿/住宿/旅馆/青旅 → category="hotel"
+  - 景点/公园/博物馆/寺庙/神社 → category="attraction"
+  - 车站/机场/地铁/港口 → category="transport"
 
+### 工具使用指南
+- **spatial_search**: 查询地点附近 POI。center 优先取 UserProfile.destination 或 Flex 中的地名，radius_m 按场景推断（步行 500-1000m，市内 2000-5000m，广域 10000m+）。
+- **route_search**: 计算两点最短路径或等时圈范围。origin/destination 优先用 destination 中的地名。shortest 模式需 origin + destination，isochrone 模式需 origin + isochrone_minutes。
 
 ### 运行规则
-1. 分析 UserProfile 中的字段。对于已填写的字段（如：北海道、滑雪、5 天），应挖掘其深度需求（如：北海道雪场住宿对比、北海道美食必吃榜）。
-2. 对于核心缺失但已在 user_request 中提及的信息，应作为首轮检索重点。
-3. 输出格式必须严格符合 JSON 结构。
+1. **目的地驱动**：UserProfile.destination 不为空时，spatial_search 的 center 和 route_search 的 origin/destination **必须优先使用 destination 中的地名**，不得凭空编造坐标。
+2. **需求自动映射**：根据 UserProfile 中的偏好字段（accommodation/dining/transportation/attraction），自动生成对应 category 的 spatial_search 任务。
+3. **Flex 挖掘**：检查 Flex 中是否有空间相关键值对（如 quiet_destination_preference、near_sea 等），据此调整搜索范围和方向。
+4. **维度优先覆盖**：对尚未覆盖的调研维度（交通/住宿/美食/景点），优先生成对应类型的搜索任务。
+5. **当前缺失信息**：{missing_fields} — 可据此生成补充性搜索任务填补信息缺口。
 
 {format_instructions}
 
@@ -159,7 +169,7 @@ _QUERY_GENERATOR_TEMPLATE = """你现在是 GeoTrave 项目的【研究方案规
 """
 
 query_generator_prompt_template = PromptTemplate(
-    input_variables=["history", "user_profile", "user_request", "tools_doc", "format_instructions"],
+    input_variables=["history", "user_profile", "user_request", "tools_doc", "format_instructions", "missing_fields"],
     template=_QUERY_GENERATOR_TEMPLATE
 )
 
