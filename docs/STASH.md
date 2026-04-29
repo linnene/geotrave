@@ -20,21 +20,11 @@
 
 ## 工具实现
 
-### web_search 真实实现
-- **状态**: Mock — 当前返回空壳 `RetrievalMetadata`
-- **目标**: 接入真实搜索引擎 API（DDGS / SerpAPI）
-- **依赖**: Universal Web Crawler 完成后能深度抓取
-
-### 外部 API 集成
-- **航班查询** (`flight_api`): 需接入 Amadeus / Skyscanner API
-- **酒店预订** (`hotel_api`): 需接入 Booking / Agoda API
-- **实时交通**: 接入公共交通 API
-- **天气查询**: 接入 OpenWeatherMap
-
 ### Universal Web Content Crawler
 - **状态**: 未启动
 - **目标**: 动态抓取 + 可读性清洗 + 语义分块
 - **技术栈**: Playwright / Crawl4AI + trafilatura / readability-lxml
+- **说明**: web_search 已删除（LLM 偏好该工具而忽视空间工具），待 Crawler 完成后再重新注册
 
 ## 知识库
 
