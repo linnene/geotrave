@@ -14,6 +14,7 @@ import sys
 from contextlib import asynccontextmanager
 
 from src.api.routes import router as api_router
+from src.database.postgis import close_pool
 from src.utils import logger
 
 @asynccontextmanager
@@ -30,6 +31,7 @@ async def lifespan(app: fastapi.FastAPI):
     logger.info(" API Server: Initializing Infrastructure")
     logger.info("======================================================")
     yield
+    await close_pool()
     logger.info("[GeoTrave] API Server shutting down...")
     
 # Initialize FastAPI application
