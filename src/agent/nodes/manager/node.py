@@ -37,7 +37,8 @@ async def manager_node(state: TravelState) -> Dict[str, Any]:
 
     is_safe = signs.is_safe if signs else True
     is_core_complete = signs.is_core_complete if signs else False
-    hashes_count = len(research_manifest.verified_results) if research_manifest else 0
+    research_hashes = research_manifest.research_hashes if research_manifest else {}
+    hashes_count = sum(len(v) for v in research_hashes.values())
     research_history = research_manifest.research_history if research_manifest else []
 
     history = format_recent_history(messages, HISTORY_LIMIT)
