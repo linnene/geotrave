@@ -17,7 +17,7 @@ services:
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U geotrave -d geotrave"]
       interval: 5s
-      retries: 5
+      retries: 5  
 
   db-init:
     image: geotrave-db:latest
@@ -29,10 +29,13 @@ services:
       PGPASSWORD: ${DB_PASSWORD:-geotrave_dev}
     entrypoint: >
       sh -c "
-      osm2pgsql -U geotrave -d geotrave -H db -c -s -C 1024 /osm_data/hokkaido-latest.osm.pbf &&
-      psql -U geotrave -d geotrave -h db -f /scripts/02-views.sql &&
-      psql -U geotrave -d geotrave -h db -f /scripts/03-indexes.sql &&
-      psql -U geotrave -d geotrave -h db -f /scripts/04-topology.sql &&
+      for f in /osm_data/*.osm.pbf; do
+        osm2pgsql -U geotrave -d geotrave -H db -c -s -C 1024 \"\$f\" || exit 1
+      done &&
+      for f in /scripts/*.sql; do
+        echo \"Running \$f...\" &&
+        psql -U geotrave -d geotrave -h db -f \"\$f\" || exit 1
+      done &&
       echo 'OSM import and setup complete.'
       "
     volumes:
