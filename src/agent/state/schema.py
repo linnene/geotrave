@@ -127,9 +127,9 @@ class ResearchManifest(BaseModel):
 
 class ManagerOutput(BaseModel):
     """Manager 节点的结构化输出，用于控制全局路由"""
-    next_stage: Literal["analyst","query_generator", "recommender", "planner", "reply"] = Field(
-        ..., 
-        description="下一阶段的路由目标。analyst: 专用的需求分析节点; query_generator: 启动/继续搜索; recommender: 进行项目推荐; planner: 生成最终计划; reply: 直接回复用户"
+    next_stage: Literal["query_generator", "recommender", "planner", "reply"] = Field(
+        ...,
+        description="下一阶段的路由目标。query_generator: 启动/继续搜索; recommender: 进行项目推荐; planner: 生成最终计划; reply: 直接回复用户"
     )
     rationale: str = Field(..., description="做出此路由决策的详细逻辑依据")
     priority_notes: Optional[str] = Field(None, description="下一阶段节点的执行重点")
