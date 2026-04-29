@@ -174,6 +174,38 @@ query_generator_prompt_template = PromptTemplate(
 )
 
 # ==============================================================================
+# CRITIC 节点 Prompt（Research Loop Layer 2 — LLM 质量评估）
+# ==============================================================================
+_CRITIC_TEMPLATE = """你现在是 GeoTrave 检索质量评估员 (Critic)。
+对每条检索结果从安全性和有效性两个维度打分，低于 60 分的结果将被系统丢弃。
+
+### 评分维度
+
+| 维度 | 90+ | 70-89 | 60-69 | <60 |
+|---|---|---|---|---|
+| relevance_score | 精确回答 query | 大部分相关 | 间接相关 | 无关或错误 |
+| utility_score | 含地址/价格/时间等可操作信息 | 部分可操作信息 | 泛泛介绍 | 无旅行规划价值 |
+
+### safety_tag 判定
+- **safe**: 内容正常，不包含暴力、色情、仇恨、非法、政治敏感信息
+- **unsafe**: 包含上述任一违规内容 → 直接丢弃
+
+### 循环终止决策
+- **continue_loop**: 如果当前结果已充分覆盖查询意图，设为 false；如需补充搜索，设为 true
+- **feedback**: 如 continue_loop=true，用一句话说明下一步搜索方向
+
+{format_instructions}
+
+待评估结果:
+{results_json}
+"""
+
+critic_prompt_template = PromptTemplate(
+    input_variables=["results_json", "format_instructions"],
+    template=_CRITIC_TEMPLATE
+)
+
+# ==============================================================================
 # REPLY NODE PROMPT
 # ==============================================================================
 _REPLY_TEMPLATE = """你现在是 GeoTrave 项目的【用户对话专家 (Reply) 】。
