@@ -21,7 +21,7 @@ def _get_tools_documentation() -> str:
     动态从 Search 节点的工具注册中心获取可用工具列表，
     以保证提示词中的工具信息与实际可执行工具一致。
     """
-    from src.agent.nodes.search.tools import TOOL_METADATA
+    from ..search.tools import TOOL_METADATA
     return json.dumps(TOOL_METADATA, indent=2, ensure_ascii=False)
 
 async def query_generator_node(state: TravelState) -> Dict[str, Any]:

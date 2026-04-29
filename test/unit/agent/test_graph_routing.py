@@ -50,7 +50,7 @@ def test_gateway_unsafe_routes_to_reply():
 def _manager_router(next_node: str) -> str:
     """Replica of manager_router logic from graph.py for isolated testing."""
     mapping = {
-        "query_generator": "query_generator",
+        "research_loop": "research_loop",
         "recommender": "reply",
         "planner": "reply",
         "reply": "reply"
@@ -59,8 +59,8 @@ def _manager_router(next_node: str) -> str:
 
 
 @pytest.mark.priority("P0")
-def test_manager_routes_query_generator():
-    assert _manager_router("query_generator") == "query_generator"
+def test_manager_routes_research_loop():
+    assert _manager_router("research_loop") == "research_loop"
 
 
 @pytest.mark.priority("P0")
