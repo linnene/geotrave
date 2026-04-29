@@ -10,9 +10,10 @@
 | `src/database/retrieval_db.py` | `test/unit/database/postgis/test_retrieval_db.py` | 3 | 3 | 2 | 8 |
 | `src/agent/nodes/search/tools.py` | `test/unit/agent/nodes/search/test_tools.py` | 5 | 9 | 2 | 16 |
 | `src/agent/nodes/research/critic.py` | `test/unit/agent/nodes/research/test_critic.py` | 9 | 7 | 2 | 18 |
+| `src/agent/nodes/research/hash.py` | `test/unit/agent/nodes/research/test_hash.py` | 5 | 3 | 1 | 9 |
 | `src/agent/graph.py` | `test/unit/agent/test_graph_routing.py` | 4 | 0 | 0 | 4 |
 | `src/agent/nodes/search/tools.py` | `test/integration/test_spatial_tools.py` | 4 | 0 | 0 | 4 |
-| **Total** | | **28** | **23** | **7** | **58** |
+| **Total** | | **33** | **26** | **8** | **67** |
 
 ## P0 — Blocker Items
 
@@ -46,6 +47,11 @@
 | 26 | `test_should_continue_loop_max_loops_exceeded` — 硬上限强制退出 | 无限循环保护失效将阻塞整个 Agent |
 | 27 | `test_critic_node_empty_results_skips` — 空输入跳过 | 空结果未处理将导致异常 |
 | 28 | `test_critic_node_full_pipeline` — 完整三层管线 | 端到端过滤链路断裂将导致质量问题 |
+| 29 | `test_generate_hash_key_deterministic` — hash 确定性 | 去重依赖相同输入产生相同 hash，不一致将导致重复存储 |
+| 30 | `test_generate_hash_key_different_content` — 不同内容不同 hash | hash 碰撞将导致不同结果被误判为重复 |
+| 31 | `test_persist_results_creates_mapping` — 映射正确性 | query→hashes 映射错误将导致父图无法索引检索结果 |
+| 32 | `test_hash_node_empty_skips` — 空结果跳过 | 空结果未处理导致异常 |
+| 33 | `test_hash_node_persists_and_exposes_hashes` — 持久化+暴露 | 核心链路：结果持久化失败将导致 Recommender/Planner 无数据可用 |
 
 ## P1 — Critical Items
 
@@ -74,6 +80,9 @@
 | 21 | `test_aggregate_loop_summary` | Critic Node |
 | 22 | `test_load_blacklist_returns_list` | Critic Node |
 | 23 | `test_critic_node_llm_error_graceful` | Critic Node |
+| 24 | `test_generate_hash_key_different_query` | Hash Node |
+| 25 | `test_persist_results_empty_list` | Hash Node |
+| 26 | `test_hash_node_merges_existing_hashes` | Hash Node |
 
 ## P2 — Edge Case Items
 
@@ -86,6 +95,7 @@
 | 5 | `test_store_result_overwrite` | Retrieval DB |
 | 6 | `test_aggregate_loop_summary_empty` | Critic Node |
 | 7 | `test_critic_node_accumulates_all_passed` | Critic Node |
+| 8 | `test_hash_node_dedup_same_query_same_content` | Hash Node |
 
 ## High-Risk Evaluation Items
 
