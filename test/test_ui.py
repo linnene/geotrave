@@ -68,10 +68,11 @@ with st.sidebar:
         with st.expander("📊 Research Data (Verified)"):
             research = st.session_state.latest_state.get("research_data")
             if research:
-                verified = getattr(research, "verified_results", {})
-                st.write(f"Total Verified Hashes: `{len(verified)}`")
-                if verified:
-                    st.json(verified)
+                hashes = getattr(research, "research_hashes", {})
+                total = sum(len(v) for v in hashes.values())
+                st.write(f"Total Verified Hashes: `{total}`")
+                if hashes:
+                    st.json(hashes)
             else:
                 st.caption("No research data yet.")
         

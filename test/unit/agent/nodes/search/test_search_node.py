@@ -242,7 +242,7 @@ async def test_search_node_writes_to_loop_state():
             rationale="测试 loop_state 写入",
         )
     ]
-    manifest = ResearchManifest(active_queries=tasks)
+    manifest = ResearchManifest(loop_state=ResearchLoopInternal(active_queries=tasks))
 
     mock_metadata = AsyncMock()
     mock_metadata.payload = {"pois": [{"name": "浅草寺"}]}
@@ -255,7 +255,7 @@ async def test_search_node_writes_to_loop_state():
 
     new_manifest = result["research_data"]
     # active_queries 已清空
-    assert new_manifest.active_queries == []
+    assert new_manifest.loop_state.active_queries == []
     # loop_state.query_results 已写入
     assert new_manifest.loop_state is not None
     assert len(new_manifest.loop_state.query_results) == 1
@@ -283,8 +283,9 @@ async def test_search_node_preserves_existing_loop_state():
     existing_loop = ResearchLoopInternal(
         all_passed_results=[],
         loop_iteration=1,
+        active_queries=tasks,
     )
-    manifest = ResearchManifest(active_queries=tasks, loop_state=existing_loop)
+    manifest = ResearchManifest(loop_state=existing_loop)
 
     mock_metadata = AsyncMock()
     mock_metadata.payload = {"pois": [{"name": "一兰拉面"}]}

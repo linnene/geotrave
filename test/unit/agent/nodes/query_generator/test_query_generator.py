@@ -49,8 +49,8 @@ async def test_qg_injects_feedback_into_prompt():
         result = await query_generator_node(state)
 
     new_manifest = result["research_data"]
-    assert len(new_manifest.active_queries) == 1
-    assert new_manifest.active_queries[0].dimension == "transportation"
+    assert len(new_manifest.loop_state.active_queries) == 1
+    assert new_manifest.loop_state.active_queries[0].dimension == "transportation"
 
 
 @pytest.mark.priority("P0")
@@ -245,7 +245,7 @@ async def test_qg_creates_manifest_when_none():
 
     new_manifest = result["research_data"]
     assert isinstance(new_manifest, ResearchManifest)
-    assert len(new_manifest.active_queries) == 1
+    assert len(new_manifest.loop_state.active_queries) == 1
     assert new_manifest.research_history == ["大阪一日游"]
 
 

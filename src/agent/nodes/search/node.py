@@ -108,9 +108,9 @@ async def _execute_tasks(
 async def search_node(state: Dict[str, Any]) -> Dict[str, Any]:
     """Search 执行节点（无 LLM）。
 
-    1. 读取 research_data.active_queries（待 Step 6 后由 loop_state 驱动）
+    1. 读取 research_data.loop_state.active_queries
     2. 并行/顺序执行工具，包裹为 ResearchResult envelope
-    3. 写入 research_data.loop_state.query_results
+    3. 写入 research_data.loop_state.query_results，清空 active_queries
     """
     start_time = time.time()
     logger.info("Executing search tasks at [SearchNode]...")
@@ -126,7 +126,7 @@ async def search_node(state: Dict[str, Any]) -> Dict[str, Any]:
         )
         return {"trace_history": [trace]}
 
-    tasks: List[SearchTask] = research_data.active_queries
+    tasks: List[SearchTask] = research_data.loop_state.active_queries
     if not tasks:
         logger.info("No active queries present.")
         trace = build_trace(
@@ -144,9 +144,11 @@ async def search_node(state: Dict[str, Any]) -> Dict[str, Any]:
     # 写入子图内部 State (loop_state.query_results)，同时清空 active_queries
     new_research_data = research_data.model_copy(
         update={
-            "active_queries": [],
             "loop_state": research_data.loop_state.model_copy(
-                update={"query_results": query_results}
+                update={
+                    "query_results": query_results,
+                    "active_queries": [],
+                }
             ),
         }
     )
