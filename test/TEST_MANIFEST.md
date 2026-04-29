@@ -9,11 +9,12 @@
 | `src/database/postgis/connection.py` | `test/unit/database/postgis/test_connection.py` | 2 | 2 | 1 | 5 |
 | `src/database/retrieval_db.py` | `test/unit/database/postgis/test_retrieval_db.py` | 3 | 3 | 2 | 8 |
 | `src/agent/nodes/search/tools.py` | `test/unit/agent/nodes/search/test_tools.py` | 5 | 9 | 2 | 16 |
+| `src/agent/nodes/search/node.py` | `test/unit/agent/nodes/search/test_node.py` | 8 | 4 | 0 | 12 |
 | `src/agent/nodes/research/critic.py` | `test/unit/agent/nodes/research/test_critic.py` | 9 | 7 | 2 | 18 |
 | `src/agent/nodes/research/hash.py` | `test/unit/agent/nodes/research/test_hash.py` | 5 | 3 | 1 | 9 |
 | `src/agent/graph.py` | `test/unit/agent/test_graph_routing.py` | 4 | 0 | 0 | 4 |
 | `src/agent/nodes/search/tools.py` | `test/integration/test_spatial_tools.py` | 4 | 0 | 0 | 4 |
-| **Total** | | **33** | **26** | **8** | **67** |
+| **Total** | | **41** | **30** | **8** | **79** |
 
 ## P0 — Blocker Items
 
@@ -52,6 +53,14 @@
 | 31 | `test_persist_results_creates_mapping` — 映射正确性 | query→hashes 映射错误将导致父图无法索引检索结果 |
 | 32 | `test_hash_node_empty_skips` — 空结果跳过 | 空结果未处理导致异常 |
 | 33 | `test_hash_node_persists_and_exposes_hashes` — 持久化+暴露 | 核心链路：结果持久化失败将导致 Recommender/Planner 无数据可用 |
+| 34 | `test_generate_summary_poi_list` — POI 摘要生成 | 摘要字段是 Critic LLM 评分的输入，缺失将导致评分质量下降 |
+| 35 | `test_generate_summary_shortest_route` — 路线摘要生成 | 路线类型结果摘要错误将导致 Critic 无法正确评估 |
+| 36 | `test_generate_summary_isochrone` — 等时圈摘要生成 | 等时圈摘要字段缺失影响可达性评估 |
+| 37 | `test_execute_tasks_wraps_in_research_result` — envelope 包裹 | Search 输出必须为 ResearchResult 格式，否则 Critic 无法解析 |
+| 38 | `test_execute_tasks_handler_exception` — 工具异常不崩溃 | 单个工具失败不得中断整个搜索批次 |
+| 39 | `test_search_node_missing_research_data` — 空状态跳过 | search_node 缺少 research_data 时必须优雅跳过 |
+| 40 | `test_search_node_empty_active_queries` — 空任务跳过 | 无活跃查询时正常返回 |
+| 41 | `test_search_node_writes_to_loop_state` — loop_state 写入 | 结果写入 loop_state.query_results 是整个 Research Loop 的数据入口 |
 
 ## P1 — Critical Items
 
@@ -83,6 +92,10 @@
 | 24 | `test_generate_hash_key_different_query` | Hash Node |
 | 25 | `test_persist_results_empty_list` | Hash Node |
 | 26 | `test_hash_node_merges_existing_hashes` | Hash Node |
+| 27 | `test_generate_summary_poi_truncation` | Search Node |
+| 28 | `test_generate_summary_fallback_json` | Search Node |
+| 29 | `test_execute_tasks_unsupported_tool` | Search Node |
+| 30 | `test_search_node_preserves_existing_loop_state` | Search Node |
 
 ## P2 — Edge Case Items
 
