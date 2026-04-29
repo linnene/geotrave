@@ -23,7 +23,7 @@ from src.agent.state.schema import (
 @pytest.mark.priority("P0")
 def test_generate_hash_key_deterministic():
     """相同输入 → 相同 hash。"""
-    from src.agent.nodes.research.hash import generate_hash_key
+    from src.agent.nodes.research.hash.node import generate_hash_key
 
     h1 = generate_hash_key("test query", {"a": 1, "b": 2})
     h2 = generate_hash_key("test query", {"a": 1, "b": 2})
@@ -36,7 +36,7 @@ def test_generate_hash_key_deterministic():
 @pytest.mark.priority("P0")
 def test_generate_hash_key_different_content():
     """不同 content → 不同 hash。"""
-    from src.agent.nodes.research.hash import generate_hash_key
+    from src.agent.nodes.research.hash.node import generate_hash_key
 
     h1 = generate_hash_key("query", {"x": 1})
     h2 = generate_hash_key("query", {"x": 2})
@@ -47,7 +47,7 @@ def test_generate_hash_key_different_content():
 @pytest.mark.priority("P1")
 def test_generate_hash_key_different_query():
     """不同 query → 不同 hash。"""
-    from src.agent.nodes.research.hash import generate_hash_key
+    from src.agent.nodes.research.hash.node import generate_hash_key
 
     h1 = generate_hash_key("q1", {"a": 1})
     h2 = generate_hash_key("q2", {"a": 1})
@@ -64,7 +64,7 @@ def test_generate_hash_key_different_query():
 @pytest.mark.asyncio
 async def test_persist_results_creates_mapping():
     """验证 hash_key 生成和 query→hashes 映射正确。"""
-    from src.agent.nodes.research.hash import persist_results
+    from src.agent.nodes.research.hash.node import persist_results
 
     results = [
         CriticResult(
@@ -91,7 +91,7 @@ async def test_persist_results_creates_mapping():
     ]
 
     with patch(
-        "src.agent.nodes.research.hash.batch_store_results",
+        "src.agent.nodes.research.hash.node.batch_store_results",
         new=AsyncMock(),
     ) as mock_store:
         mapping = await persist_results(results, "sess-test")
@@ -125,10 +125,10 @@ async def test_persist_results_creates_mapping():
 @pytest.mark.asyncio
 async def test_persist_results_empty_list():
     """空列表 → 不调用 batch_store，返回空 dict。"""
-    from src.agent.nodes.research.hash import persist_results
+    from src.agent.nodes.research.hash.node import persist_results
 
     with patch(
-        "src.agent.nodes.research.hash.batch_store_results",
+        "src.agent.nodes.research.hash.node.batch_store_results",
         new=AsyncMock(),
     ) as mock_store:
         mapping = await persist_results([], "sess")
@@ -146,7 +146,7 @@ async def test_persist_results_empty_list():
 @pytest.mark.asyncio
 async def test_hash_node_empty_skips():
     """无通过结果 → 跳过持久化，设置 is_loop_exit。"""
-    from src.agent.nodes.research.hash import hash_node
+    from src.agent.nodes.research.hash.node import hash_node
 
     loop_state = ResearchLoopInternal(all_passed_results=[])
     manifest = ResearchManifest(loop_state=loop_state)
@@ -166,7 +166,7 @@ async def test_hash_node_empty_skips():
 @pytest.mark.asyncio
 async def test_hash_node_persists_and_exposes_hashes():
     """验证持久化 + research_hashes 写入 + is_loop_exit 设置。"""
-    from src.agent.nodes.research.hash import hash_node
+    from src.agent.nodes.research.hash.node import hash_node
 
     passed = [
         CriticResult(
@@ -192,7 +192,7 @@ async def test_hash_node_persists_and_exposes_hashes():
     }
 
     with patch(
-        "src.agent.nodes.research.hash.batch_store_results",
+        "src.agent.nodes.research.hash.node.batch_store_results",
         new=AsyncMock(),
     ) as mock_store:
         result = await hash_node(state)
@@ -223,7 +223,7 @@ async def test_hash_node_persists_and_exposes_hashes():
 @pytest.mark.asyncio
 async def test_hash_node_merges_existing_hashes():
     """已有 research_hashes 时，新 hash 正确合并而非覆盖。"""
-    from src.agent.nodes.research.hash import hash_node
+    from src.agent.nodes.research.hash.node import hash_node
 
     passed = [
         CriticResult(
@@ -243,7 +243,7 @@ async def test_hash_node_merges_existing_hashes():
     state = {"research_data": manifest, "messages": []}
 
     with patch(
-        "src.agent.nodes.research.hash.batch_store_results",
+        "src.agent.nodes.research.hash.node.batch_store_results",
         new=AsyncMock(),
     ):
         result = await hash_node(state)
@@ -261,7 +261,7 @@ async def test_hash_node_merges_existing_hashes():
 @pytest.mark.asyncio
 async def test_hash_node_dedup_same_query_same_content():
     """同一 query 的同一内容产生相同 hash → 合并时去重。"""
-    from src.agent.nodes.research.hash import hash_node, generate_hash_key
+    from src.agent.nodes.research.hash.node import hash_node, generate_hash_key
 
     # 构造两条完全相同的 CriticResult
     r = CriticResult(
@@ -285,7 +285,7 @@ async def test_hash_node_dedup_same_query_same_content():
     state = {"research_data": manifest, "messages": []}
 
     with patch(
-        "src.agent.nodes.research.hash.batch_store_results",
+        "src.agent.nodes.research.hash.node.batch_store_results",
         new=AsyncMock(),
     ):
         result = await hash_node(state)
