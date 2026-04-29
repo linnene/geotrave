@@ -109,16 +109,19 @@ Manager prompt 中对应的规则同步删除。
 3. **调研充分性判断**: 模拟对话中 Manager 看到部分维度已覆盖但全部维度尚未完成时，能判断"需继续调研"而非直接跳到 recommender
 4. **回归测试**: 所有现有 25 个单元测试保持全绿
 
-## 4. QueryGenerator 空间上下文感知
+## 4. QueryGenerator 空间上下文感知 ✓
 
-- [ ] Prompt 增加规则：利用 `UserProfile.destination` + `Flex` 中的位置信息
-- [ ] 引导 LLM 将用户隐含需求（如"想吃海鲜"）结合已知位置生成 spatial_search
-- [ ] 确保 `history`（最近几轮对话）正确传入 QueryGenerator 上下文
+- [x] 新增"空间上下文感知规则"：强制 destination 不为空时生成 spatial_search
+- [x] category 自动映射表：美食→restaurant, 住宿→hotel, 景点→attraction, 交通→transport
+- [x] Flex 地理位置偏好挖掘引导（如"靠海"→调整搜索范围）
+- [x] 目的地驱动规则：center/origin/destination 优先使用 destination 中的地名，禁止凭空编造坐标
+- [x] `missing_fields` 加入 input_variables 并嵌入模板（修复之前 node 传参但模板未声明的问题）
+- [x] `history` 已通过 `format_recent_history()` 正确传入（node.py:38,48）
 
 **文件**: `src/utils/prompt.py`, `src/agent/nodes/query_generator/node.py`
 
 ## 5. 验证
 
-- [ ] 单元测试全绿（`test/unit/`）
-- [ ] 集成测试全绿（`test/integration/`，需 PostGIS 运行）
+- [x] 单元测试全绿（`test/unit/`）— 28 tests
+- [x] 集成测试全绿（`test/integration/`）— 4 tests
 - [ ] E2E 手动测试：完整对话 → QueryGenerator 生成 spatial_search + 地理编码成功
