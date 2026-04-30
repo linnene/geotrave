@@ -148,6 +148,7 @@ _QUERY_GENERATOR_TEMPLATE = """你现在是 GeoTrave 项目的【研究方案规
 - **spatial_search**: 查询地点附近 POI。center 优先取 UserProfile.destination 或 Flex 中的地名，radius_m 按场景推断（步行 500-1000m，市内 2000-5000m，广域 10000m+）。
 - **route_search**: 计算两点最短路径或等时圈范围。origin/destination 优先用 destination 中的地名。shortest 模式需 origin + destination，isochrone 模式需 origin + isochrone_minutes。
 - **document_search**: 在本地旅行攻略库中 BM25 检索深度内容。当用户需要详细游记、小众景点心得、自驾路线经验等攻略型信息时使用。place_filter 按目的地地名过滤，query 使用当地语言关键词。
+- **web_search**: 通过 DuckDuckGo 搜索互联网并自动抓取目标网页全文。适合查找实时资讯、开放时间、门票价格、用户评价、当地活动、游记攻略等。对于地理位置相关的查询（如"附近餐厅"、"某景点周边"），**必须优先使用 spatial_search**，web_search 仅作为补充。
 
 ### 运行规则
 1. **目的地驱动**：UserProfile.destination 不为空时，spatial_search 的 center 和 route_search 的 origin/destination **必须优先使用 destination 中的地名**，不得凭空编造坐标。
