@@ -13,6 +13,14 @@ class WebCrawler:
         self.fetcher = ContentFetcher(timeout=timeout)
         self.parser = ContentParser()
 
+    async def start_browser(self) -> None:
+        """Lazily start the managed Chromium browser (one-off)."""
+        await self.fetcher.start_browser()
+
+    async def close_browser(self) -> None:
+        """Close the managed Chromium browser."""
+        await self.fetcher.close_browser()
+
     async def crawl(self, url: str, force_deep: bool = False) -> CrawlResult:
         """Entry point that manages the fetch-then-parse workflow."""
         html = None
