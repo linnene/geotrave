@@ -234,6 +234,10 @@ class ResearchResult(BaseModel):
 class CriticResult(BaseModel):
     """Critic Layer 2 (LLM) 在 Layer 1 (黑名单) 通后产出的单条评估结过果。"""
     query: str = Field(..., description="Query text this evaluation corresponds to")
+    tool_name: str = Field(
+        default="",
+        description="Tool that produced this result; echoed from ResearchResult, used by Hash to separate doc vs non-doc"
+    )
     safety_tag: Literal["safe", "unsafe"] = Field(
         ..., description="Content safety verdict"
     )
@@ -298,6 +302,12 @@ class ResearchLoopInternal(BaseModel):
         default=None, description="Aggregated stats for the most recent iteration"
     )
 
+    # --- 文档检索结果（Search 直接写入，不经过 Critic/Hash，跨迭代累积）---
+    passed_doc_ids: List[str] = Field(
+        default_factory=list,
+        description="Document IDs accumulated across iterations; Search writes directly, Hash promotes to Manifest"
+    )
+
 
 # ==============================================================================
 # Research Manifest — 父图可见的研究状态视图
@@ -325,4 +335,8 @@ class ResearchManifest(BaseModel):
     research_history: List[str] = Field(
         default_factory=list,
         description="Ordered list of user_request strings; Manager uses last entry for freshness checks"
+    )
+    matched_doc_ids: List[str] = Field(
+        default_factory=list,
+        description="Document IDs matched this research session; stored in retrieval_db, separate from research_hashes"
     )

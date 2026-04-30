@@ -109,8 +109,8 @@ async def search_node(state: Dict[str, Any]) -> Dict[str, Any]:
     """Search 执行节点（无 LLM）。
 
     1. 读取 research_data.loop_state.active_queries
-    2. 并行/顺序执行工具，包裹为 ResearchResult envelope
-    3. 写入 research_data.loop_state.query_results，清空 active_queries
+    2. 执行工具，包裹为 ResearchResult envelope
+    3. 分流：文档结果 → passed_doc_ids（跳过 Critic）；非文档 → query_results
     """
     start_time = time.time()
     logger.info("Executing search tasks at [SearchNode]...")
@@ -141,16 +141,33 @@ async def search_node(state: Dict[str, Any]) -> Dict[str, Any]:
 
     query_results = await _execute_tasks(tasks)
 
-    # 写入子图内部 State (loop_state.query_results)，同时清空 active_queries
-    new_research_data = research_data.model_copy(
+    # --- 分流：文档结果 vs 非文档结果 ---
+    doc_results = {k: v for k, v in query_results.items() if v.tool_name == "document_search"}
+    non_doc_results = {k: v for k, v in query_results.items() if v.tool_name != "document_search"}
+
+    # 文档结果：提取 doc_ids，累积到 passed_doc_ids（不进入 Critic）
+    new_doc_ids: list = []
+    for rr in doc_results.values():
+        docs = rr.content.get("docs", []) if isinstance(rr.content, dict) else []
+        for d in docs:
+            did = d.get("doc_id") if isinstance(d, dict) else None
+            if did and did not in new_doc_ids:
+                new_doc_ids.append(did)
+
+    previous_doc_ids = list(research_data.loop_state.passed_doc_ids)
+    merged_doc_ids = previous_doc_ids + [d for d in new_doc_ids if d not in previous_doc_ids]
+
+    # 更新 loop_state：query_results 只含非文档，passed_doc_ids 累积
+    new_loop_state = research_data.loop_state.model_copy(
         update={
-            "loop_state": research_data.loop_state.model_copy(
-                update={
-                    "query_results": query_results,
-                    "active_queries": [],
-                }
-            ),
+            "query_results": non_doc_results,
+            "active_queries": [],
+            "passed_doc_ids": merged_doc_ids,
         }
+    )
+
+    new_research_data = research_data.model_copy(
+        update={"loop_state": new_loop_state}
     )
 
     latency_ms = int((time.time() - start_time) * 1000)
@@ -161,11 +178,13 @@ async def search_node(state: Dict[str, Any]) -> Dict[str, Any]:
         {
             "executed_tasks": len(tasks),
             "collected_results": len(query_results),
+            "doc_results": len(doc_results),
+            "doc_ids_added": len(new_doc_ids),
         },
     )
 
     logger.info(
-        f"Search done: {len(tasks)} tasks → {len(query_results)} envelopes"
+        f"Search done: {len(tasks)} tasks → {len(non_doc_results)} non-doc + {len(doc_results)} doc results"
     )
     return {
         "research_data": new_research_data,

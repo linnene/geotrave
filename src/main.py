@@ -40,6 +40,11 @@ async def lifespan(app: fastapi.FastAPI):
     await init_retrieval_db()
     logger.info("[GeoTrave] Retrieval DB table initialized")
 
+    # 构建 BM25 文档索引 (从 PostgreSQL 加载系统文档)
+    from src.agent.nodes.research.search.docs import get_document_manager
+    doc_mgr = await get_document_manager(await get_pool())
+    logger.info(f"[GeoTrave] BM25 document index loaded ({doc_mgr.doc_count()} documents)")
+
     yield
     await close_pool()
     logger.info("[GeoTrave] API Server shutting down...")

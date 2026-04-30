@@ -89,8 +89,30 @@ async def hash_node(state: TravelState) -> Dict[str, Any]:
     loop_state: ResearchLoopInternal = research_data.loop_state
     all_passed = loop_state.all_passed_results
 
+    # 合并文档 ID：从 loop_state.passed_doc_ids 提升到 Manifest.matched_doc_ids
+    # （无论是否有非文档结果通过，文档 ID 都必须提升，否则会丢失文档检索结果）
+    existing_doc_ids = list(research_data.matched_doc_ids)
+    new_doc_ids = list(loop_state.passed_doc_ids)
+    merged_doc_ids = existing_doc_ids + [d for d in new_doc_ids if d not in existing_doc_ids]
+
     if not all_passed:
         logger.info("Hash: no passed results, skipping persistence")
+        # 仍有文档 ID 需要提升
+        if merged_doc_ids != existing_doc_ids:
+            new_research_data = research_data.model_copy(
+                update={"matched_doc_ids": merged_doc_ids}
+            )
+            trace = build_trace(
+                "hash",
+                "SKIPPED",
+                latency_ms=int((time.time() - start_time) * 1000),
+                detail={"reason": "all_passed_results 为空", "matched_docs": len(merged_doc_ids)},
+            )
+            return {
+                "research_data": new_research_data,
+                "execution_signs": ExecutionSigns(is_loop_exit=True),
+                "trace_history": [trace],
+            }
         trace = build_trace(
             "hash",
             "SKIPPED",
@@ -122,7 +144,10 @@ async def hash_node(state: TravelState) -> Dict[str, Any]:
             existing_hashes[query] = hashes
 
     new_research_data = research_data.model_copy(
-        update={"research_hashes": existing_hashes}
+        update={
+            "research_hashes": existing_hashes,
+            "matched_doc_ids": merged_doc_ids,
+        }
     )
 
     trace = build_trace(
@@ -138,7 +163,8 @@ async def hash_node(state: TravelState) -> Dict[str, Any]:
 
     logger.info(
         f"Hash done: persisted {len(all_passed)} results, "
-        f"{len(research_hashes)} query groups"
+        f"{len(research_hashes)} query groups, "
+        f"{len(merged_doc_ids)} matched docs"
     )
 
     return {
