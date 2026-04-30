@@ -133,14 +133,14 @@ def test_code_filter_unsafe_tag():
 
 @pytest.mark.priority("P0")
 def test_code_filter_low_relevance():
-    """relevance_score < 60 → 拒绝。"""
+    """relevance_score < 40 → 拒绝。"""
     from src.agent.nodes.research.critic.node import code_filter
 
     results = [
         CriticResult(
             query="test",
             safety_tag="safe",
-            relevance_score=55.0,
+            relevance_score=35.0,
             utility_score=80.0,
             rationale="不太相关",
         ),
@@ -154,7 +154,7 @@ def test_code_filter_low_relevance():
 
 @pytest.mark.priority("P0")
 def test_code_filter_low_utility():
-    """utility_score < 60 → 拒绝。"""
+    """utility_score < 40 → 拒绝。"""
     from src.agent.nodes.research.critic.node import code_filter
 
     results = [
@@ -162,7 +162,7 @@ def test_code_filter_low_utility():
             query="test",
             safety_tag="safe",
             relevance_score=75.0,
-            utility_score=40.0,
+            utility_score=30.0,
             rationale="没有实用价值",
         ),
     ]
