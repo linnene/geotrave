@@ -89,13 +89,14 @@ def test_tool_metadata_populated():
     """
     import src.agent.nodes.research.search.tools as t
 
-    assert len(t.TOOL_METADATA) >= 3, (
-        f"TOOL_METADATA 至少应有 3 条，实际: {len(t.TOOL_METADATA)}"
+    assert len(t.TOOL_METADATA) >= 4, (
+        f"TOOL_METADATA 至少应有 4 条，实际: {len(t.TOOL_METADATA)}"
     )
     names = {e["name"] for e in t.TOOL_METADATA}
     assert "spatial_search" in names, f"缺失 spatial_search，当前: {names}"
     assert "route_search" in names, f"缺失 route_search，当前: {names}"
     assert "document_search" in names, f"缺失 document_search，当前: {names}"
+    assert "web_search" in names, f"缺失 web_search，当前: {names}"
 
 
 @pytest.mark.priority("P0")
