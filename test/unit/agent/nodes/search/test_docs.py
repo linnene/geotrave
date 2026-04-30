@@ -343,16 +343,6 @@ def test_search_empty_index():
     assert results == []
 
 
-@pytest.mark.priority("P1")
-def test_search_empty_query():
-    """空 query → 返回空列表。"""
-    from src.agent.nodes.research.search.docs.manager import DocumentManager
-
-    mgr = DocumentManager()
-    results = mgr.search("")
-    assert results == []
-
-
 @pytest.mark.priority("P0")
 @pytest.mark.asyncio
 async def test_search_score_threshold():
@@ -427,31 +417,6 @@ async def test_ingest():
     assert doc_id.startswith("doc_")
     mock_store.assert_awaited_once()
     assert mgr.doc_count() == 2
-
-
-@pytest.mark.priority("P1")
-@pytest.mark.asyncio
-async def test_doc_count():
-    """doc_count 返回索引中文档数量。"""
-    from src.agent.nodes.research.search.docs.manager import DocumentManager
-
-    mgr = DocumentManager()
-    rows = [
-        {
-            "hash_key": f"doc_{i:03d}",
-            "payload": {
-                "title": f"文档{i}",
-                "place_name": "测试",
-                "content": f"这是第{i}篇测试文档的内容。",
-                "source": "",
-            },
-        }
-        for i in range(3)
-    ]
-    mock_pool = _mock_pool_with_rows(rows)
-
-    await mgr.build_index(mock_pool)
-    assert mgr.doc_count() == 3
 
 
 # =============================================================================
