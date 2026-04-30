@@ -293,3 +293,116 @@ async def test_hash_node_dedup_same_query_same_content():
     # 重复 hash 不应重复添加
     hashes = result["research_data"].research_hashes
     assert hashes["札幌温泉"] == [hk]
+
+
+# =============================================================================
+# P0 — matched_doc_ids 合并
+# =============================================================================
+
+
+@pytest.mark.priority("P0")
+@pytest.mark.asyncio
+async def test_hash_node_promotes_passed_doc_ids():
+    """passed_doc_ids → matched_doc_ids 提升。"""
+    from src.agent.nodes.research.hash.node import hash_node
+
+    passed = [
+        CriticResult(
+            query="东京酒店",
+            safety_tag="safe",
+            relevance_score=90.0,
+            utility_score=85.0,
+            rationale="好",
+        ),
+    ]
+    loop_state = ResearchLoopInternal(
+        all_passed_results=passed,
+        passed_doc_ids=["doc_abc", "doc_def"],
+    )
+    manifest = ResearchManifest(loop_state=loop_state)
+    state = {"research_data": manifest, "messages": []}
+
+    with patch(
+        "src.agent.nodes.research.hash.node.batch_store_results",
+        new=AsyncMock(),
+    ):
+        result = await hash_node(state)
+
+    new_manifest = result["research_data"]
+    assert "doc_abc" in new_manifest.matched_doc_ids
+    assert "doc_def" in new_manifest.matched_doc_ids
+    assert len(new_manifest.matched_doc_ids) == 2
+
+
+@pytest.mark.priority("P0")
+@pytest.mark.asyncio
+async def test_hash_node_merges_matched_doc_ids():
+    """已有 matched_doc_ids 时，新 doc_id 追加而非覆盖。"""
+    from src.agent.nodes.research.hash.node import hash_node
+
+    loop_state = ResearchLoopInternal(
+        all_passed_results=[],
+        passed_doc_ids=["doc_new"],
+    )
+    manifest = ResearchManifest(
+        loop_state=loop_state,
+        matched_doc_ids=["doc_existing"],
+    )
+    state = {"research_data": manifest, "messages": []}
+
+    result = await hash_node(state)
+
+    new_manifest = result["research_data"]
+    assert len(new_manifest.matched_doc_ids) == 2
+    assert "doc_existing" in new_manifest.matched_doc_ids
+    assert "doc_new" in new_manifest.matched_doc_ids
+
+
+@pytest.mark.priority("P1")
+@pytest.mark.asyncio
+async def test_hash_node_dedup_matched_doc_ids():
+    """重复 doc_id 不会重复写入 matched_doc_ids。"""
+    from src.agent.nodes.research.hash.node import hash_node
+
+    loop_state = ResearchLoopInternal(
+        all_passed_results=[],
+        passed_doc_ids=["doc_a", "doc_b"],
+    )
+    manifest = ResearchManifest(
+        loop_state=loop_state,
+        matched_doc_ids=["doc_a"],  # 已有
+    )
+    state = {"research_data": manifest, "messages": []}
+
+    result = await hash_node(state)
+
+    new_manifest = result["research_data"]
+    assert len(new_manifest.matched_doc_ids) == 2
+    assert "doc_a" in new_manifest.matched_doc_ids
+    assert "doc_b" in new_manifest.matched_doc_ids
+
+
+@pytest.mark.priority("P1")
+@pytest.mark.asyncio
+async def test_hash_node_empty_passed_doc_ids():
+    """无 passed_doc_ids 且无 all_passed → early return，matched_doc_ids 隐式保留。"""
+    from src.agent.nodes.research.hash.node import hash_node
+
+    loop_state = ResearchLoopInternal(
+        all_passed_results=[],
+        passed_doc_ids=[],
+    )
+    manifest = ResearchManifest(
+        loop_state=loop_state,
+        matched_doc_ids=["doc_keep"],
+    )
+    state = {"research_data": manifest, "messages": []}
+
+    result = await hash_node(state)
+
+    # 无任何变化时 early return，不返回 research_data（隐式保留原值）
+    signs = result.get("execution_signs")
+    assert signs is not None
+    assert signs.is_loop_exit is True
+    traces = result.get("trace_history", [])
+    assert traces[0].status == "SKIPPED"
