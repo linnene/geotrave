@@ -149,7 +149,7 @@
 2. **坐标系不一致**: OSM 数据为 EPSG:3857，视图转换为 EPSG:4326。`ST_Distance` 需 `::geography` 投射以获取米制距离。若投射遗漏，距离结果将错误。
 3. **pgRouting 拓扑过期**: `routing_network` 表在 OSM 导入时生成，OSM 数据更新后需重建拓扑，否则路径计算使用过时路网。
 4. **图拓扑正确性**: `test_graph_routing.py` 守护 gateway → analyst 固定边、Manager 路由范围。若拓扑变更导致 analyst 被绕过，整个需求提取链路断裂。
-5. **连接池事件循环校验**: `get_pool()` 在返回缓存池前校验 `_pool_loop is current_loop`。容器环境（uvicorn worker 回收/K8s 健康检查重启）中事件循环可能被替换，复用旧池将导致 `RuntimeError: Task got Future attached to a different loop`。`test_get_pool_recreates_on_loop_mismatch` 覆盖此场景。注意：测试中路由函数是 graph.py 闭包逻辑的副本，真实图编译需 async 环境。
+5. **连接池事件循环校验**: `get_pool()` 在返回缓存池前校验 `_pool_loop is current_loop`。容器环境（uvicorn worker 回收/K8s 健康检查重启）中事件循环可能被替换。旧池的连接附着在旧循环上，无法从新循环调用 `close()`（会导致 `RuntimeError: Task got Future attached to a different loop`）。检测到循环变更时直接丢弃旧池引用（`_pool = None`），由 GC 回收旧连接，然后创建新池。`test_get_pool_recreates_on_loop_mismatch` 覆盖此场景。注意：测试中路由函数是 graph.py 闭包逻辑的副本，真实图编译需 async 环境。
 6. **Retrieval DB 表缺失**: `retrieval_results` 表由 `init_retrieval_db()` 在应用启动时创建。若未调用或 DDL 执行失败，Hash 节点的 `batch_store_results` 将抛出 PostgreSQL 错误，整个 Research Loop 持久化链路断裂。`test_init_retrieval_db_executes_ddl` 验证 DDL 正确性。
 7. **Critic 三层过滤失效**: Layer 1 黑名单若加载失败或匹配逻辑错误，不安全内容将进入 LLM 评分环节。Layer 3 阈值若设置不当（过高或过低），将导致有效结果被丢弃或无效结果通过。`test_critic_node_full_pipeline` 覆盖端到端过滤链路。当前测试中 Layer 2 LLM 调用已 mock，真实 LLM 行为需在集成测试中验证。
 8. **ResearchManifest 重建丢失 loop_state**: QueryGenerator 旧代码使用 `ResearchManifest(...)` 新建实例，导致 `loop_state`（feedback、passed_queries、all_passed_results）和 `research_hashes` 被清空。这意味着 Research Loop 多轮迭代中 Critic 反馈和去重信息全部丢失，循环无法正确收敛。已修复为 `model_copy(update=...)` 并在 `test_qg_preserves_loop_state` / `test_qg_preserves_research_hashes` 中守护。

@@ -19,7 +19,9 @@ async def get_pool() -> asyncpg.Pool:
     current_loop = asyncio.get_running_loop()
     if _pool is None or _pool_loop is not current_loop:
         if _pool is not None:
-            await _pool.close()
+            # 旧池连接附着在已销毁的循环上，无法从当前循环安全关闭；
+            # 直接丢弃引用，旧连接由 GC 回收
+            _pool = None
         _pool = await asyncpg.create_pool(dsn=POSTGIS_DSN, min_size=2, max_size=8)
         _pool_loop = current_loop
     return _pool
