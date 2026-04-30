@@ -65,26 +65,17 @@ async def _geocode(place_name: str) -> tuple[float, float]:
 
     Tries exact name match, then fuzzy match, then progressively truncates
     the name from the right one character at a time (e.g. "札幌駅大通" →
-    "札幌駅大" → "札幌駅" → "札幌"), retrying exact match at each step.
+    "札幌駅大" → "札幌駅" → "札幌"), retrying both exact and fuzzy match
+    at each step. Falls back to planet_osm_polygon (cities, regions).
     """
     pool = await get_pool()
-    async with pool.acquire() as conn:
-        row = await conn.fetchrow(
-            """
-            SELECT ST_X(ST_Transform(way, 4326)) AS lng,
-                   ST_Y(ST_Transform(way, 4326)) AS lat
-            FROM planet_osm_point
-            WHERE name = $1
-            LIMIT 1
-            """,
-            place_name,
-        )
-        if row is None:
-            # Fuzzy match
-            row = await conn.fetchrow(
+
+    async def _try_point_match(name: str, fuzzy: bool = False) -> Any:
+        if fuzzy:
+            return await conn.fetchrow(
                 """
-                SELECT ST_X(ST_Transform(way, 4326)) AS lng,
-                       ST_Y(ST_Transform(way, 4326)) AS lat
+                SELECT ST_X(ST_Transform(ST_Centroid(way), 4326)) AS lng,
+                       ST_Y(ST_Transform(ST_Centroid(way), 4326)) AS lat
                 FROM planet_osm_point
                 WHERE name ILIKE $1
                    OR amenity ILIKE $1
@@ -93,25 +84,60 @@ async def _geocode(place_name: str) -> tuple[float, float]:
                    OR public_transport ILIKE $1
                 LIMIT 1
                 """,
-                f"%{place_name}%",
+                f"%{name}%",
             )
+        return await conn.fetchrow(
+            """
+            SELECT ST_X(ST_Transform(way, 4326)) AS lng,
+                   ST_Y(ST_Transform(way, 4326)) AS lat
+            FROM planet_osm_point
+            WHERE name = $1
+            LIMIT 1
+            """,
+            name,
+        )
+
+    async def _try_polygon_match(name: str, fuzzy: bool = False) -> Any:
+        if fuzzy:
+            return await conn.fetchrow(
+                """
+                SELECT ST_X(ST_Transform(ST_Centroid(way), 4326)) AS lng,
+                       ST_Y(ST_Transform(ST_Centroid(way), 4326)) AS lat
+                FROM planet_osm_polygon
+                WHERE name ILIKE $1
+                LIMIT 1
+                """,
+                f"%{name}%",
+            )
+        return await conn.fetchrow(
+            """
+            SELECT ST_X(ST_Transform(ST_Centroid(way), 4326)) AS lng,
+                   ST_Y(ST_Transform(ST_Centroid(way), 4326)) AS lat
+            FROM planet_osm_polygon
+            WHERE name = $1
+            LIMIT 1
+            """,
+            name,
+        )
+
+    async with pool.acquire() as conn:
+        row = await _try_point_match(place_name)
+        if row is None:
+            row = await _try_point_match(place_name, fuzzy=True)
         if row is None:
             # Progressive truncation: strip one char at a time from the right
             stripped = place_name
             while len(stripped) > 1:
                 stripped = stripped[:-1]
-                row = await conn.fetchrow(
-                    """
-                    SELECT ST_X(ST_Transform(way, 4326)) AS lng,
-                           ST_Y(ST_Transform(way, 4326)) AS lat
-                    FROM planet_osm_point
-                    WHERE name = $1
-                    LIMIT 1
-                    """,
-                    stripped,
-                )
+                row = await _try_point_match(stripped)
+                if row is None:
+                    row = await _try_point_match(stripped, fuzzy=True)
                 if row is not None:
                     break
+        if row is None:
+            row = await _try_polygon_match(place_name)
+        if row is None:
+            row = await _try_polygon_match(place_name, fuzzy=True)
         if row is None:
             raise ValueError(
                 f"无法找到地点 '{place_name}' 的坐标，请尝试更具体的地名或直接提供坐标 'lng,lat'"
