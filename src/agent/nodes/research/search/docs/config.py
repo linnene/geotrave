@@ -8,7 +8,7 @@ BM25_B = 0.75
 BM25_SCORE_THRESHOLD = 0.5
 
 # 单次查询最大返回数（安全阀）
-MAX_DOC_RESULTS = 20
+MAX_DOC_RESULTS = 5
 
 # 文档摘要展示长度（字符）
 SNIPPET_LENGTH = 300
