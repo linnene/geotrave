@@ -9,13 +9,14 @@
 | `src/database/postgis/connection.py` | `test/unit/database/postgis/test_connection.py` | 2 | 2 | 1 | 5 |
 | `src/database/retrieval_db.py` | `test/unit/database/postgis/test_retrieval_db.py` | 3 | 3 | 2 | 8 |
 | `src/agent/nodes/search/tools.py` | `test/unit/agent/nodes/search/test_tools.py` | 5 | 9 | 2 | 16 |
-| `src/agent/nodes/search/node.py` | `test/unit/agent/nodes/search/test_search_node.py` | 8 | 4 | 0 | 12 |
+| `src/agent/nodes/search/node.py` | `test/unit/agent/nodes/search/test_search_node.py` | 10 | 6 | 0 | 16 |
+| `src/agent/nodes/search/docs/` | `test/unit/agent/nodes/search/test_docs.py` | 16 | 1 | 0 | 17 |
 | `src/agent/nodes/query_generator/node.py` | `test/unit/agent/nodes/query_generator/test_query_generator.py` | 6 | 3 | 0 | 9 |
 | `src/agent/nodes/research/critic.py` | `test/unit/agent/nodes/research/test_critic.py` | 9 | 7 | 2 | 18 |
-| `src/agent/nodes/research/hash.py` | `test/unit/agent/nodes/research/test_hash.py` | 5 | 3 | 1 | 9 |
+| `src/agent/nodes/research/hash.py` | `test/unit/agent/nodes/research/test_hash.py` | 7 | 4 | 1 | 12 |
 | `src/agent/graph.py` | `test/unit/agent/test_graph_routing.py` | 4 | 0 | 0 | 4 |
 | `src/agent/nodes/search/tools.py` | `test/integration/test_spatial_tools.py` | 4 | 0 | 0 | 4 |
-| **Total** | | **47** | **33** | **8** | **88** |
+| **Total** | | **67** | **37** | **8** | **112** |
 
 ## P0 — Blocker Items
 
@@ -68,6 +69,17 @@
 | 45 | `test_qg_preserves_research_hashes` — 保留 research_hashes | research_hashes 丢失将导致 Hash 节点持久化映射被清空 |
 | 46 | `test_qg_appends_research_history` — 追加调研历史 | history 错误将影响后续 LLM 节点上下文质量 |
 | 47 | `test_qg_creates_manifest_when_none` — 无数据时创建 | 首轮调研无 ResearchManifest 时必须正确初始化 |
+| 48 | `test_gen_doc_id_deterministic` — doc_id 确定性 | 相同内容必须产生相同 SHA256 doc_id，否则文档去重失效 |
+| 49 | `test_search_basic` — BM25 检索正常路径 | 文档检索核心链路，失败将导致 document_search 工具不可用 |
+| 50 | `test_search_place_filter` — 地名过滤 | 跨目的地查询时地名过滤失效将返回无关文档 |
+| 51 | `test_search_score_threshold` — 相关度阈值过滤 | BM25_SCORE_THRESHOLD 失效将导致低质文档进入结果 |
+| 52 | `test_ingest` — 文档入库+索引更新 | ingest 链路断裂将导致离线管线无法注入文档 |
+| 53 | `test_document_search_tool` — 工具注册与 handler | document_search 工具未正确注册将导致 QG 生成任务无 handler 执行 |
+| 54 | `test_document_search_missing_query` — 必填参数校验 | 空 query 调用 BM25 将导致异常 |
+| 55 | `test_search_node_splits_doc_from_non_doc` — 文档/非文档分流 | 文档结果误入 query_results 会进入 Critic 审查；非文档误入 passed_doc_ids 会跳过 Hash |
+| 56 | `test_search_node_doc_results_accumulate` — doc_ids 跨迭代累积 | passed_doc_ids 覆盖式写入将丢失前几轮检索到的文档 |
+| 57 | `test_hash_node_promotes_passed_doc_ids` — doc_ids 提升到 Manifest | Hash 节点未提升 doc_ids 将导致 matched_doc_ids 始终为空，下游无文档可用 |
+| 58 | `test_hash_node_merges_matched_doc_ids` — 跨轮合并 matched_doc_ids | 覆盖式写入 matched_doc_ids 将丢弃之前轮次的文档检索结果 |
 
 ## P1 — Critical Items
 
@@ -106,6 +118,14 @@
 | 31 | `test_qg_empty_feedback_and_passed_queries` | QueryGenerator Node |
 | 32 | `test_qg_llm_error_graceful` | QueryGenerator Node |
 | 33 | `test_qg_content_list_merge` | QueryGenerator Node |
+| 34 | `test_tokenize_empty` | DocumentManager |
+| 35 | `test_search_empty_index` | DocumentManager |
+| 36 | `test_search_node_empty_doc_results` | Search Node |
+| 37 | `test_search_node_only_non_doc_results` | Search Node |
+| 38 | `test_hash_node_dedup_matched_doc_ids` | Hash Node |
+| 39 | `test_build_index_empty` | DocumentManager |
+| 40 | `test_build_index_json_str_payload` | DocumentManager |
+| 41 | `test_get_document_manager_singleton` | DocumentManager |
 
 ## P2 — Edge Case Items
 
@@ -119,6 +139,9 @@
 | 6 | `test_aggregate_loop_summary_empty` | Critic Node |
 | 7 | `test_critic_node_accumulates_all_passed` | Critic Node |
 | 8 | `test_hash_node_dedup_same_query_same_content` | Hash Node |
+| 9 | `test_gen_doc_id_different_content` | DocumentManager |
+| 10 | `test_build_index_json_str_payload` | DocumentManager |
+| 11 | `test_build_index_empty` | DocumentManager |
 
 ## High-Risk Evaluation Items
 
@@ -131,3 +154,6 @@
 7. **Critic 三层过滤失效**: Layer 1 黑名单若加载失败或匹配逻辑错误，不安全内容将进入 LLM 评分环节。Layer 3 阈值若设置不当（过高或过低），将导致有效结果被丢弃或无效结果通过。`test_critic_node_full_pipeline` 覆盖端到端过滤链路。当前测试中 Layer 2 LLM 调用已 mock，真实 LLM 行为需在集成测试中验证。
 8. **ResearchManifest 重建丢失 loop_state**: QueryGenerator 旧代码使用 `ResearchManifest(...)` 新建实例，导致 `loop_state`（feedback、passed_queries、all_passed_results）和 `research_hashes` 被清空。这意味着 Research Loop 多轮迭代中 Critic 反馈和去重信息全部丢失，循环无法正确收敛。已修复为 `model_copy(update=...)` 并在 `test_qg_preserves_loop_state` / `test_qg_preserves_research_hashes` 中守护。
 9. **全局 State 字段泄漏**: `active_queries`/`verified_results`/`feedback_history` 曾是 ResearchManifest 上的全局字段。已清理：`active_queries` 迁移至 `ResearchLoopInternal`（子图私有），`verified_results` 和 `feedback_history` 删除。Manager 的 `hashes_count` 改用 `research_hashes` 计算。Serializer 新增 `ResearchLoopInternal`/`ResearchResult`/`CriticResult`/`LoopSummary` 注册。
+10. **文档检索结果丢失**: `document_search` 返回的 doc_id 通过 `passed_doc_ids`（Search 写入）→ `matched_doc_ids`（Hash 提升）路径传递。Search 节点必须正确分流文档/非文档结果（by `tool_name == "document_search"`），Hash 节点即使在 `all_passed_results` 为空时也必须完成 doc_ids 提升。若任一环节遗漏，文档检索结果将静默丢失。`test_search_node_splits_doc_from_non_doc` / `test_hash_node_promotes_passed_doc_ids` 守护此链路。
+11. **BM25 空索引启动**: `DocumentManager.build_index()` 在 `retrieval_results` 表无 `_system` 文档时不会创建 `BM25Okapi`（该库不支持空语料）。此时 `is_loaded = False`，`search()` 返回空列表。`main.py` lifespan 启动时自动加载，若 PostgreSQL 不可达或表未初始化，文档检索功能静默降级而非崩溃。`test_build_index_empty` 覆盖此场景。
+12. **doc_id 碰撞**: SHA256 前 16 位作为 doc_id，在文档量 <10^6 时碰撞概率极低。但若离线管线错误地用相同内容多次调用 `ingest()`，PostgreSQL `ON CONFLICT (hash_key) DO UPDATE` 会正确覆盖而非产生重复行。`test_gen_doc_id_deterministic` 验证确定性。
