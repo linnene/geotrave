@@ -20,28 +20,39 @@ services:
       retries: 5  
 
   db-init:
-    image: geotrave-db:latest
-    container_name: geotrave-db-init
-    depends_on:
-      db:
-        condition: service_healthy
-    environment:
-      PGPASSWORD: ${DB_PASSWORD:-geotrave_dev}
-    entrypoint: >
-      sh -c "
-      for f in /osm_data/*.osm.pbf; do
-        osm2pgsql -U geotrave -d geotrave -H db -c -s -C 1024 \"\$f\" || exit 1
-      done &&
-      for f in /scripts/*.sql; do
-        echo \"Running \$f...\" &&
-        psql -U geotrave -d geotrave -h db -f \"\$f\" || exit 1
-      done &&
-      echo 'OSM import and setup complete.'
-      "
-    volumes:
-      - ./osm_data:/osm_data:ro
-    profiles:
-      - init
+      image: geotrave-db:latest
+      container_name: geotrave-db-init
+      depends_on:
+        db:
+          condition: service_healthy
+      environment:
+        PGPASSWORD: ${DB_PASSWORD:-geotrave_dev}
+      # 数组格式能确保字符串原封不动传给容器内的 sh
+      entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        set -e
+        # 注意这里使用的是 $$f
+        for f in /osm_data/*.osm.pbf; do
+          if [ -e "$$f" ]; then
+            echo "Processing OSM file: $$f"
+            osm2pgsql -U geotrave -d geotrave -H db -c -s -C 1024 "$$f"
+          fi
+        done
+
+        for f in /scripts/*.sql; do
+          if [ -e "$$f" ]; then
+            echo "Running SQL script: $$f"
+            psql -U geotrave -d geotrave -h db -f "$$f"
+          fi
+        done
+        echo "OSM import and setup complete."
+      volumes:
+        - ./osm_data:/osm_data:ro
+        - ./scripts:/scripts:ro
+      profiles:
+        - init
 
 volumes:
   pgdata:
