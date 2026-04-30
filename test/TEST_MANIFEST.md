@@ -11,12 +11,13 @@
 | `src/agent/nodes/search/tools.py` | `test/unit/agent/nodes/search/test_tools.py` | 5 | 9 | 2 | 16 |
 | `src/agent/nodes/search/node.py` | `test/unit/agent/nodes/search/test_search_node.py` | 10 | 6 | 0 | 16 |
 | `src/agent/nodes/search/docs/` | `test/unit/agent/nodes/search/test_docs.py` | 16 | 1 | 0 | 17 |
+| `src/agent/nodes/search/web_search.py` | `test/unit/agent/nodes/search/test_web_search.py` | 0 | 7 | 5 | 12 |
 | `src/agent/nodes/query_generator/node.py` | `test/unit/agent/nodes/query_generator/test_query_generator.py` | 6 | 3 | 0 | 9 |
 | `src/agent/nodes/research/critic.py` | `test/unit/agent/nodes/research/test_critic.py` | 9 | 7 | 2 | 18 |
 | `src/agent/nodes/research/hash.py` | `test/unit/agent/nodes/research/test_hash.py` | 7 | 4 | 1 | 12 |
 | `src/agent/graph.py` | `test/unit/agent/test_graph_routing.py` | 4 | 0 | 0 | 4 |
 | `src/agent/nodes/search/tools.py` | `test/integration/test_spatial_tools.py` | 4 | 0 | 0 | 4 |
-| **Total** | | **67** | **37** | **8** | **112** |
+| **Total** | | **67** | **44** | **13** | **124** |
 
 ## P0 — Blocker Items
 
@@ -126,6 +127,13 @@
 | 39 | `test_build_index_empty` | DocumentManager |
 | 40 | `test_build_index_json_str_payload` | DocumentManager |
 | 41 | `test_get_document_manager_singleton` | DocumentManager |
+| 42 | `test_search_web_success` | Web Search |
+| 43 | `test_search_web_empty_results` | Web Search |
+| 44 | `test_search_web_ddgs_exception` | Web Search |
+| 45 | `test_crawl_urls_success` | Web Search |
+| 46 | `test_crawl_urls_partial_failure` | Web Search |
+| 47 | `test_web_search_tool_handler` | Web Search |
+| 48 | `test_web_search_crawl_failure` | Web Search |
 
 ## P2 — Edge Case Items
 
@@ -142,6 +150,11 @@
 | 9 | `test_gen_doc_id_different_content` | DocumentManager |
 | 10 | `test_build_index_json_str_payload` | DocumentManager |
 | 11 | `test_build_index_empty` | DocumentManager |
+| 12 | `test_search_web_empty_query` | Web Search |
+| 13 | `test_search_web_filters_empty_entries` | Web Search |
+| 14 | `test_web_search_empty_ddg` | Web Search |
+| 15 | `test_web_search_clamps_max_results` | Web Search |
+| 16 | `test_web_search_missing_query` | Web Search |
 
 ## High-Risk Evaluation Items
 
@@ -157,3 +170,6 @@
 10. **文档检索结果丢失**: `document_search` 返回的 doc_id 通过 `passed_doc_ids`（Search 写入）→ `matched_doc_ids`（Hash 提升）路径传递。Search 节点必须正确分流文档/非文档结果（by `tool_name == "document_search"`），Hash 节点即使在 `all_passed_results` 为空时也必须完成 doc_ids 提升。若任一环节遗漏，文档检索结果将静默丢失。`test_search_node_splits_doc_from_non_doc` / `test_hash_node_promotes_passed_doc_ids` 守护此链路。
 11. **BM25 空索引启动**: `DocumentManager.build_index()` 在 `retrieval_results` 表无 `_system` 文档时不会创建 `BM25Okapi`（该库不支持空语料）。此时 `is_loaded = False`，`search()` 返回空列表。`main.py` lifespan 启动时自动加载，若 PostgreSQL 不可达或表未初始化，文档检索功能静默降级而非崩溃。`test_build_index_empty` 覆盖此场景。
 12. **doc_id 碰撞**: SHA256 前 16 位作为 doc_id，在文档量 <10^6 时碰撞概率极低。但若离线管线错误地用相同内容多次调用 `ingest()`，PostgreSQL `ON CONFLICT (hash_key) DO UPDATE` 会正确覆盖而非产生重复行。`test_gen_doc_id_deterministic` 验证确定性。
+13. **DDGS 限流/异常**: DuckDuckGo 可能返回 202 状态码（限流）或网络错误。`search_web()` 在 `asyncio.to_thread()` 中执行同步 `DDGS().text()`，任何异常均返回空列表。爬取失败时 content 为 None 但保留 snippet。`test_search_web_ddgs_exception` / `test_web_search_crawl_failure` 覆盖降级行为。
+14. **Crawler 耗时过长**: deep 模式（crawl4ai headless browser）单次抓取可能耗时 30s+。`crawl_urls()` 使用 Semaphore(2) 限制并发，`asyncio.wait(timeout=60)` 做总超时保护。超时 URL 标记为 `crawl_status="timeout"`。`test_crawl_urls_partial_failure` 覆盖部分失败场景。
+15. **LLM 过度偏好 web_search**: 历史上 web_search 被删除的原因是 LLM 偏好该工具而忽视 spatial_search。重新注册时在工具描述 + QG 提示词中双重标注 "必须优先使用 spatial_search"。需在实际运行中监控 QG 生成的 spatial_search 比例。

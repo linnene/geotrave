@@ -383,3 +383,42 @@ async def execute_document_search(task: SearchTask) -> RetrievalMetadata:
         },
     )
 
+
+# ---------------------------------------------------------------------------
+# Web Search — DuckDuckGo 互联网检索 + Crawler 全文抓取
+# ---------------------------------------------------------------------------
+
+
+@register_tool(
+    name="web_search",
+    description="通过 DuckDuckGo 搜索互联网并自动抓取目标网页全文。"
+               "适合查找实时资讯、开放时间、门票价格、用户评价、当地活动、游记攻略等。"
+               "注意：对于地理位置相关的查询（如某地附近的餐厅、景点），请优先使用 spatial_search。",
+    parameters={
+        "query": "string (搜索关键词，如'2024年京都红叶最佳观赏时间')",
+        "max_results": "int (可选，返回结果条数上限，默认 5)",
+    },
+)
+async def execute_web_search(task: SearchTask) -> RetrievalMetadata:
+    """Execute DDG search then crawl top-3 URLs for full content."""
+    import time as _time
+
+    from .web_search import search_and_crawl
+
+    params = task.parameters
+    query = params.get("query", "")
+    max_results = int(params.get("max_results", 5))
+
+    if not query:
+        raise ValueError("web_search 缺少必填参数 'query'")
+
+    max_results = max(1, min(max_results, 20))
+
+    payload = await search_and_crawl(query, max_results)
+
+    return RetrievalMetadata(
+        hash_key=f"web_{query}_{int(_time.time() * 1000)}",
+        source=f"web_search(query={query})",
+        relevance_score=1.0,
+        payload=payload,
+    )
