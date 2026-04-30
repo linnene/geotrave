@@ -301,3 +301,180 @@ async def test_search_node_preserves_existing_loop_state():
     assert new_manifest.loop_state.loop_iteration == 1
     # 同时写入了 query_results
     assert len(new_manifest.loop_state.query_results) == 1
+
+
+# =============================================================================
+# P0 — 文档/非文档分流
+# =============================================================================
+
+
+@pytest.mark.priority("P0")
+@pytest.mark.asyncio
+async def test_search_node_splits_doc_from_non_doc():
+    """文档结果 → passed_doc_ids；非文档结果 → query_results。"""
+    from src.agent.nodes.research.search.node import search_node
+
+    tasks = [
+        SearchTask(
+            tool_name="document_search",
+            dimension="attraction",
+            parameters={"query": "函馆夜景"},
+            rationale="test",
+        ),
+        SearchTask(
+            tool_name="spatial_search",
+            dimension="dining",
+            parameters={"center": "函馆", "radius_m": "2000"},
+            rationale="test",
+        ),
+    ]
+    manifest = ResearchManifest(loop_state=ResearchLoopInternal(active_queries=tasks))
+
+    mock_doc_result = AsyncMock()
+    mock_doc_result.payload = {
+        "query": "函馆夜景",
+        "docs": [
+            {"doc_id": "doc_abc123", "title": "函馆夜景攻略", "score": 3.5},
+            {"doc_id": "doc_def456", "title": "北海道三大夜景", "score": 2.8},
+        ],
+    }
+    mock_spatial_result = AsyncMock()
+    mock_spatial_result.payload = {
+        "pois": [{"name": "幸运小丑汉堡", "category": "restaurant"}],
+    }
+
+    with patch.dict(
+        "src.agent.nodes.research.search.tools.TOOL_DISPATCH",
+        {
+            "document_search": AsyncMock(return_value=mock_doc_result),
+            "spatial_search": AsyncMock(return_value=mock_spatial_result),
+        },
+    ):
+        result = await search_node({"research_data": manifest, "messages": []})
+
+    new_manifest = result["research_data"]
+    # 非文档结果在 query_results
+    assert len(new_manifest.loop_state.query_results) == 1
+    assert "doc_abc123" not in str(new_manifest.loop_state.query_results)
+    # 文档 doc_id 在 passed_doc_ids
+    assert len(new_manifest.loop_state.passed_doc_ids) == 2
+    assert "doc_abc123" in new_manifest.loop_state.passed_doc_ids
+    assert "doc_def456" in new_manifest.loop_state.passed_doc_ids
+    # active_queries 已清空
+    assert new_manifest.loop_state.active_queries == []
+
+
+@pytest.mark.priority("P0")
+@pytest.mark.asyncio
+async def test_search_node_doc_results_accumulate():
+    """passed_doc_ids 跨迭代累积，不覆盖已有 doc_id。"""
+    from src.agent.nodes.research.search.node import search_node
+
+    tasks = [
+        SearchTask(
+            tool_name="document_search",
+            dimension="attraction",
+            parameters={"query": "京都寺庙"},
+            rationale="test",
+        ),
+    ]
+    existing_loop = ResearchLoopInternal(
+        active_queries=tasks,
+        passed_doc_ids=["doc_existing_1", "doc_existing_2"],
+    )
+    manifest = ResearchManifest(loop_state=existing_loop)
+
+    mock_doc_result = AsyncMock()
+    mock_doc_result.payload = {
+        "query": "京都寺庙",
+        "docs": [
+            {"doc_id": "doc_new_1", "title": "金阁寺", "score": 4.0},
+            {"doc_id": "doc_existing_1", "title": "清水寺", "score": 3.5},  # 重复的
+        ],
+    }
+
+    with patch.dict(
+        "src.agent.nodes.research.search.tools.TOOL_DISPATCH",
+        {"document_search": AsyncMock(return_value=mock_doc_result)},
+    ):
+        result = await search_node({"research_data": manifest, "messages": []})
+
+    new_manifest = result["research_data"]
+    doc_ids = new_manifest.loop_state.passed_doc_ids
+    # 保留已有
+    assert "doc_existing_1" in doc_ids
+    assert "doc_existing_2" in doc_ids
+    # 新增
+    assert "doc_new_1" in doc_ids
+    # 无重复
+    assert len(doc_ids) == 3
+
+
+@pytest.mark.priority("P1")
+@pytest.mark.asyncio
+async def test_search_node_empty_doc_results():
+    """document_search 无结果时 passed_doc_ids 保持不变。"""
+    from src.agent.nodes.research.search.node import search_node
+
+    tasks = [
+        SearchTask(
+            tool_name="document_search",
+            dimension="attraction",
+            parameters={"query": "不存在的内容"},
+            rationale="test",
+        ),
+    ]
+    existing_loop = ResearchLoopInternal(
+        active_queries=tasks,
+        passed_doc_ids=["doc_keep_me"],
+    )
+    manifest = ResearchManifest(loop_state=existing_loop)
+
+    mock_doc_result = AsyncMock()
+    mock_doc_result.payload = {"query": "不存在的内容", "docs": []}
+
+    with patch.dict(
+        "src.agent.nodes.research.search.tools.TOOL_DISPATCH",
+        {"document_search": AsyncMock(return_value=mock_doc_result)},
+    ):
+        result = await search_node({"research_data": manifest, "messages": []})
+
+    new_manifest = result["research_data"]
+    # passed_doc_ids 保持不变
+    assert new_manifest.loop_state.passed_doc_ids == ["doc_keep_me"]
+
+
+@pytest.mark.priority("P1")
+@pytest.mark.asyncio
+async def test_search_node_only_non_doc_results():
+    """仅有非文档工具时 passed_doc_ids 不被修改。"""
+    from src.agent.nodes.research.search.node import search_node
+
+    tasks = [
+        SearchTask(
+            tool_name="spatial_search",
+            dimension="dining",
+            parameters={"center": "东京", "radius_m": "1000"},
+            rationale="test",
+        ),
+    ]
+    existing_loop = ResearchLoopInternal(
+        active_queries=tasks,
+        passed_doc_ids=["doc_preexisting"],
+    )
+    manifest = ResearchManifest(loop_state=existing_loop)
+
+    mock_result = AsyncMock()
+    mock_result.payload = {"pois": [{"name": "一兰拉面"}]}
+
+    with patch.dict(
+        "src.agent.nodes.research.search.tools.TOOL_DISPATCH",
+        {"spatial_search": AsyncMock(return_value=mock_result)},
+    ):
+        result = await search_node({"research_data": manifest, "messages": []})
+
+    new_manifest = result["research_data"]
+    # query_results 有非文档结果
+    assert len(new_manifest.loop_state.query_results) == 1
+    # passed_doc_ids 不受影响
+    assert new_manifest.loop_state.passed_doc_ids == ["doc_preexisting"]

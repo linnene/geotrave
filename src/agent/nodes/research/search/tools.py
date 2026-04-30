@@ -342,3 +342,44 @@ async def execute_route_search(task: SearchTask) -> RetrievalMetadata:
         else:
             raise ValueError(f"Unsupported route_search mode: {mode}")
 
+
+# ---------------------------------------------------------------------------
+# Document Search — BM25 文档检索
+# ---------------------------------------------------------------------------
+
+
+@register_tool(
+    name="document_search",
+    description="在本地旅行攻略库中检索深度内容，支持按目的地地名过滤。适合查找游记、小众景点推荐、自驾路线心得等。"
+               "返回相关文档的标题、片段和相关度评分。",
+    parameters={
+        "query": "string (搜索关键词，如'函馆夜景最佳观赏点')",
+        "place_filter": "string (可选: 按地名过滤，如'函馆')",
+    },
+)
+async def execute_document_search(task: SearchTask) -> RetrievalMetadata:
+    params = task.parameters
+    query = params.get("query", "")
+    place_filter = params.get("place_filter")
+
+    if not query:
+        raise ValueError("document_search 缺少必填参数 'query'")
+
+    pool = await get_pool()
+    from .docs import get_document_manager
+    doc_mgr = await get_document_manager(pool)
+
+    results = doc_mgr.search(query, place_filter)
+
+    return RetrievalMetadata(
+        hash_key=f"docs_{query}_{int(time.time() * 1000)}",
+        source=f"document_search(query={query}, place={place_filter})",
+        relevance_score=1.0,
+        payload={
+            "query": query,
+            "place_filter": place_filter,
+            "total": len(results),
+            "docs": results,
+        },
+    )
+
