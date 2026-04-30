@@ -78,13 +78,20 @@ async def manager_node(state: TravelState) -> Dict[str, Any]:
         
         next_node = decision.get("next_stage")
         reason = decision.get("rationale", "无具体理由")
-        
+
         logger.info(f"Manager Decision: -> {next_node.upper()} | Reason: {reason}")
     except Exception as e:
         logger.error(f"Manager reasoning failed: {str(e)}", exc_info=True)
-        # Fallback to safe logic if LLM fails
         next_node = "reply" if not is_core_complete else "research_loop"
         reason = f"Fallback due to error: {str(e)}"
+
+    # 硬守卫: is_core_complete=False 时必须导向 reply，防止 LLM 输出自相矛盾
+    if not is_core_complete and next_node != "reply":
+        logger.warning(
+            f"Manager override: is_core_complete=False, forcing reply (was: {next_node})"
+        )
+        reason = f"[硬守卫覆写] is_core_complete 为 False，强制导向 reply。原决策: {next_node}，原理由: {reason}"
+        next_node = "reply"
 
     # 3. Issue Routing Command
     route = RouteMetadata(
