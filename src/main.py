@@ -46,6 +46,11 @@ async def lifespan(app: fastapi.FastAPI):
     logger.info(f"[GeoTrave] BM25 document index loaded ({doc_mgr.doc_count()} documents)")
 
     yield
+    # 关闭 Crawler 浏览器实例
+    from src.agent.nodes.research.search.web_search import close_crawler
+    await close_crawler()
+    logger.info("[GeoTrave] WebSearch crawler browser closed")
+
     await close_pool()
     logger.info("[GeoTrave] API Server shutting down...")
     
