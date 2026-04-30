@@ -57,7 +57,8 @@ async def test_get_pool_reuses_existing_pool():
 async def test_get_pool_recreates_on_loop_mismatch():
     """
     Priority: P0
-    Description: get_pool() closes the old pool and creates a new one when
+    Description: get_pool() discards the old pool (without calling close(),
+    which would fail across event loops) and creates a new one when
     the current event loop differs from the recorded _pool_loop.
     """
     old_pool = AsyncMock()
@@ -71,7 +72,7 @@ async def test_get_pool_recreates_on_loop_mismatch():
 
         pool = await conn_mod.get_pool()
 
-        old_pool.close.assert_awaited_once()
+        old_pool.close.assert_not_called()  # 跨循环 close 必然失败，不调用
         assert pool is new_pool
         assert conn_mod._pool is new_pool
         assert conn_mod._pool_loop is asyncio.get_running_loop()
