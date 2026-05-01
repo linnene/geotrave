@@ -7,6 +7,7 @@ Dependencies: fastapi, langchain_core, src.api.schema, src.agent.graph
 
 from typing import cast
 from fastapi import APIRouter
+from fastapi.responses import JSONResponse
 from langchain_core.messages import HumanMessage
 from langchain_core.runnables import RunnableConfig
 
@@ -55,9 +56,12 @@ async def chat_endpoint(request: ChatRequest):
             "status": "success"
         }
     except Exception as e:
-        logger.error(f"[Chat API] Agent invocation failed: {e}")
-        return {
-            "reply": f"代理执行出错: {str(e)}",
-            "session_id": request.session_id,
-            "status": "error"
-        }
+        logger.error(f"[Chat API] Agent invocation failed: {e}", exc_info=True)
+        return JSONResponse(
+            status_code=500,
+            content={
+                "reply": "系统处理请求时发生内部错误，请稍后重试。",
+                "session_id": request.session_id,
+                "status": "error",
+            },
+        )
