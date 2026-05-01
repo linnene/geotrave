@@ -118,6 +118,10 @@ async def crawl_urls(
             pass
     for t in pending:
         t.cancel()
+        try:
+            await t
+        except (asyncio.CancelledError, Exception):
+            pass
 
     # Preserve original URL order
     result_map = {r["url"]: r for r in results}
