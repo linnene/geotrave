@@ -38,15 +38,17 @@ def generate_hash_key(query: str, content: Any) -> str:
 
 async def persist_results(
     all_passed_results: List[CriticResult],
+    query_results: Dict[str, Any],
     session_id: str,
 ) -> Dict[str, List[str]]:
     """持久化通过过滤的结果到 Retrieval DB。
 
-    对每条 CriticResult 生成 hash_key，批量写入 PostgreSQL JSONB，
-    返回 {query: [hash_key, ...]} 映射供父图暴露。
+    对每条 CriticResult 生成 hash_key，合并原始 ResearchResult.content 后批量写入
+    PostgreSQL JSONB，返回 {query: [hash_key, ...]} 映射供父图暴露。
 
     Args:
         all_passed_results: Critic 通过的全部结果。
+        query_results: Search 节点产出的 {query: ResearchResult} 映射。
         session_id: 当前会话 ID（对应 LangGraph thread_id）。
 
     Returns:
@@ -60,7 +62,12 @@ async def persist_results(
     records: List[Dict[str, Any]] = []
 
     for r in all_passed_results:
+        # 合并 CriticResult 元数据 + 原始 ResearchResult.content
         payload = r.model_dump()
+        raw = query_results.get(r.query)
+        if raw is not None:
+            raw_content = raw.get("content") if isinstance(raw, dict) else getattr(raw, "content", None)
+            payload["_research_content"] = raw_content
         hk = generate_hash_key(r.query, payload)
         mapping[r.query].append(hk)
         records.append({
@@ -136,8 +143,8 @@ async def hash_node(state: TravelState) -> Dict[str, Any]:
     messages = state.get("messages", [])
     session_id = messages[0].id if messages else "unknown"
 
-    # 持久化至 Retrieval DB
-    research_hashes = await persist_results(all_passed, session_id)
+    # 持久化至 Retrieval DB（附带原始 ResearchResult.content）
+    research_hashes = await persist_results(all_passed, loop_state.query_results, session_id)
 
     # 合并已有的 research_hashes（跨多轮调研累积）
     existing_hashes = dict(research_data.research_hashes)

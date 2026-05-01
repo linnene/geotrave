@@ -53,7 +53,10 @@ async def chat_endpoint(request: ChatRequest):
         return {
             "reply": last_message.content if last_message is not None else "对不起，我无法生成回复。",
             "session_id": request.session_id,
-            "status": "success"
+            "status": "success",
+            # 结构化交付数据（前端占位）
+            "recommendation": result.get("recommendation_data"),
+            "plan": result.get("plan_data"),
         }
     except Exception as e:
         logger.error(f"[Chat API] Agent invocation failed: {e}", exc_info=True)

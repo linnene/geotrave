@@ -94,7 +94,7 @@ async def test_persist_results_creates_mapping():
         "src.agent.nodes.research.hash.node.batch_store_results",
         new=AsyncMock(),
     ) as mock_store:
-        mapping = await persist_results(results, "sess-test")
+        mapping = await persist_results(results, {}, "sess-test")
 
     # 验证 batch_store_results 被调用
     mock_store.assert_awaited_once()
@@ -131,7 +131,7 @@ async def test_persist_results_empty_list():
         "src.agent.nodes.research.hash.node.batch_store_results",
         new=AsyncMock(),
     ) as mock_store:
-        mapping = await persist_results([], "sess")
+        mapping = await persist_results([], {}, "sess")
 
     mock_store.assert_not_called()
     assert mapping == {}

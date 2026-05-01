@@ -7,7 +7,7 @@ from src.agent.state.schema import ResearchLoopInternal
 from src.utils.llm_factory import LLMFactory
 from src.utils.prompt import query_generator_prompt_template
 from src.utils.logger import get_logger
-from src.agent.nodes.utils import build_trace, format_recent_history
+from src.agent.nodes.utils import build_trace, format_recent_history, get_beijing_time_now
 from .config import TEMPERATURE, HISTORY_LIMIT, MAX_TOKENS
 
 logger = get_logger("QueryGeneratorNode")
@@ -54,6 +54,7 @@ async def query_generator_node(state: TravelState) -> Dict[str, Any]:
     format_instructions = _get_format_instructions()
 
     prompt_str = query_generator_prompt_template.format(
+        current_time=get_beijing_time_now(),
         user_profile=user_profile.model_dump_json(indent=2) if user_profile else "{}",
         user_request=user_request,
         tools_doc=tools_doc,
