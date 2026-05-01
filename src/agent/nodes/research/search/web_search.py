@@ -90,6 +90,8 @@ async def crawl_urls(
                     "content": result.content,
                     "crawl_status": result.status,
                     "crawl_mode": result.mode,
+                    "error_code": result.error_code,
+                    "error_message": result.error_message,
                 }
             except Exception as exc:
                 logger.warning("Crawl failed for %s: %s", url, exc)
@@ -98,6 +100,8 @@ async def crawl_urls(
                     "content": None,
                     "crawl_status": "error",
                     "crawl_mode": "fast",
+                    "error_code": "exception",
+                    "error_message": str(exc)[:500],
                 }
 
     tasks = [_crawl_one(url) for url in urls]
@@ -117,7 +121,8 @@ async def crawl_urls(
 
     # Preserve original URL order
     result_map = {r["url"]: r for r in results}
-    return [result_map.get(url, {"url": url, "content": None, "crawl_status": "timeout", "crawl_mode": "fast"}) for url in urls]
+    timeout_fallback = {"url": "", "content": None, "crawl_status": "timeout", "crawl_mode": "fast", "error_code": "timeout", "error_message": "Crawl timed out"}
+    return [result_map.get(url, {**timeout_fallback, "url": url}) for url in urls]
 
 
 async def search_and_crawl(

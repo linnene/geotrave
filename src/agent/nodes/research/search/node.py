@@ -69,12 +69,19 @@ async def _execute_tasks(
     results: Dict[str, ResearchResult] = {}
 
     for idx, task in enumerate(tasks):
+        query_text = json.dumps(task.parameters, ensure_ascii=False)
         handler = tools.TOOL_DISPATCH.get(task.tool_name)
         if handler is None:
             logger.error(f"Unsupported tool '{task.tool_name}' in task {idx}.")
+            results[query_text] = ResearchResult(
+                tool_name=task.tool_name,
+                query=query_text,
+                content_type="json",
+                content={"error": f"Unknown tool: {task.tool_name}"},
+                content_summary=f"错误: 未知工具 {task.tool_name}",
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
             continue
-
-        query_text = json.dumps(task.parameters, ensure_ascii=False)
         try:
             raw = await handler(task)
             envelope = ResearchResult(
@@ -103,6 +110,11 @@ async def _execute_tasks(
             results[query_text] = error_env
 
     return results
+
+
+def _is_error_result(rr: ResearchResult) -> bool:
+    """检查 ResearchResult 是否为错误 envelope（应被 Critic 前的 L0 过滤器拦截）。"""
+    return isinstance(rr.content, dict) and "error" in rr.content
 
 
 async def search_node(state: Dict[str, Any]) -> Dict[str, Any]:
@@ -145,6 +157,16 @@ async def search_node(state: Dict[str, Any]) -> Dict[str, Any]:
     doc_results = {k: v for k, v in query_results.items() if v.tool_name == "document_search"}
     non_doc_results = {k: v for k, v in query_results.items() if v.tool_name != "document_search"}
 
+    # --- L0 错误过滤器：错误 envelope 不入 Critic，避免污染评分 ---
+    error_results = {k: v for k, v in non_doc_results.items() if _is_error_result(v)}
+    clean_non_doc = {k: v for k, v in non_doc_results.items() if not _is_error_result(v)}
+    if error_results:
+        logger.warning(
+            "L0 filter: %d error result(s) excluded from Critic: %s",
+            len(error_results),
+            [(k, v.content.get("error", "")[:80]) for k, v in error_results.items()],
+        )
+
     # 文档结果：提取 doc_ids，累积到 passed_doc_ids（不进入 Critic）
     new_doc_ids: list = []
     for rr in doc_results.values():
@@ -157,10 +179,10 @@ async def search_node(state: Dict[str, Any]) -> Dict[str, Any]:
     previous_doc_ids = list(research_data.loop_state.passed_doc_ids)
     merged_doc_ids = previous_doc_ids + [d for d in new_doc_ids if d not in previous_doc_ids]
 
-    # 更新 loop_state：query_results 只含非文档，passed_doc_ids 累积
+    # 更新 loop_state：query_results 只含非文档且非错误的结果
     new_loop_state = research_data.loop_state.model_copy(
         update={
-            "query_results": non_doc_results,
+            "query_results": clean_non_doc,
             "active_queries": [],
             "passed_doc_ids": merged_doc_ids,
         }
@@ -180,11 +202,13 @@ async def search_node(state: Dict[str, Any]) -> Dict[str, Any]:
             "collected_results": len(query_results),
             "doc_results": len(doc_results),
             "doc_ids_added": len(new_doc_ids),
+            "error_results_filtered": len(error_results),
         },
     )
 
     logger.info(
-        f"Search done: {len(tasks)} tasks → {len(non_doc_results)} non-doc + {len(doc_results)} doc results"
+        f"Search done: {len(tasks)} tasks → {len(clean_non_doc)} non-doc + {len(doc_results)} doc"
+        f" (+ {len(error_results)} errors filtered)"
     )
     return {
         "research_data": new_research_data,
