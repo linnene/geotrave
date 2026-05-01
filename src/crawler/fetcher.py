@@ -33,14 +33,22 @@ class ContentFetcher:
             "Sec-Fetch-Dest": "document",
         }
 
-        # Prefer managed browser (real Chrome) on all platforms for lower
-        # anti-bot detection rates. On Linux (Docker), use channel="chrome"
-        # to select the Google Chrome we install. Falls back to Playwright's
-        # Chromium if Chrome binary is missing.
+        # ── Platform detection ──────────────────────────────────────
+        import os as _os
+
+        _is_linux = sys.platform != "win32"
+        _is_docker = _is_linux and (
+            _os.path.exists("/.dockerenv")
+            or "docker" in (_os.environ.get("container", "") or "").lower()
+        )
+
+        # ── Browser selection ───────────────────────────────────────
+        # Windows: managed Chrome (user's real installation)
+        # Docker:  managed Chrome from Dockerfile (Google Chrome Stable)
+        # Other:   fall back to Playwright's bundled Chromium
         _managed = True
         _channel = "chrome"
-        if sys.platform != "win32":
-            import os as _os
+        if _is_linux:
             _chrome = (
                 _os.path.exists("/usr/bin/google-chrome-stable")
                 or _os.path.exists("/usr/bin/google-chrome")
@@ -49,14 +57,38 @@ class ContentFetcher:
                 _managed = False
                 _channel = "chromium"
 
+        # ── Browser fingerprint ─────────────────────────────────────
+        # On real Windows: platform headers match the OS → low risk.
+        # In Docker: platform is Linux, but we send Windows headers.
+        # Fix the platform claim to match actual OS → less suspicious.
+        _headers = dict(self.headers)
+        if _is_linux:
+            _headers["Sec-Ch-Ua-Platform"] = '"Linux"'
+            _headers["User-Agent"] = _headers["User-Agent"].replace(
+                "Windows NT 10.0; Win64; x64", "X11; Linux x86_64"
+            ).replace("Chrome/124.0.0.0", "Chrome/134.0.0.0")
+
+        # ── Persistent profile (Docker only) ───────────────────────
+        # Persist browser data across container restarts so anti-bot
+        # sees a returning user instead of a fresh install every time.
+        _user_data_dir = None
+        _use_persistent = False
+        if _is_docker:
+            _user_data_dir = "/app/data/chrome_profile"
+            _use_persistent = True
+            _os.makedirs(_user_data_dir, exist_ok=True)
+
         self._browser_config = BrowserConfig(
             headless=True,
             java_script_enabled=True,
             use_managed_browser=_managed,
             channel=_channel,
+            user_data_dir=_user_data_dir,
+            use_persistent_context=_use_persistent,
+            enable_stealth=True,
             viewport_width=1920,
             viewport_height=1080,
-            headers=self.headers,
+            headers=_headers,
         )
 
         # 回收阈值: 爬够 500 页后自动回收浏览器进程（释放泄漏内存）
