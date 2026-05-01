@@ -53,7 +53,7 @@ RUN playwright install-deps chromium && \
 COPY . .
 
 # Ensure data directories exist
-RUN mkdir -p database/checkpointer
+RUN mkdir -p database/checkpointer data/chrome_profile
 
 EXPOSE 8000 8501
 
