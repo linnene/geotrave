@@ -46,7 +46,7 @@ class ContentFetcher:
         self._run_config = CrawlerRunConfig(
             cache_mode=CacheMode.BYPASS,
             process_iframes=True,
-            wait_until="networkidle",
+            wait_until="domcontentloaded",
             js_code="""
                 (async () => {
                     window.scrollTo(0, 500);
