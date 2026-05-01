@@ -1,4 +1,5 @@
 import httpx
+import sys
 from typing import Optional
 from crawl4ai import AsyncWebCrawler, BrowserConfig, CrawlerRunConfig, CacheMode
 from src.utils.logger import logger
@@ -32,10 +33,14 @@ class ContentFetcher:
             "Sec-Fetch-Dest": "document",
         }
 
+        # Windows: use user's installed Chrome to reduce anti-bot detection.
+        # Linux/Docker: use Playwright's managed Chromium — CDP is more reliable.
+        _use_managed = sys.platform == "win32"
+
         self._browser_config = BrowserConfig(
             headless=True,
             java_script_enabled=True,
-            use_managed_browser=True,
+            use_managed_browser=_use_managed,
             viewport_width=1920,
             viewport_height=1080,
             headers=self.headers,
