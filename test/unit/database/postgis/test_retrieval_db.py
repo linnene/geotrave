@@ -75,10 +75,12 @@ async def test_store_result_insert():
 
     assert "INSERT INTO retrieval_results" in sql
     assert "ON CONFLICT (hash_key)" in sql
+    assert "$3::jsonb" in sql
     assert params[0] == "abc123"
     assert params[1] == "sess-1"
-    # payload 作为 Python dict 直接传入 (asyncpg 处理 JSONB 序列化)
-    assert params[2] == {"name": "札幌温泉", "score": 95}
+    # asyncpg 不会自动序列化 dict→JSONB，必须 json.dumps + ::jsonb cast
+    import json
+    assert params[2] == json.dumps({"name": "札幌温泉", "score": 95}, ensure_ascii=False)
 
 
 @pytest.mark.priority("P0")
@@ -109,10 +111,9 @@ async def test_get_results_returns_payloads():
 @pytest.mark.priority("P1")
 @pytest.mark.asyncio
 async def test_batch_store_results():
-    """验证逐条 execute (事务内) 参数正确传递——executemany 对 Python dict→JSONB
-    序列化行为不一致，改用逐条 execute + transaction。"""
+    """验证逐条 execute (事务内) + json.dumps + ::jsonb cast——
+    asyncpg 不会自动序列化 dict→JSONB，必须显式 json.dumps + ::jsonb。"""
     mock_conn = AsyncMock()
-    # 使 conn.transaction() 返回合法的 async context manager
     _tx_ctx = MagicMock()
     _tx_ctx.__aenter__ = AsyncMock(return_value=None)
     _tx_ctx.__aexit__ = AsyncMock(return_value=None)
@@ -128,25 +129,23 @@ async def test_batch_store_results():
             session_id="sess-batch",
         )
 
-    # 验证事务被启用
     mock_conn.transaction.assert_called_once()
-
-    # 验证逐条 execute（2 条结果 = 2 次 execute）
     assert mock_conn.execute.await_count == 2
+
+    import json
 
     sql_0 = mock_conn.execute.call_args_list[0][0][0]
     params_0 = mock_conn.execute.call_args_list[0][0][1:]
-    assert "INSERT INTO retrieval_results" in sql_0
-    assert "ON CONFLICT (hash_key)" in sql_0
+    assert "$3::jsonb" in sql_0
     assert params_0[0] == "h1"
     assert params_0[1] == "sess-batch"
-    assert params_0[2] == {"x": 10}
+    assert params_0[2] == json.dumps({"x": 10}, ensure_ascii=False)
 
     sql_1 = mock_conn.execute.call_args_list[1][0][0]
     params_1 = mock_conn.execute.call_args_list[1][0][1:]
     assert params_1[0] == "h2"
     assert params_1[1] == "sess-batch"
-    assert params_1[2] == {"y": 20}
+    assert params_1[2] == json.dumps({"y": 20}, ensure_ascii=False)
 
 
 @pytest.mark.priority("P1")
