@@ -2,6 +2,7 @@ import httpx
 from typing import Optional
 from crawl4ai import AsyncWebCrawler, BrowserConfig, CrawlerRunConfig, CacheMode
 from src.utils.logger import logger
+from .schema import FetchError
 
 
 class ContentFetcher:
@@ -78,8 +79,12 @@ class ContentFetcher:
     # Fetch
     # ------------------------------------------------------------------
 
-    async def fetch_fast(self, url: str) -> Optional[str]:
-        """Low-latency fetch for simple static pages."""
+    async def fetch_fast(self, url: str) -> str:
+        """Low-latency fetch for simple static pages.
+
+        Returns HTML string on success.
+        Raises FetchError with structured error_code on failure.
+        """
         try:
             async with httpx.AsyncClient(
                 headers=self.headers,
@@ -90,30 +95,64 @@ class ContentFetcher:
                 response = await client.get(url)
                 response.raise_for_status()
                 return response.text
+        except httpx.TimeoutException as e:
+            raise FetchError("timeout", f"Fast fetch timed out: {url}") from e
+        except httpx.HTTPStatusError as e:
+            code = e.response.status_code
+            category = f"http_{code // 100}xx"
+            raise FetchError(category, f"HTTP {code} for {url}") from e
+        except httpx.ConnectError as e:
+            raise FetchError("connection", f"Connection failed for {url}") from e
         except Exception as e:
-            logger.warning(f"Fast fetch failed for {url}: {str(e)}")
-            return None
+            raise FetchError("unknown", f"Fast fetch failed for {url}: {str(e)}") from e
 
-    async def fetch_deep(self, url: str) -> Optional[str]:
-        """Deep fetch reusing a persistent Crawl4AI browser instance."""
+    async def fetch_deep(self, url: str) -> str:
+        """Deep fetch reusing a persistent Crawl4AI browser instance.
+
+        Returns HTML string on success.
+        Raises FetchError with structured error_code on failure (including
+        anti-bot detection and empty pages).
+        """
         try:
             if self._crawler is None:
                 await self.start_browser()
 
             result = await self._crawler.arun(url=url, config=self._run_config)
 
-            if result and not result.success:
-                logger.error(f"Deep fetch failed for {url}: {result.error_message}")
-                if not result.html:
-                    return None
+            if result is None:
+                raise FetchError("unknown", "Crawl4AI returned None")
 
-            if result and result.html and len(result.html) > 500:
-                forbidden_keys = ["verify you're not a robot", "JavaScript is disabled"]
-                for key in forbidden_keys:
-                    if key.lower() in result.html.lower():
-                        logger.error(f"Anti-bot challenge detected for {url}")
-                return result.html
-            return None
+            if not result.success:
+                error_msg = getattr(result, "error_message", "") or "unknown error"
+                raise FetchError("crawl_failed", str(error_msg)[:500])
+
+            html = result.html
+            if not html:
+                raise FetchError("empty_or_short", f"No HTML content from {url}")
+
+            if isinstance(html, bytes):
+                html = html.decode("utf-8", errors="replace")
+
+            # Anti-bot / challenge detection — fail hard, do not return captcha pages
+            forbidden_markers = [
+                "verify you're not a robot",
+                "JavaScript is disabled",
+                "Please enable JavaScript",
+                "checking your browser",
+                "Access Denied",
+                "Attention Required! | Cloudflare",
+            ]
+            html_lower = html.lower()
+            for marker in forbidden_markers:
+                if marker.lower() in html_lower:
+                    raise FetchError("blocked", f"Anti-bot/challenge page detected for {url} (marker: {marker})")
+
+            if len(html) <= 500:
+                raise FetchError("empty_or_short", f"HTML too short ({len(html)} chars) for {url}")
+
+            return html
+
+        except FetchError:
+            raise
         except Exception as e:
-            logger.error(f"Deep fetch failed for {url}: {str(e)}")
-            return None
+            raise FetchError("unknown", f"Deep fetch failed for {url}: {str(e)}") from e
