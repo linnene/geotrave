@@ -34,10 +34,17 @@ services:
       - |
         set -e
         # 注意这里使用的是 $$f
+        first=1
         for f in /osm_data/*.osm.pbf; do
           if [ -e "$$f" ]; then
-            echo "Processing OSM file: $$f"
-            osm2pgsql -U geotrave -d geotrave -H db -c -s -C 1024 "$$f"
+            if [ $$first -eq 1 ]; then
+              echo "Creating tables from first OSM file: $$f"
+              osm2pgsql -U geotrave -d geotrave -H db -c -s -C 1024 "$$f"
+              first=0
+            else
+              echo "Appending OSM file: $$f"
+              osm2pgsql -U geotrave -d geotrave -H db -a -s -C 1024 "$$f"
+            fi
           fi
         done
 
