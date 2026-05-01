@@ -51,5 +51,5 @@ jobs:
             head -3 docker-compose.db.yml
 
             docker compose -f docker-compose.db.yml pull db
-            docker compose -f docker-compose.db.yml up -d
+            docker compose -f docker-compose.db.yml up -d --force-recreate db
             docker image prune -f
