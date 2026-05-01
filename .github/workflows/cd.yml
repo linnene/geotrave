@@ -51,5 +51,5 @@ jobs:
             head -3 docker-compose.yml
 
             docker compose pull app
-            docker compose up -d
+            docker compose up -d --force-recreate app
             docker image prune -f
