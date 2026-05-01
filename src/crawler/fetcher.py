@@ -33,14 +33,27 @@ class ContentFetcher:
             "Sec-Fetch-Dest": "document",
         }
 
-        # Windows: use user's installed Chrome to reduce anti-bot detection.
-        # Linux/Docker: use Playwright's managed Chromium — CDP is more reliable.
-        _use_managed = sys.platform == "win32"
+        # Prefer managed browser (real Chrome) on all platforms for lower
+        # anti-bot detection rates. On Linux (Docker), use channel="chrome"
+        # to select the Google Chrome we install. Falls back to Playwright's
+        # Chromium if Chrome binary is missing.
+        _managed = True
+        _channel = "chrome"
+        if sys.platform != "win32":
+            import os as _os
+            _chrome = (
+                _os.path.exists("/usr/bin/google-chrome-stable")
+                or _os.path.exists("/usr/bin/google-chrome")
+            )
+            if not _chrome:
+                _managed = False
+                _channel = "chromium"
 
         self._browser_config = BrowserConfig(
             headless=True,
             java_script_enabled=True,
-            use_managed_browser=_use_managed,
+            use_managed_browser=_managed,
+            channel=_channel,
             viewport_width=1920,
             viewport_height=1080,
             headers=self.headers,
