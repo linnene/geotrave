@@ -20,3 +20,9 @@ MIN_SCORE_THRESHOLD = 40
 
 # LLM 最大输出 token
 MAX_TOKENS = 3000
+
+# 循环退出决策 — 累积通过数最低阈值: 达到此值且 LLM 认为充分才可退出
+ACCUMULATED_MIN = 3
+
+# 循环退出决策 — 累积通过数硬上限: 达到此值强制退出，无视 LLM 决策
+ACCUMULATED_HARD_MAX = 6
