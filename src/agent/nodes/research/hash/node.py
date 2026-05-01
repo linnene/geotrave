@@ -68,8 +68,14 @@ async def persist_results(
             "payload": payload,
         })
 
-    await batch_store_results(records, session_id)
-    logger.info(f"Hash: persisted {len(records)} results for session={session_id}")
+    try:
+        await batch_store_results(records, session_id)
+        logger.info(f"Hash: persisted {len(records)} results for session={session_id}")
+    except Exception as e:
+        logger.error("Hash: batch_store_results failed: %s", e)
+        mapping.clear()
+        for r in all_passed_results:
+            mapping[r.query].append("")  # placeholder to preserve query coverage info
     return dict(mapping)
 
 
