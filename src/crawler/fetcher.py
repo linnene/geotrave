@@ -56,7 +56,9 @@ class ContentFetcher:
             js_code="""
                 (async () => {
                     window.scrollTo(0, 500);
-                    await new Promise(r => setTimeout(r, 6000));
+                    await new Promise(r => setTimeout(r, 2000));
+                    window.scrollTo(0, document.body.scrollHeight);
+                    await new Promise(r => setTimeout(r, 1000));
                     window.scrollTo(0, 0);
                 })();
             """,
