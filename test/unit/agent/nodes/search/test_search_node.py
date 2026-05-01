@@ -142,14 +142,14 @@ async def test_execute_tasks_wraps_in_research_result():
 @pytest.mark.priority("P1")
 @pytest.mark.asyncio
 async def test_execute_tasks_unsupported_tool():
-    """未注册工具: 跳过并记录错误，不崩溃。"""
+    """未注册工具: 创建 error envelope，不崩溃也不静默丢弃。"""
     from src.agent.nodes.research.search.node import _execute_tasks
 
     tasks = [
         SearchTask(
             tool_name="nonexistent_tool",
             dimension="general",
-            parameters={},
+            parameters={"query": "test"},
             rationale="测试未注册工具",
         )
     ]
@@ -157,8 +157,13 @@ async def test_execute_tasks_unsupported_tool():
     with patch.dict("src.agent.nodes.research.search.tools.TOOL_DISPATCH", {}):
         results = await _execute_tasks(tasks)
 
-    # 未注册工具被跳过，不产生结果
-    assert len(results) == 0
+    # 未注册工具创建 error envelope（不再静默丢弃）
+    assert len(results) == 1
+    envelope = next(iter(results.values()))
+    assert isinstance(envelope, ResearchResult)
+    assert "error" in envelope.content
+    assert "Unknown tool" in envelope.content["error"]
+    assert envelope.tool_name == "nonexistent_tool"
 
 
 @pytest.mark.priority("P0")
