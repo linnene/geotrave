@@ -51,8 +51,8 @@ def _manager_router(next_node: str) -> str:
     """Replica of manager_router logic from graph.py for isolated testing."""
     mapping = {
         "research_loop": "research_loop",
-        "recommender": "reply",
-        "planner": "reply",
+        "recommender": "recommender",
+        "planner": "planner",
         "reply": "reply"
     }
     return mapping.get(next_node, "reply")
@@ -66,5 +66,15 @@ def test_manager_routes_research_loop():
 @pytest.mark.priority("P0")
 def test_manager_routes_reply():
     assert _manager_router("reply") == "reply"
+
+
+@pytest.mark.priority("P0")
+def test_manager_routes_recommender():
+    assert _manager_router("recommender") == "recommender"
+
+
+@pytest.mark.priority("P0")
+def test_manager_routes_planner():
+    assert _manager_router("planner") == "planner"
 
 

@@ -37,6 +37,9 @@ class ExecutionSigns(BaseModel):
     is_safe: bool = Field(default=True, description="Gateway: input passed safety check")
     is_core_complete: bool = Field(default=False, description="Analyst: core profile fields sufficient")
     is_loop_exit: bool = Field(default=False, description="Hash: research loop exited cleanly")
+    is_recommendation_complete: bool = Field(default=False, description="Recommender: destination/accommodation/dining recommendations generated")
+    is_plan_complete: bool = Field(default=False, description="Planner: day-by-day itinerary generated")
+    is_selection_made: bool = Field(default=False, description="Manager: user has made selections from recommendations (or explicitly delegated to agent)")
 
 
 class TraceLog(BaseModel):
@@ -183,6 +186,34 @@ class AnalystOutput(BaseModel):
     reason: str = Field(..., description="Brief explanation of extraction and merge logic")
 
 
+class UserSelections(BaseModel):
+    """用户在推荐列表中的选择结果。Manager 从用户消息中提取，Planner 遵守。
+
+    当用户明确说"随便/都行/你定"时，对应字段设为 "agent_choice"，
+    Planner 可自由从推荐中挑选最优项。
+    """
+    chosen_destination: Optional[str] = Field(
+        default=None,
+        description="Picked destination name, or 'agent_choice' when user delegates to agent"
+    )
+    chosen_accommodation: Optional[str] = Field(
+        default=None,
+        description="Picked accommodation name, or 'agent_choice' when user delegates to agent"
+    )
+    chosen_dining: Optional[str] = Field(
+        default=None,
+        description="Picked dining name, or 'agent_choice' when user delegates to agent"
+    )
+    needs_reselect: bool = Field(
+        default=False,
+        description="User rejected current batch and wants re-recommendation"
+    )
+    reselection_feedback: Optional[str] = Field(
+        default=None,
+        description="User's revised requirements when requesting re-recommendation"
+    )
+
+
 class ManagerOutput(BaseModel):
     """Manager 节点结构化输出 — 控制全局路由。"""
     next_stage: Literal["research_loop", "recommender", "planner", "reply"] = Field(
@@ -193,6 +224,10 @@ class ManagerOutput(BaseModel):
         )
     )
     rationale: str = Field(..., description="Detailed logic behind this routing decision")
+    user_selections: Optional[UserSelections] = Field(
+        default=None,
+        description="Extracted user selections when user responds to recommendation list"
+    )
 
 
 class QueryGeneratorOutput(BaseModel):
@@ -339,4 +374,63 @@ class ResearchManifest(BaseModel):
     matched_doc_ids: List[str] = Field(
         default_factory=list,
         description="Document IDs matched this research session; stored in retrieval_db, separate from research_hashes"
+    )
+
+
+# ==============================================================================
+# Recommender / Planner 输出 Schema — LLM 驱动的交付节点
+# ==============================================================================
+
+
+class Recommendation(BaseModel):
+    """单条推荐条目（目的地 / 住宿 / 餐饮）。"""
+    name: str = Field(..., description="Destination, accommodation, or dining name")
+    type: Literal["destination", "accommodation", "dining"] = Field(
+        ..., description="Recommendation category"
+    )
+    score: int = Field(..., ge=1, le=100, description="Recommendation score (1-100)")
+    rationale: str = Field(..., description="Recommendation rationale in natural language")
+
+
+class RecommenderOutput(BaseModel):
+    """Recommender 节点结构化输出。"""
+    destinations: List[Recommendation] = Field(
+        default_factory=list, description="Destination candidates (1-3)"
+    )
+    accommodations: List[Recommendation] = Field(
+        default_factory=list, description="Accommodation suggestions"
+    )
+    dining: List[Recommendation] = Field(
+        default_factory=list, description="Dining suggestions"
+    )
+    strategy: str = Field(default="", description="Overall recommendation strategy narrative")
+
+
+class Activity(BaseModel):
+    """单日活动中的一项活动。"""
+    time: str = Field(..., description="Time slot, e.g. '09:00-11:30'")
+    place: str = Field(..., description="Attraction / restaurant / transport node name")
+    type: Literal["attraction", "dining", "transport", "rest", "accommodation"] = Field(
+        ..., description="Activity type"
+    )
+    description: str = Field(..., description="What to do / what to expect")
+    duration_min: int = Field(..., ge=0, description="Estimated duration in minutes")
+    transport: Optional[str] = Field(default=None, description="Transport method between this and next activity")
+
+
+class DayPlan(BaseModel):
+    """单日行程安排。"""
+    day: int = Field(..., ge=1, description="Day number (1-indexed)")
+    date: Optional[str] = Field(default=None, description="ISO date string if known")
+    activities: List[Activity] = Field(default_factory=list, description="Activities for this day")
+
+
+class PlannerOutput(BaseModel):
+    """Planner 节点结构化输出。"""
+    days: List[DayPlan] = Field(default_factory=list, description="Day-by-day itinerary")
+    total_budget_estimate: Optional[str] = Field(
+        default=None, description="Estimated total cost summary"
+    )
+    notes: List[str] = Field(
+        default_factory=list, description="Notes, caveats, alternative plans (e.g. rainy day backup)"
     )

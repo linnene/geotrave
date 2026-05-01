@@ -10,7 +10,7 @@ references, metadata, and control flags.
 """
 
 from operator import add
-from typing import Annotated, List, TypedDict
+from typing import Annotated, Any, Dict, List, Optional, TypedDict
 from langgraph.graph.message import add_messages
 from langchain_core.messages import BaseMessage
 from src.agent.state.schema import UserProfile, ResearchManifest, RouteMetadata, TraceLog, ExecutionSigns
@@ -36,6 +36,12 @@ class TravelState(TypedDict):
     user_profile: UserProfile
     user_request: str
     missing_fields: List[str]
+
+    # [Delivery Data — Recommender & Planner outputs]
+    recommendation_data: Optional[Dict[str, Any]]
+    plan_data: Optional[Dict[str, Any]]
+    # [User Interaction State — selections from recommendation list]
+    user_selections: Optional[Dict[str, Any]]
     
     # [Orchestration & Control]
     route_metadata: RouteMetadata

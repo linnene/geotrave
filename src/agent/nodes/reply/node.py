@@ -13,7 +13,7 @@ from src.agent.state import TravelState
 from src.utils.llm_factory import LLMFactory
 from src.utils.prompt import reply_prompt_template
 from src.utils.logger import get_logger
-from src.agent.nodes.utils import build_trace
+from src.agent.nodes.utils import build_trace, get_beijing_time_now
 from .config import TEMPERATURE, MAX_TOKENS
 
 logger = get_logger("ReplyNode")
@@ -43,6 +43,7 @@ async def reply_node(state: TravelState) -> Dict[str, Any]:
 
     # 2. LLM Orchestration
     prompt_str = reply_prompt_template.format(
+        current_time=get_beijing_time_now(),
         last_user_message=last_user_msg,
         user_request=user_request,
         current_profile=current_profile_json,

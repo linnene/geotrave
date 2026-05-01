@@ -35,12 +35,16 @@ async def get_travel_app():
         from src.agent.nodes.reply.node import reply_node
         from src.agent.nodes.manager.node import manager_node
         from src.agent.nodes.research.subgraph import research_loop_subgraph
+        from src.agent.nodes.recommender.node import recommender_node
+        from src.agent.nodes.planner.node import planner_node
 
         workflow.add_node("gateway", gateway_node)
         workflow.add_node("analyst", analyst_node)
         workflow.add_node("reply", reply_node)
         workflow.add_node("manager", manager_node)
         workflow.add_node("research_loop", research_loop_subgraph)
+        workflow.add_node("recommender", recommender_node)
+        workflow.add_node("planner", planner_node)
 
         # 3. Define Edges
         workflow.set_entry_point("gateway")
@@ -68,8 +72,8 @@ async def get_travel_app():
 
             mapping = {
                 "research_loop": "research_loop",
-                "recommender": "reply",
-                "planner": "reply",
+                "recommender": "recommender",
+                "planner": "planner",
                 "reply": "reply"
             }
             return mapping.get(target, "reply")
@@ -79,7 +83,9 @@ async def get_travel_app():
             manager_router,
             {
                 "reply": "reply",
-                "research_loop": "research_loop"
+                "research_loop": "research_loop",
+                "recommender": "recommender",
+                "planner": "planner",
             }
         )
 
@@ -87,6 +93,10 @@ async def get_travel_app():
         workflow.add_edge("analyst", "manager")
         # research_loop 子图闭环完成后回到 Manager 进行下一跳决策
         workflow.add_edge("research_loop", "manager")
+        # Recommender 完成后返回给前端（前端呈现选择列表，等待用户选择）
+        workflow.add_edge("recommender", END)
+        # Planner 完成后返回给前端（呈现最终行程）
+        workflow.add_edge("planner", END)
 
         # After replying, wait for next user input
         workflow.add_edge("reply", END)
@@ -108,6 +118,12 @@ async def get_travel_app():
                 ('src.agent.state.schema', 'ResearchResult'),
                 ('src.agent.state.schema', 'CriticResult'),
                 ('src.agent.state.schema', 'LoopSummary'),
+                ('src.agent.state.schema', 'Recommendation'),
+                ('src.agent.state.schema', 'RecommenderOutput'),
+                ('src.agent.state.schema', 'Activity'),
+                ('src.agent.state.schema', 'DayPlan'),
+                ('src.agent.state.schema', 'PlannerOutput'),
+                ('src.agent.state.schema', 'UserSelections'),
             ]
         )
         checkpointer.serde = serializer

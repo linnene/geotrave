@@ -14,7 +14,7 @@ from src.agent.state import TravelState, AnalystOutput, ExecutionSigns
 from src.utils.llm_factory import LLMFactory
 from src.utils.prompt import analyst_prompt_template
 from src.utils.logger import get_logger
-from src.agent.nodes.utils import build_trace, format_recent_history
+from src.agent.nodes.utils import build_trace, format_recent_history, get_beijing_time_now
 from .config import TEMPERATURE, HISTORY_LIMIT, MAX_TOKENS
 
 logger = get_logger("AnalystNode")
@@ -45,6 +45,7 @@ async def analyst_node(state: TravelState) -> Dict[str, Any]:
 
     # 2. LLM Orchestration
     prompt_str = analyst_prompt_template.format(
+        current_time=get_beijing_time_now(),
         current_profile=current_profile_json,
         history=history,
         user_input=last_user_msg,
