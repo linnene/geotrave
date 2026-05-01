@@ -19,26 +19,45 @@ logger = get_logger("WebSearch")
 _MAX_CRAWL_CONCURRENCY = 2
 _DEFAULT_CRAWL_TIMEOUT = 60.0
 
-_LOCK = asyncio.Lock()
-_crawler: WebCrawler | None = None
+# Browser pool — each instance owns its own Chromium process, enabling true
+# parallelism that bypasses crawl4ai's internal asyncio.Lock in arun().
+_POOL_SIZE = 3
+_pool: asyncio.Queue[WebCrawler] | None = None
+_pool_lock = asyncio.Lock()
+_pool_instances: List[WebCrawler] = []
 
 
-async def _get_crawler() -> WebCrawler:
-    global _crawler
-    if _crawler is None:
-        async with _LOCK:
-            if _crawler is None:
-                _crawler = WebCrawler(timeout=20)
-                await _crawler.start_browser()
-    return _crawler
+async def _get_pool() -> asyncio.Queue[WebCrawler]:
+    """Lazily initialise and return the browser pool."""
+    global _pool, _pool_instances
+    if _pool is None:
+        async with _pool_lock:
+            if _pool is None:
+                _pool = asyncio.Queue(maxsize=_POOL_SIZE)
+                for i in range(_POOL_SIZE):
+                    c = WebCrawler(timeout=20)
+                    await c.start_browser()
+                    _pool.put_nowait(c)
+                    _pool_instances.append(c)
+                logger.info("Browser pool initialized: %d instances", _POOL_SIZE)
+    return _pool
 
 
 async def close_crawler() -> None:
-    """Close the shared WebCrawler browser. Safe to call multiple times."""
-    global _crawler
-    if _crawler is not None:
-        await _crawler.close_browser()
-        _crawler = None
+    """Close all browser instances in the pool. Safe to call multiple times."""
+    global _pool, _pool_instances
+    if _pool is not None:
+        # Drain pool
+        while not _pool.empty():
+            try:
+                _pool.get_nowait()
+            except asyncio.QueueEmpty:
+                break
+        _pool = None
+    for c in _pool_instances:
+        await c.close_browser()
+    _pool_instances.clear()
+    logger.info("Browser pool closed")
 
 
 async def search_web(query: str, max_results: int = 5) -> List[Dict[str, str]]:
@@ -70,39 +89,41 @@ async def crawl_urls(
     urls: List[str],
     timeout: float = _DEFAULT_CRAWL_TIMEOUT,
 ) -> List[Dict[str, Any]]:
-    """Crawl URLs in parallel with concurrency limit.
+    """Crawl URLs with a browser pool for true parallelism.
 
-    Single URL failure does not block others — failed entries keep
-    content=None with crawl_status="error".
+    Each concurrent crawl acquires its own browser instance from the pool,
+    bypassing crawl4ai's internal asyncio.Lock.  Single URL failure does
+    not block others.
     """
     if not urls:
         return []
 
-    semaphore = asyncio.Semaphore(_MAX_CRAWL_CONCURRENCY)
-    crawler = await _get_crawler()
+    pool = await _get_pool()
 
     async def _crawl_one(url: str) -> Dict[str, Any]:
-        async with semaphore:
-            try:
-                result = await crawler.crawl(url)
-                return {
-                    "url": url,
-                    "content": result.content,
-                    "crawl_status": result.status,
-                    "crawl_mode": result.mode,
-                    "error_code": result.error_code,
-                    "error_message": result.error_message,
-                }
-            except Exception as exc:
-                logger.warning("Crawl failed for %s: %s", url, exc)
-                return {
-                    "url": url,
-                    "content": None,
-                    "crawl_status": "error",
-                    "crawl_mode": "fast",
-                    "error_code": "exception",
-                    "error_message": str(exc)[:500],
-                }
+        crawler = await pool.get()
+        try:
+            result = await crawler.crawl(url)
+            return {
+                "url": url,
+                "content": result.content,
+                "crawl_status": result.status,
+                "crawl_mode": result.mode,
+                "error_code": result.error_code,
+                "error_message": result.error_message,
+            }
+        except Exception as exc:
+            logger.warning("Crawl failed for %s: %s", url, exc)
+            return {
+                "url": url,
+                "content": None,
+                "crawl_status": "error",
+                "crawl_mode": "fast",
+                "error_code": "exception",
+                "error_message": str(exc)[:500],
+            }
+        finally:
+            await pool.put(crawler)
 
     tasks = [_crawl_one(url) for url in urls]
     done, pending = await asyncio.wait(

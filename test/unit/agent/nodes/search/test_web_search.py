@@ -138,9 +138,13 @@ async def test_crawl_urls_success():
     mock_crawler = MagicMock()
     mock_crawler.crawl.side_effect = fake_crawl
 
+    mock_pool = AsyncMock()
+    mock_pool.get = AsyncMock(return_value=mock_crawler)
+    mock_pool.put = AsyncMock()
+
     with patch(
-        "src.agent.nodes.research.search.web_search._get_crawler",
-        new=AsyncMock(return_value=mock_crawler),
+        "src.agent.nodes.research.search.web_search._get_pool",
+        new=AsyncMock(return_value=mock_pool),
     ):
         results = await crawl_urls(
             ["https://a.com", "https://b.com", "https://c.com"],
@@ -175,9 +179,13 @@ async def test_crawl_urls_partial_failure():
     mock_crawler = MagicMock()
     mock_crawler.crawl.side_effect = fake_crawl
 
+    mock_pool = AsyncMock()
+    mock_pool.get = AsyncMock(return_value=mock_crawler)
+    mock_pool.put = AsyncMock()
+
     with patch(
-        "src.agent.nodes.research.search.web_search._get_crawler",
-        new=AsyncMock(return_value=mock_crawler),
+        "src.agent.nodes.research.search.web_search._get_pool",
+        new=AsyncMock(return_value=mock_pool),
     ):
         results = await crawl_urls(
             ["https://good.com", "https://fail.com", "https://also-good.com"],
