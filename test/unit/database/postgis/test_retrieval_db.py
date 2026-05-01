@@ -4,7 +4,6 @@ Mapping: /src/database/retrieval_db.py
 Priority: P0 - Research Loop persistence layer
 """
 
-import json
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -78,9 +77,8 @@ async def test_store_result_insert():
     assert "ON CONFLICT (hash_key)" in sql
     assert params[0] == "abc123"
     assert params[1] == "sess-1"
-    # payload 已被 JSON 序列化
-    loaded = json.loads(params[2])
-    assert loaded == {"name": "札幌温泉", "score": 95}
+    # payload 作为 Python dict 直接传入 (asyncpg 处理 JSONB 序列化)
+    assert params[2] == {"name": "札幌温泉", "score": 95}
 
 
 @pytest.mark.priority("P0")
@@ -111,8 +109,14 @@ async def test_get_results_returns_payloads():
 @pytest.mark.priority("P1")
 @pytest.mark.asyncio
 async def test_batch_store_results():
-    """验证 executemany 被调用且参数正确序列化。"""
+    """验证逐条 execute (事务内) 参数正确传递——executemany 对 Python dict→JSONB
+    序列化行为不一致，改用逐条 execute + transaction。"""
     mock_conn = AsyncMock()
+    # 使 conn.transaction() 返回合法的 async context manager
+    _tx_ctx = MagicMock()
+    _tx_ctx.__aenter__ = AsyncMock(return_value=None)
+    _tx_ctx.__aexit__ = AsyncMock(return_value=None)
+    mock_conn.transaction = MagicMock(return_value=_tx_ctx)
 
     with _patch_get_pool(mock_conn):
         from src.database.retrieval_db import batch_store_results
@@ -124,19 +128,25 @@ async def test_batch_store_results():
             session_id="sess-batch",
         )
 
-    mock_conn.executemany.assert_awaited_once()
-    args = mock_conn.executemany.call_args
-    sql = args[0][0]
-    records = args[0][1]
+    # 验证事务被启用
+    mock_conn.transaction.assert_called_once()
 
-    assert "INSERT INTO retrieval_results" in sql
-    assert "ON CONFLICT (hash_key)" in sql
-    assert len(records) == 2
-    assert records[0][0] == "h1"
-    assert records[0][1] == "sess-batch"
-    assert json.loads(records[0][2]) == {"x": 10}
-    assert records[1][0] == "h2"
-    assert json.loads(records[1][2]) == {"y": 20}
+    # 验证逐条 execute（2 条结果 = 2 次 execute）
+    assert mock_conn.execute.await_count == 2
+
+    sql_0 = mock_conn.execute.call_args_list[0][0][0]
+    params_0 = mock_conn.execute.call_args_list[0][0][1:]
+    assert "INSERT INTO retrieval_results" in sql_0
+    assert "ON CONFLICT (hash_key)" in sql_0
+    assert params_0[0] == "h1"
+    assert params_0[1] == "sess-batch"
+    assert params_0[2] == {"x": 10}
+
+    sql_1 = mock_conn.execute.call_args_list[1][0][0]
+    params_1 = mock_conn.execute.call_args_list[1][0][1:]
+    assert params_1[0] == "h2"
+    assert params_1[1] == "sess-batch"
+    assert params_1[2] == {"y": 20}
 
 
 @pytest.mark.priority("P1")

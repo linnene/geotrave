@@ -8,7 +8,6 @@ Hash-keyed result storage so the parent graph only exposes {query: [hash_key, ..
 full payloads stay in PostgreSQL and are fetched on demand by Recommender / Planner.
 """
 
-import json
 from typing import Dict, List, Any
 
 from src.database.postgis.connection import get_pool
@@ -42,22 +41,30 @@ async def store_result(hash_key: str, session_id: str, payload: Dict[str, Any]) 
             f"INSERT INTO {_RETRIEVAL_TABLE} (hash_key, session_id, payload) "
             "VALUES ($1, $2, $3) "
             "ON CONFLICT (hash_key) DO UPDATE SET payload = $3",
-            hash_key, session_id, json.dumps(payload, ensure_ascii=False),
+            hash_key, session_id, payload,
         )
 
 
 async def batch_store_results(
     results: List[Dict[str, Any]], session_id: str
 ) -> None:
-    """批量写入结果。每条 dict 必须包含 'hash_key' 和 'payload' 键。"""
+    """批量写入结果。每条 dict 必须包含 'hash_key' 和 'payload' 键。
+
+    使用逐条 execute + 事务，而非 executemany——后者对 Python dict→JSONB
+    的自动序列化行为与 execute 不一致（某些 asyncpg 版本要求显式
+    json.dumps + ::jsonb cast），逐条 execute 已验证可靠。"""
+    if not results:
+        return
     pool = await get_pool()
     async with pool.acquire() as conn:
-        await conn.executemany(
-            f"INSERT INTO {_RETRIEVAL_TABLE} (hash_key, session_id, payload) "
-            "VALUES ($1, $2, $3) "
-            "ON CONFLICT (hash_key) DO UPDATE SET payload = $3",
-            [(r["hash_key"], session_id, json.dumps(r["payload"], ensure_ascii=False)) for r in results],
-        )
+        async with conn.transaction():
+            for r in results:
+                await conn.execute(
+                    f"INSERT INTO {_RETRIEVAL_TABLE} (hash_key, session_id, payload) "
+                    "VALUES ($1, $2, $3) "
+                    "ON CONFLICT (hash_key) DO UPDATE SET payload = $3",
+                    r["hash_key"], session_id, r["payload"],
+                )
 
 
 async def get_results(hash_keys: List[str]) -> Dict[str, Dict[str, Any]]:

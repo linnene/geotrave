@@ -6,6 +6,7 @@ Dependencies: ddgs.DDGS, src.crawler.WebCrawler
 """
 
 import asyncio
+import logging
 import time
 from typing import Any, Dict, List
 
@@ -13,6 +14,10 @@ from ddgs import DDGS
 
 from src.crawler import WebCrawler
 from src.utils.logger import get_logger
+
+# 抑制 crawl4ai / playwright 的 INFO 级别浏览器启动日志
+logging.getLogger("crawl4ai").setLevel(logging.WARNING)
+logging.getLogger("playwright").setLevel(logging.WARNING)
 
 logger = get_logger("WebSearch")
 
@@ -70,7 +75,7 @@ async def search_web(query: str, max_results: int = 5) -> List[Dict[str, str]]:
             with DDGS() as ddgs:
                 raw = ddgs.text(query, max_results=max_results, safesearch="moderate")
         except Exception as exc:
-            logger.warning("DDGS error: %s", exc)
+            logger.debug("DDGS search failed (network/non-critical): %s", exc)
             return []
 
         results: List[Dict[str, str]] = []
