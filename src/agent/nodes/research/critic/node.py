@@ -49,10 +49,17 @@ _BLACKLIST_PATH = Path(__file__).resolve().parent / "blacklist.yaml"
 
 
 def load_blacklist() -> List[str]:
-    """从 blacklist.yaml 加载关键词列表。"""
-    with open(_BLACKLIST_PATH, "r", encoding="utf-8") as f:
-        data = yaml.safe_load(f)
-    return data.get("keywords", [])
+    """从 blacklist.yaml 加载关键词列表。文件缺失或损坏时返回空列表。"""
+    try:
+        with open(_BLACKLIST_PATH, "r", encoding="utf-8") as f:
+            data = yaml.safe_load(f)
+        return (data or {}).get("keywords", [])
+    except FileNotFoundError:
+        logger.warning("Blacklist file not found: %s", _BLACKLIST_PATH)
+        return []
+    except Exception as e:
+        logger.error("Failed to load blacklist: %s", e)
+        return []
 
 
 def blacklist_filter(
