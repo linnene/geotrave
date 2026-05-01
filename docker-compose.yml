@@ -6,6 +6,7 @@ services:
       POSTGIS_DSN: postgresql://geotrave:${DB_PASSWORD:-geotrave_dev}@geotrave-db:5432/geotrave
     volumes:
       - checkpoints:/app/database/checkpointer
+      - chrome_profile:/app/data/chrome_profile
       - ./.env:/app/.env:ro
     ports:
       - "8000:8000"
@@ -14,3 +15,4 @@ services:
 
 volumes:
   checkpoints:
+  chrome_profile:
