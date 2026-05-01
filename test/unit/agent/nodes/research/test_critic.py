@@ -208,27 +208,28 @@ def test_code_filter_all_pass():
 
 @pytest.mark.priority("P0")
 def test_should_continue_loop_enough_passed_and_llm_false():
-    """pass_count >= MIN 且 LLM 认为充分 → 退出循环。"""
+    """total_passed >= ACCUMULATED_MIN 且 LLM 认为充分 → 退出循环。"""
     from src.agent.nodes.research.critic.node import should_continue_loop
 
     continue_loop, reason = should_continue_loop(
-        pass_count=4, llm_continue_loop=False, loop_iter=1
+        total_passed_count=4, llm_continue_loop=False, loop_iter=1
     )
 
     assert continue_loop is False
-    assert "通过" in reason
+    assert "LLM 判定充分" in reason
 
 
 @pytest.mark.priority("P0")
 def test_should_continue_loop_not_enough_passed():
-    """pass_count 不达标 → 继续循环，即使 LLM 认为充分。"""
+    """total_passed < ACCUMULATED_MIN → 继续循环，即使 LLM 认为充分。"""
     from src.agent.nodes.research.critic.node import should_continue_loop
 
     continue_loop, reason = should_continue_loop(
-        pass_count=1, llm_continue_loop=False, loop_iter=1
+        total_passed_count=1, llm_continue_loop=False, loop_iter=1
     )
 
     assert continue_loop is True
+    assert "代码覆盖" in reason
 
 
 @pytest.mark.priority("P0")
@@ -237,20 +238,33 @@ def test_should_continue_loop_max_loops_exceeded():
     from src.agent.nodes.research.critic.node import should_continue_loop
 
     continue_loop, reason = should_continue_loop(
-        pass_count=1, llm_continue_loop=True, loop_iter=3
+        total_passed_count=1, llm_continue_loop=True, loop_iter=3
     )
 
     assert continue_loop is False
     assert "最大迭代轮次" in reason
 
 
-@pytest.mark.priority("P1")
-def test_should_continue_loop_llm_wants_more():
-    """LLM 要求继续 → 继续循环（即使 pass_count 达标）。"""
+@pytest.mark.priority("P0")
+def test_should_continue_loop_accumulated_hard_max():
+    """累积达到 ACCUMULATED_HARD_MAX → 强制退出，无视 LLM 决策。"""
     from src.agent.nodes.research.critic.node import should_continue_loop
 
     continue_loop, reason = should_continue_loop(
-        pass_count=5, llm_continue_loop=True, loop_iter=1
+        total_passed_count=6, llm_continue_loop=True, loop_iter=1
+    )
+
+    assert continue_loop is False
+    assert "强制退出" in reason
+
+
+@pytest.mark.priority("P1")
+def test_should_continue_loop_llm_wants_more():
+    """LLM 要求继续且未达硬上限 → 继续循环。"""
+    from src.agent.nodes.research.critic.node import should_continue_loop
+
+    continue_loop, reason = should_continue_loop(
+        total_passed_count=5, llm_continue_loop=True, loop_iter=1
     )
 
     assert continue_loop is True
@@ -373,7 +387,7 @@ async def test_critic_node_full_pipeline():
     manifest = ResearchManifest(loop_state=loop_state)
     state = {"research_data": manifest}
 
-    # Mock Layer 2 LLM 返回正常评分
+    # Mock Layer 2a 评分 LLM + Layer 2b 决策 LLM
     mock_critic_results = [
         CriticResult(
             query="东京酒店推荐",
@@ -386,14 +400,17 @@ async def test_critic_node_full_pipeline():
 
     with patch(
         "src.agent.nodes.research.critic.node.llm_score_batch",
-        new=AsyncMock(return_value=(mock_critic_results, False, "已充分")),
+        new=AsyncMock(return_value=mock_critic_results),
+    ), patch(
+        "src.agent.nodes.research.critic.node.llm_decide_loop",
+        new=AsyncMock(return_value=(False, "已充分")),
     ):
         result = await critic_node(state)
 
     new_manifest = result["research_data"]
     new_loop = new_manifest.loop_state
 
-    # 黑名单过滤: 1 条通过 → Layer2 评分 → Layer3 通过
+    # 黑名单过滤: 1 条通过 → Layer2a 评分 → Layer3 通过
     assert len(new_loop.passed_results) == 1
     assert new_loop.passed_results[0].query == "东京酒店推荐"
 
@@ -403,7 +420,7 @@ async def test_critic_node_full_pipeline():
     # passed_queries 已记录
     assert "东京酒店推荐" in new_loop.passed_queries
 
-    # LLM 返回 continue_loop=False 且 pass_count=1 < PASS_COUNT_MIN(3) → 仍继续
+    # total_passed=1 < ACCUMULATED_MIN(3), LLM 说停但代码覆盖为继续
     assert new_loop.continue_loop is True
 
     # loop_iteration 已递增
@@ -423,7 +440,7 @@ async def test_critic_node_full_pipeline():
 @pytest.mark.priority("P1")
 @pytest.mark.asyncio
 async def test_critic_node_llm_error_graceful():
-    """Layer 2 LLM 调用失败 → 不中断流程，继续处理。"""
+    """Layer 2a LLM 评分失败 → 不中断流程，继续处理。"""
     from src.agent.nodes.research.critic.node import critic_node
 
     loop_state = ResearchLoopInternal(
@@ -440,17 +457,20 @@ async def test_critic_node_llm_error_graceful():
     manifest = ResearchManifest(loop_state=loop_state)
     state = {"research_data": manifest}
 
-    # Mock LLM 抛出异常
+    # Mock Layer 2a 评分抛出异常 + Layer 2b 决策
     with patch(
         "src.agent.nodes.research.critic.node.llm_score_batch",
         new=AsyncMock(side_effect=Exception("LLM timeout")),
+    ), patch(
+        "src.agent.nodes.research.critic.node.llm_decide_loop",
+        new=AsyncMock(return_value=(True, "继续")),
     ):
         result = await critic_node(state)
 
     # 不应崩溃
     new_loop = result["research_data"].loop_state
     assert new_loop.passed_results == []
-    assert new_loop.continue_loop is True  # 0 条通过 < 3
+    assert new_loop.continue_loop is True  # 0 条通过 < ACCUMULATED_MIN
     traces = result.get("trace_history", [])
     assert traces[0].status == "SUCCESS"
 
@@ -498,7 +518,10 @@ async def test_critic_node_accumulates_all_passed():
 
     with patch(
         "src.agent.nodes.research.critic.node.llm_score_batch",
-        new=AsyncMock(return_value=(mock_results, False, "done")),
+        new=AsyncMock(return_value=mock_results),
+    ), patch(
+        "src.agent.nodes.research.critic.node.llm_decide_loop",
+        new=AsyncMock(return_value=(False, "done")),
     ):
         result = await critic_node(state)
 
@@ -507,3 +530,6 @@ async def test_critic_node_accumulates_all_passed():
     queries = [r.query for r in all_passed]
     assert "历史查询" in queries
     assert "新查询" in queries
+
+    # total_passed=2 < ACCUMULATED_MIN(3), 代码覆盖为继续
+    assert result["research_data"].loop_state.continue_loop is True

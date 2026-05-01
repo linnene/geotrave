@@ -195,7 +195,7 @@ query_generator_prompt_template = PromptTemplate(
 )
 
 # ==============================================================================
-# CRITIC 节点 Prompt（Research Loop Layer 2 — LLM 质量评估）
+# CRITIC 节点 Prompt（Research Loop Layer 2a — LLM 逐条评分）
 # ==============================================================================
 _CRITIC_TEMPLATE = """你现在是 GeoTrave 检索质量评估员 (Critic)。
 对每条检索结果从安全性和有效性两个维度打分，低于 40 分的结果将被系统丢弃。
@@ -211,10 +211,8 @@ _CRITIC_TEMPLATE = """你现在是 GeoTrave 检索质量评估员 (Critic)。
 - **safe**: 内容正常，不包含暴力、色情、仇恨、非法、政治敏感信息
 - **unsafe**: 包含上述任一违规内容 → 直接丢弃
 
-### 循环终止决策
-- **continue_loop**: 如果当前结果已充分覆盖查询意图，设为 false；如需补充搜索，设为 true
-- **feedback**: 如 continue_loop=true，用一句话说明下一步搜索方向
-
+### 输出格式
+严格遵循以下 JSON 结构返回数据，不要包含 Markdown 标记或额外解释。
 {format_instructions}
 
 待评估结果:
@@ -224,6 +222,39 @@ _CRITIC_TEMPLATE = """你现在是 GeoTrave 检索质量评估员 (Critic)。
 critic_prompt_template = PromptTemplate(
     input_variables=["results_json", "format_instructions"],
     template=_CRITIC_TEMPLATE
+)
+
+# ==============================================================================
+# CRITIC 循环决策 Prompt（Research Loop Layer 2b — LLM 全局退出判断）
+# ==============================================================================
+_CRITIC_DECISION_TEMPLATE = """你现在是 GeoTrave 检索循环决策员。
+你的任务是根据已累积和本轮新增的评分摘要，判断是否继续搜索。
+
+### 已累积通过的评估结果（前序迭代）
+{accumulated_summary_json}
+
+### 本轮新增通过的评估结果
+{current_summary_json}
+
+### 决策标准
+- **continue_loop=false**（退出循环）:
+  1. 各主要调研维度（交通、住宿、美食、景点等）已有高质量覆盖
+  2. 累积评分普遍在 60 分以上
+  3. 无明显信息缺口
+
+- **continue_loop=true**（继续循环）:
+  1. 累积结果数量不足或覆盖面偏窄
+  2. 现有结果评分偏低
+  3. 有明确维度未覆盖
+
+### 输出格式
+严格遵循以下 JSON 结构返回数据，不要包含 Markdown 标记或额外解释。
+{format_instructions}
+"""
+
+critic_decision_prompt_template = PromptTemplate(
+    input_variables=["accumulated_summary_json", "current_summary_json", "format_instructions"],
+    template=_CRITIC_DECISION_TEMPLATE
 )
 
 # ==============================================================================
