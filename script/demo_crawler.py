@@ -93,7 +93,7 @@ async def crawl_urls(
     browser_config = BrowserConfig(
         headless=True,
         java_script_enabled=True,
-        use_managed_browser=(sys.platform == "win32"),  # Windows 用本机 Chrome 反爬，Linux 用 Playwright
+        use_managed_browser=(sys.platform != "linux"),  # Win/Mac 用本机 Chrome 反爬
         viewport_width=1920,
         viewport_height=1080,
         headers={
