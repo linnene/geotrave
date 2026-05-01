@@ -102,6 +102,7 @@ async def crawl_urls(
 
     async def _crawl_one(url: str) -> Dict[str, Any]:
         crawler = await pool.get()
+        cancelled = False
         try:
             result = await crawler.crawl(url)
             return {
@@ -112,6 +113,32 @@ async def crawl_urls(
                 "error_code": result.error_code,
                 "error_message": result.error_message,
             }
+        except asyncio.CancelledError:
+            # Python 3.12+: CancelledError 继承 BaseException，
+            # except Exception 不捕获。取消时 CDP 导航已中断，
+            # 浏览器处于脏状态 — 关闭并替换，绝不能原样回池。
+            cancelled = True
+            logger.warning(
+                "Crawl cancelled for %s — replacing browser instance", url
+            )
+            try:
+                await crawler.close_browser()
+            except Exception:
+                pass
+            try:
+                new_inst = WebCrawler(timeout=20)
+                await new_inst.start_browser()
+                await pool.put(new_inst)
+                # Track new instance for close_crawler() cleanup
+                for i, c in enumerate(_pool_instances):
+                    if c is crawler:
+                        _pool_instances[i] = new_inst
+                        break
+                else:
+                    _pool_instances.append(new_inst)
+            except Exception as e:
+                logger.error("Failed to replace cancelled crawler: %s", e)
+            raise  # 让外层 crawl_urls 应用 timeout_fallback
         except Exception as exc:
             logger.warning("Crawl failed for %s: %s", url, exc)
             return {
@@ -123,7 +150,8 @@ async def crawl_urls(
                 "error_message": str(exc)[:500],
             }
         finally:
-            await pool.put(crawler)
+            if not cancelled:
+                await pool.put(crawler)
 
     tasks = [_crawl_one(url) for url in urls]
     done, pending = await asyncio.wait(
