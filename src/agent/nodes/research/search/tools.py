@@ -422,3 +422,45 @@ async def execute_web_search(task: SearchTask) -> RetrievalMetadata:
         relevance_score=1.0,
         payload=payload,
     )
+
+
+# ---------------------------------------------------------------------------
+# Weather Search — Open-Meteo 免费天气预报
+# ---------------------------------------------------------------------------
+
+
+@register_tool(
+    name="weather_search",
+    description="查询目的地未来天气预报（温度、降雨、风速、天气现象）。"
+    "适合回答'某地未来几天的天气如何'、'何时去某地气候最佳'等问题。"
+    "参数中的 location 支持中文地名（如'东京'）或坐标（'lng,lat'）。",
+    parameters={
+        "location": "string (地点：支持中文地名如'札幌' 或坐标 'lng,lat')",
+        "days": "int (可选，预报天数 1–16，默认 7)",
+    },
+)
+async def execute_weather_search(task: SearchTask) -> RetrievalMetadata:
+    import time as _time
+
+    from .weather import fetch_weather
+
+    params = task.parameters
+    location = params.get("location", "")
+
+    if not location:
+        raise ValueError("weather_search 缺少必填参数 'location'")
+
+    days_raw = params.get("days", "7")
+    try:
+        days = int(days_raw)
+    except (ValueError, TypeError):
+        days = 7
+
+    payload = await fetch_weather(location, days)
+
+    return RetrievalMetadata(
+        hash_key=f"weather_{location}_{days}_{int(_time.time() * 1000)}",
+        source=f"weather_search(location={location}, days={days})",
+        relevance_score=1.0,
+        payload=payload,
+    )
