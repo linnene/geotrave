@@ -36,37 +36,44 @@ class ContentFetcher:
         # ── Platform detection ──────────────────────────────────────
         import os as _os
 
-        _is_linux = sys.platform != "win32"
-        _is_docker = _is_linux and (
-            _os.path.exists("/.dockerenv")
-            or "docker" in (_os.environ.get("container", "") or "").lower()
+        _system = sys.platform  # "win32" | "darwin" | "linux"
+        _is_docker = _os.path.exists("/.dockerenv") or (
+            "docker" in (_os.environ.get("container", "") or "").lower()
         )
 
         # ── Browser selection ───────────────────────────────────────
-        # Windows: managed Chrome (user's real installation)
-        # Docker:  managed Chrome from Dockerfile (Google Chrome Stable)
-        # Other:   fall back to Playwright's bundled Chromium
+        # Prefer managed Chrome on all platforms. Only fall back to
+        # Playwright Chromium on Linux when Chrome is not installed.
         _managed = True
         _channel = "chrome"
-        if _is_linux:
-            _chrome = (
+        if _system == "linux":
+            _has_chrome = (
                 _os.path.exists("/usr/bin/google-chrome-stable")
                 or _os.path.exists("/usr/bin/google-chrome")
+                or _os.path.exists("/usr/bin/chromium-browser")
             )
-            if not _chrome:
+            if not _has_chrome:
                 _managed = False
                 _channel = "chromium"
 
-        # ── Browser fingerprint ─────────────────────────────────────
-        # On real Windows: platform headers match the OS → low risk.
-        # In Docker: platform is Linux, but we send Windows headers.
-        # Fix the platform claim to match actual OS → less suspicious.
+        # ── Platform-consistent headers ─────────────────────────────
+        # Map Python platform → Sec-Ch-Ua-Platform token + UA substring.
+        _platform_cfg = {
+            "win32":  ('"Windows"', "Windows NT 10.0; Win64; x64"),
+            "darwin": ('"macOS"',   "Macintosh; Intel Mac OS X 10_15_7"),
+            "linux":  ('"Linux"',   "X11; Linux x86_64"),
+        }
+        _plat_token, _ua_substr = _platform_cfg.get(
+            _system, _platform_cfg["linux"]
+        )
+
         _headers = dict(self.headers)
-        if _is_linux:
-            _headers["Sec-Ch-Ua-Platform"] = '"Linux"'
-            _headers["User-Agent"] = _headers["User-Agent"].replace(
-                "Windows NT 10.0; Win64; x64", "X11; Linux x86_64"
-            ).replace("Chrome/124.0.0.0", "Chrome/134.0.0.0")
+        _headers["Sec-Ch-Ua-Platform"] = _plat_token
+        _headers["User-Agent"] = (
+            _headers["User-Agent"]
+            .replace("Windows NT 10.0; Win64; x64", _ua_substr)
+            .replace("Chrome/124.0.0.0", "Chrome/134.0.0.0")
+        )
 
         # ── Persistent profile (Docker only) ───────────────────────
         # Persist browser data across container restarts so anti-bot
