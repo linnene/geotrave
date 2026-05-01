@@ -6,10 +6,10 @@ Responsibility: Centralized factory for creating and configuring LLM instances.
 from langchain_openai import ChatOpenAI
 from pydantic import SecretStr
 from src.utils.config import (
-    GLOBAL_MODEL_API_KEY, 
-    GLOBAL_MODEL_BASE_URL, 
+    GLOBAL_MODEL_API_KEY,
+    GLOBAL_MODEL_BASE_URL,
     GLOBAL_MODEL_ID,
-    
+
     GATEWAY_MODEL_API_KEY,
     GATEWAY_MODEL_BASE_URL,
     GATEWAY_MODEL_ID,
@@ -19,7 +19,19 @@ from src.utils.config import (
 
     RESEARCHER_MODEL_API_KEY,
     RESEARCHER_MODEL_BASE_URL,
-    RESEARCHER_MODEL_ID
+    RESEARCHER_MODEL_ID,
+
+    PLANNER_MODEL_API_KEY,
+    PLANNER_MODEL_BASE_URL,
+    PLANNER_MODEL_ID,
+
+    RECOMMENDER_MODEL_API_KEY,
+    RECOMMENDER_MODEL_BASE_URL,
+    RECOMMENDER_MODEL_ID,
+
+    CRITIC_MODEL_API_KEY,
+    CRITIC_MODEL_BASE_URL,
+    CRITIC_MODEL_ID,
 )
 
 class LLMFactory:
@@ -61,6 +73,18 @@ class LLMFactory:
             config["api_key"] = GLOBAL_MODEL_API_KEY
             config["base_url"] = GLOBAL_MODEL_BASE_URL
             config["model"] = GLOBAL_MODEL_ID
+        elif node_name == "Recommender":
+            config["api_key"] = RECOMMENDER_MODEL_API_KEY
+            config["base_url"] = RECOMMENDER_MODEL_BASE_URL
+            config["model"] = RECOMMENDER_MODEL_ID
+        elif node_name == "Planner":
+            config["api_key"] = PLANNER_MODEL_API_KEY
+            config["base_url"] = PLANNER_MODEL_BASE_URL
+            config["model"] = PLANNER_MODEL_ID
+        elif node_name == "Critic":
+            config["api_key"] = CRITIC_MODEL_API_KEY
+            config["base_url"] = CRITIC_MODEL_BASE_URL
+            config["model"] = CRITIC_MODEL_ID
 
         return ChatOpenAI(
             api_key=SecretStr(config["api_key"]) if config["api_key"] else None,
