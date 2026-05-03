@@ -382,3 +382,95 @@ async def test_hash_node_dedup_matched_doc_ids():
     assert "doc_b" in new_manifest.matched_doc_ids
 
 
+# =============================================================================
+# P0 — web_search 拆分结果多 hash key
+# =============================================================================
+
+
+@pytest.mark.priority("P0")
+@pytest.mark.asyncio
+async def test_persist_results_split_web_search():
+    """拆分后的 web_search 结果（key 含 #0/#1）各自独立 hash 并存入同一查询组。"""
+    from src.agent.nodes.research.hash.node import persist_results
+
+    query_params = '{"query": "京都红叶", "max_results": 3}'
+    results = [
+        CriticResult(
+            query=f"{query_params}#0",
+            tool_name="web_search",
+            safety_tag="safe",
+            relevance_score=90.0,
+            utility_score=85.0,
+            rationale="永观堂",
+        ),
+        CriticResult(
+            query=f"{query_params}#1",
+            tool_name="web_search",
+            safety_tag="safe",
+            relevance_score=75.0,
+            utility_score=70.0,
+            rationale="清水寺",
+        ),
+    ]
+
+    # query_results 使用拆分后的 key
+    query_results = {
+        f"{query_params}#0": {
+            "content": {"title": "永观堂", "url": "https://a.com/1", "snippet": "s1", "content": "美景"},
+        },
+        f"{query_params}#1": {
+            "content": {"title": "清水寺", "url": "https://a.com/2", "snippet": "s2", "content": "绝美"},
+        },
+    }
+
+    with patch(
+        "src.agent.nodes.research.hash.node.batch_store_results",
+        new=AsyncMock(),
+    ) as mock_store:
+        mapping = await persist_results(results, query_results, "sess-test")
+
+    # 每个结果各一条 record
+    mock_store.assert_awaited_once()
+    records = mock_store.call_args[0][0]
+    assert len(records) == 2
+
+    # 各自独立 hash
+    assert mapping[f"{query_params}#0"][0] != mapping[f"{query_params}#1"][0]
+
+    # 每条 record 的 payload 包含 _research_content（单个结果）
+    for record in records:
+        assert "_research_content" in record["payload"]
+        rc = record["payload"]["_research_content"]
+        assert "url" in rc
+        assert "title" in rc
+
+
+@pytest.mark.priority("P1")
+@pytest.mark.asyncio
+async def test_persist_results_split_key_lookup_safety():
+    """拆分 key 在 query_results 中不存在时不会崩溃（raw=None 路径）。"""
+    from src.agent.nodes.research.hash.node import persist_results
+
+    query_params = '{"query": "测试", "max_results": 1}'
+    results = [
+        CriticResult(
+            query=f"{query_params}#0",
+            tool_name="web_search",
+            safety_tag="safe",
+            relevance_score=80.0,
+            utility_score=75.0,
+            rationale="测试",
+        ),
+    ]
+
+    with patch(
+        "src.agent.nodes.research.hash.node.batch_store_results",
+        new=AsyncMock(),
+    ):
+        mapping = await persist_results(results, {}, "sess")
+
+    # raw=None 时仍生成 hash 和 record，不崩溃
+    assert len(mapping) == 1
+    assert mapping[f"{query_params}#0"][0] != ""
+
+
