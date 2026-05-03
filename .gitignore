@@ -35,3 +35,4 @@ docs/*.md
 .github/*.md
 
 script/start_claude.ps1
+script/cc-hook.ps1

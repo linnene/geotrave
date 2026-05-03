@@ -31,16 +31,21 @@ def _summarise_recommendations(state: TravelState) -> str:
     if not rec_data:
         return "暂无推荐数据"
 
+    dim_labels = {"destination": "目的地", "accommodation": "住宿", "dining": "餐饮"}
     lines = []
-    for key, label in [("destinations", "目的地"), ("accommodations", "住宿"), ("dining", "餐饮")]:
-        items = rec_data.get(key, [])
-        if items:
-            lines.append(f"**{label}**:")
-            for item in items[:5]:
-                lines.append(
-                    f"  - {item.get('name', 'N/A')} (评分 {item.get('score', '?')}/100): "
-                    f"{item.get('rationale', '')[:120]}"
-                )
+    for dim, label in dim_labels.items():
+        dim_data = rec_data.get(dim)
+        if dim_data:
+            items = dim_data.get("items", [])
+            if items:
+                lines.append(f"**{label}**:")
+                for item in items[:5]:
+                    rating = item.get("rating", "?")
+                    stars = "★" * int(rating) + ("☆" if rating - int(rating) >= 0.5 else "")
+                    lines.append(
+                        f"  - {item.get('name', 'N/A')} ({stars} {rating}/5): "
+                        f"{item.get('reason', '')[:120]}"
+                    )
     if not lines:
         return "推荐数据为空"
     return "\n".join(lines)

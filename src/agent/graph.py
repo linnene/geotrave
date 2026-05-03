@@ -93,8 +93,8 @@ async def get_travel_app():
         workflow.add_edge("analyst", "manager")
         # research_loop 子图闭环完成后回到 Manager 进行下一跳决策
         workflow.add_edge("research_loop", "manager")
-        # Recommender 完成后返回给前端（前端呈现选择列表，等待用户选择）
-        workflow.add_edge("recommender", END)
+        # Recommender 完成后回到 Manager — Manager 判断是否继续推荐下一维度
+        workflow.add_edge("recommender", "manager")
         # Planner 完成后返回给前端（呈现最终行程）
         workflow.add_edge("planner", END)
 
@@ -118,7 +118,7 @@ async def get_travel_app():
                 ('src.agent.state.schema', 'ResearchResult'),
                 ('src.agent.state.schema', 'CriticResult'),
                 ('src.agent.state.schema', 'LoopSummary'),
-                ('src.agent.state.schema', 'Recommendation'),
+                ('src.agent.state.schema', 'RecommendationItem'),
                 ('src.agent.state.schema', 'RecommenderOutput'),
                 ('src.agent.state.schema', 'Activity'),
                 ('src.agent.state.schema', 'DayPlan'),

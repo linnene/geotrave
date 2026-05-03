@@ -28,14 +28,14 @@ def _summarise_recommendation_data(state: TravelState) -> str:
     rec = state.get("recommendation_data")
     if not rec:
         return "暂无"
-    dest = [d.get("name", "") for d in rec.get("destinations", [])]
-    acc = [a.get("name", "") for a in rec.get("accommodations", [])]
-    din = [d.get("name", "") for d in rec.get("dining", [])]
-    return (
-        f"目的地({len(dest)}): {', '.join(dest[:3])} | "
-        f"住宿({len(acc)}): {', '.join(acc[:3])} | "
-        f"餐饮({len(din)}): {', '.join(din[:3])}"
-    )
+    parts = []
+    for dim in ("destination", "accommodation", "dining"):
+        dim_data = rec.get(dim)
+        if dim_data:
+            items = dim_data.get("items", [])
+            names = [i.get("name", "") for i in items]
+            parts.append(f"{dim}({len(items)}): {', '.join(names[:3])}")
+    return " | ".join(parts) if parts else "暂无"
 
 
 async def manager_node(state: TravelState) -> Dict[str, Any]:
@@ -56,6 +56,7 @@ async def manager_node(state: TravelState) -> Dict[str, Any]:
     is_recommendation_complete = signs.is_recommendation_complete if signs else False
     is_plan_complete = signs.is_plan_complete if signs else False
     is_selection_made = signs.is_selection_made if signs else False
+    recommended_dimensions = getattr(signs, 'recommended_dimensions', []) or [] if signs else []
     research_hashes = research_manifest.research_hashes if research_manifest else {}
     hashes_count = sum(len(v) for v in research_hashes.values())
     research_history = research_manifest.research_history if research_manifest else []
@@ -80,6 +81,7 @@ async def manager_node(state: TravelState) -> Dict[str, Any]:
         is_recommendation_complete=is_recommendation_complete,
         is_plan_complete=is_plan_complete,
         is_selection_made=is_selection_made,
+        recommended_dimensions=", ".join(recommended_dimensions) if recommended_dimensions else "无",
         recommendation_summary=rec_summary,
         hashes_count=hashes_count,
         research_matches_current=research_matches_current,
