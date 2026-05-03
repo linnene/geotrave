@@ -27,6 +27,7 @@ class RouteMetadata(BaseModel):
     next_node: str = Field(..., description="Target node name for the next hop")
     reason: str = Field(..., description="Rationale behind the routing decision")
     is_error: bool = Field(default=False, description="[DEPRECATED] Always False, never checked")
+    focus_dimension: Optional[str] = Field(default=None, description="Manager: explicit dimension hint for recommender (destination/accommodation/dining)")
 
 
 class ExecutionSigns(BaseModel):
@@ -225,6 +226,10 @@ class ManagerOutput(BaseModel):
         )
     )
     rationale: str = Field(..., description="Detailed logic behind this routing decision")
+    focus_dimension: Optional[Literal["destination", "accommodation", "dining"]] = Field(
+        default=None,
+        description="When user explicitly requests a specific recommendation dimension, set this to guide Recommender"
+    )
     user_selections: Optional[UserSelections] = Field(
         default=None,
         description="Extracted user selections when user responds to recommendation list"
