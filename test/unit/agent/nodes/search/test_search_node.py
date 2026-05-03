@@ -99,6 +99,44 @@ def test_generate_summary_fallback_json():
     assert len(result) <= 500
 
 
+@pytest.mark.priority("P0")
+def test_generate_summary_web_single_result():
+    """单条 web_search 结果: 显示标题、摘要、内容长度、抓取状态。"""
+    from src.agent.nodes.research.search.node import _generate_summary
+
+    payload = {
+        "title": "东京最值得去的10个景点",
+        "url": "https://example.com/tokyo",
+        "snippet": "一个详细的东京景点攻略...",
+        "content": "东京塔、浅草寺、银座等经典景点...",
+        "crawl_status": "success",
+        "crawl_mode": "fast",
+    }
+    result = _generate_summary(payload)
+    assert "[web]" in result
+    assert "东京最值得去的10个景点" in result
+    assert "东京景点攻略" in result
+    assert "success" in result
+
+
+@pytest.mark.priority("P1")
+def test_generate_summary_web_result_no_content():
+    """web 结果无全文: 仅显示标题 + snippet + 状态。"""
+    from src.agent.nodes.research.search.node import _generate_summary
+
+    payload = {
+        "title": "北海道旅游指南",
+        "url": "https://example.com/hokkaido",
+        "snippet": "",
+        "content": None,
+        "crawl_status": "error",
+    }
+    result = _generate_summary(payload)
+    assert "[web]" in result
+    assert "北海道旅游指南" in result
+    assert "error" in result
+
+
 # =============================================================================
 # P0 — _execute_tasks
 # =============================================================================
@@ -196,6 +234,165 @@ async def test_execute_tasks_handler_exception():
     assert "error" in envelope.content
     assert "执行失败" in envelope.content_summary
     assert envelope.tool_name == "broken_tool"
+
+
+@pytest.mark.priority("P0")
+@pytest.mark.asyncio
+async def test_execute_tasks_splits_web_search():
+    """web_search 结果按 URL 拆分为多个独立 ResearchResult。"""
+    from src.agent.nodes.research.search.node import _execute_tasks
+
+    tasks = [
+        SearchTask(
+            tool_name="web_search",
+            dimension="attraction",
+            parameters={"query": "东京景点", "max_results": 3},
+            rationale="测试拆分",
+        )
+    ]
+
+    mock_metadata = AsyncMock()
+    mock_metadata.payload = {
+        "query": "东京景点",
+        "total": 3,
+        "results": [
+            {"title": "浅草寺", "url": "https://a.com/1", "snippet": "s1", "content": "全文1", "crawl_status": "success"},
+            {"title": "东京塔", "url": "https://a.com/2", "snippet": "s2", "content": "全文2", "crawl_status": "success"},
+            {"title": "银座", "url": "https://a.com/3", "snippet": "s3", "content": None, "crawl_status": "error"},
+        ],
+    }
+
+    with patch.dict(
+        "src.agent.nodes.research.search.tools.TOOL_DISPATCH",
+        {"web_search": AsyncMock(return_value=mock_metadata)},
+    ):
+        results = await _execute_tasks(tasks)
+
+    assert len(results) == 3
+    keys = sorted(results.keys())
+    assert all("#" in k for k in keys)
+    assert keys[0].endswith("#0")
+    assert keys[1].endswith("#1")
+    assert keys[2].endswith("#2")
+
+    # 每个 envelope 是独立的 ResearchResult
+    for key in keys:
+        envelope = results[key]
+        assert isinstance(envelope, ResearchResult)
+        assert envelope.tool_name == "web_search"
+        assert envelope.content_type == "json"
+        assert "url" in envelope.content  # 单个结果 dict，不是批次
+
+    # 第三项无全文也应正常包裹
+    assert results[keys[2]].content["crawl_status"] == "error"
+
+
+@pytest.mark.priority("P1")
+@pytest.mark.asyncio
+async def test_execute_tasks_web_search_empty_results():
+    """web_search 无结果时保留一条空 envelope。"""
+    from src.agent.nodes.research.search.node import _execute_tasks
+
+    tasks = [
+        SearchTask(
+            tool_name="web_search",
+            dimension="attraction",
+            parameters={"query": "不存在的内容xyz"},
+            rationale="测试空结果",
+        )
+    ]
+
+    mock_metadata = AsyncMock()
+    mock_metadata.payload = {"query": "不存在的内容xyz", "total": 0, "results": []}
+
+    with patch.dict(
+        "src.agent.nodes.research.search.tools.TOOL_DISPATCH",
+        {"web_search": AsyncMock(return_value=mock_metadata)},
+    ):
+        results = await _execute_tasks(tasks)
+
+    assert len(results) == 1
+    envelope = next(iter(results.values()))
+    assert isinstance(envelope, ResearchResult)
+    assert "无结果" in envelope.content_summary
+
+
+@pytest.mark.priority("P0")
+@pytest.mark.asyncio
+async def test_execute_tasks_non_web_search_unchanged():
+    """非 web_search 工具保持一 task 一 result，不受拆分影响。"""
+    from src.agent.nodes.research.search.node import _execute_tasks
+
+    tasks = [
+        SearchTask(
+            tool_name="spatial_search",
+            dimension="dining",
+            parameters={"center": "东京", "radius_m": "1000"},
+            rationale="测试",
+        ),
+    ]
+
+    mock_metadata = AsyncMock()
+    mock_metadata.payload = {"pois": [{"name": "拉面店"}]}
+
+    with patch.dict(
+        "src.agent.nodes.research.search.tools.TOOL_DISPATCH",
+        {"spatial_search": AsyncMock(return_value=mock_metadata)},
+    ):
+        results = await _execute_tasks(tasks)
+
+    assert len(results) == 1
+    key = next(iter(results))
+    assert "#" not in key  # 无拆分后缀
+    assert results[key].content == mock_metadata.payload
+    assert results[key].tool_name == "spatial_search"
+
+
+# =============================================================================
+# P0 — search_node web_search 端到端拆分
+# =============================================================================
+
+
+@pytest.mark.priority("P0")
+@pytest.mark.asyncio
+async def test_search_node_splits_web_search_in_query_results():
+    """search_node 执行 web_search → query_results 中每条为独立 key。"""
+    from src.agent.nodes.research.search.node import search_node
+
+    tasks = [
+        SearchTask(
+            tool_name="web_search",
+            dimension="attraction",
+            parameters={"query": "京都红叶", "max_results": 3},
+            rationale="测试端到端拆分",
+        ),
+    ]
+    manifest = ResearchManifest(loop_state=ResearchLoopInternal(active_queries=tasks))
+
+    mock_metadata = AsyncMock()
+    mock_metadata.payload = {
+        "query": "京都红叶",
+        "total": 2,
+        "results": [
+            {"title": "永观堂", "url": "https://a.com/1", "snippet": "s1", "content": "美景", "crawl_status": "success"},
+            {"title": "清水寺", "url": "https://a.com/2", "snippet": "s2", "content": "绝美", "crawl_status": "success"},
+        ],
+    }
+
+    with patch.dict(
+        "src.agent.nodes.research.search.tools.TOOL_DISPATCH",
+        {"web_search": AsyncMock(return_value=mock_metadata)},
+    ):
+        result = await search_node({"research_data": manifest, "messages": []})
+
+    new_manifest = result["research_data"]
+    query_results = new_manifest.loop_state.query_results
+    assert len(query_results) == 2
+    for key, rr in query_results.items():
+        assert "#" in key
+        assert isinstance(rr, ResearchResult)
+        assert rr.tool_name == "web_search"
+        assert "url" in rr.content
 
 
 # =============================================================================

@@ -21,11 +21,22 @@ logger = get_logger("SearchNode")
 
 
 def _generate_summary(payload: Dict[str, Any]) -> str:
-    """从 payload 生成 ≤500 字符的摘要，供 Critic LLM 评分使用。
+    """从 payload 生成 ≤500 字符的摘要，供 Critic LLM 评分使用。"""
 
-    JSON 型结果: 提取前 5 条记录的 name / category 等关键字段。
-    后续扩展 text / html / url_list 类型。
-    """
+    # 单条网页搜索结果（拆分后独立的 web_search 结果）
+    if "url" in payload and "title" in payload and "query" not in payload:
+        title = payload.get("title", "?")
+        snippet = payload.get("snippet", "")[:200]
+        content_len = len(payload.get("content") or "")
+        status = payload.get("crawl_status", "?")
+        summary = f"[web] {title}"
+        if snippet:
+            summary += f" | 摘要: {snippet}"
+        if content_len:
+            summary += f" | 全文{content_len}字"
+        summary += f" | 抓取: {status}"
+        return summary[:500]
+
     # POI 列表型
     pois = payload.get("pois")
     if pois and isinstance(pois, list):
@@ -60,11 +71,12 @@ async def _execute_tasks(
 ) -> Dict[str, ResearchResult]:
     """执行全部 SearchTask，将结果包裹为 ResearchResult envelope。
 
-    每个任务由对应注册 handler 执行，原始 RetrievalMetadata.payload
-    作为 content 填入 envelope，同时生成 content_summary。
+    对于 web_search：每个独立搜索结果（URL）拆分为单独的 ResearchResult，
+    键为 {query_text}#{idx}，使得 Critic 可逐条评分、Hash 可逐条存储。
+    其他工具保持原有的一 task 一 result 行为。
 
     Returns:
-        {query_text: ResearchResult} 映射。
+        {query_text or query_text#idx: ResearchResult} 映射。
     """
     results: Dict[str, ResearchResult] = {}
 
@@ -84,21 +96,46 @@ async def _execute_tasks(
             continue
         try:
             raw = await handler(task)
-            envelope = ResearchResult(
-                tool_name=task.tool_name,
-                query=query_text,
-                content_type="json",
-                content=raw.payload,
-                content_summary=_generate_summary(raw.payload),
-                timestamp=datetime.now(timezone.utc).isoformat(),
-            )
-            results[query_text] = envelope
+
+            # web_search：每个独立结果拆分为单独的 ResearchResult
+            if task.tool_name == "web_search":
+                result_items = raw.payload.get("results", [])
+                if result_items:
+                    for ri, item in enumerate(result_items):
+                        item_key = f"{query_text}#{ri}"
+                        results[item_key] = ResearchResult(
+                            tool_name=task.tool_name,
+                            query=item_key,
+                            content_type="json",
+                            content=item,
+                            content_summary=_generate_summary(item),
+                            timestamp=datetime.now(timezone.utc).isoformat(),
+                        )
+                else:
+                    # 无结果也保留一条空 envelope，供 Critic 识别
+                    results[query_text] = ResearchResult(
+                        tool_name=task.tool_name,
+                        query=query_text,
+                        content_type="json",
+                        content={"query": raw.payload.get("query", ""), "total": 0, "results": []},
+                        content_summary=f"web_search: 无结果 (query={raw.payload.get('query', '?')})",
+                        timestamp=datetime.now(timezone.utc).isoformat(),
+                    )
+            else:
+                envelope = ResearchResult(
+                    tool_name=task.tool_name,
+                    query=query_text,
+                    content_type="json",
+                    content=raw.payload,
+                    content_summary=_generate_summary(raw.payload),
+                    timestamp=datetime.now(timezone.utc).isoformat(),
+                )
+                results[query_text] = envelope
         except Exception as e:
             logger.error(
                 f"Failed to execute tool '{task.tool_name}' for task {idx}: {e}",
                 exc_info=True,
             )
-            # 错误结果同样用 envelope 包裹，供 Critic 过滤
             error_env = ResearchResult(
                 tool_name=task.tool_name,
                 query=query_text,
