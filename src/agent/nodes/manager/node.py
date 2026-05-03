@@ -5,6 +5,7 @@ Decides the next global stage (Loop, Recommender, Planner, or Reply)
 based on execution signs, research manifests, and user selection context.
 """
 
+import json
 import time
 from typing import Any, Dict
 
@@ -68,6 +69,13 @@ async def manager_node(state: TravelState) -> Dict[str, Any]:
     trace_logs = state.get("trace_history", [])
     trace_history_str = format_trace_history(trace_logs, 5)
 
+    user_selections_raw = state.get("user_selections")
+    user_selections_str = (
+        json.dumps(user_selections_raw, ensure_ascii=False)
+        if user_selections_raw
+        else "无"
+    )
+
     research_matches_current = (
         research_history[-1] == user_request
         if research_history
@@ -89,6 +97,7 @@ async def manager_node(state: TravelState) -> Dict[str, Any]:
         history=history,
         user_request=user_request,
         trace_history=trace_history_str,
+        user_selections=user_selections_str,
         format_instructions=parser.get_format_instructions()
     )
 
@@ -101,6 +110,7 @@ async def manager_node(state: TravelState) -> Dict[str, Any]:
         next_node = decision.get("next_stage")
         reason = decision.get("rationale", "无具体理由")
         user_selections = decision.get("user_selections")
+        focus_dimension = decision.get("focus_dimension")
 
         logger.info(f"Manager Decision: -> {next_node.upper()} | Reason: {reason}")
     except Exception as e:
@@ -108,6 +118,7 @@ async def manager_node(state: TravelState) -> Dict[str, Any]:
         next_node = "reply" if not is_core_complete else "research_loop"
         reason = f"Fallback due to error: {str(e)}"
         user_selections = None
+        focus_dimension = None
 
     # 硬守卫: is_core_complete=False 时必须导向 reply
     if not is_core_complete and next_node != "reply":
@@ -121,7 +132,8 @@ async def manager_node(state: TravelState) -> Dict[str, Any]:
     route = RouteMetadata(
         next_node=next_node,
         reason=reason,
-        is_error=False
+        is_error=False,
+        focus_dimension=focus_dimension,
     )
 
     trace = build_trace(
@@ -134,6 +146,7 @@ async def manager_node(state: TravelState) -> Dict[str, Any]:
             "hashes_count": hashes_count,
             "research_history": research_history[-3:],
             "has_user_selections": user_selections is not None,
+            "focus_dimension": focus_dimension,
         }
     )
 

@@ -93,8 +93,8 @@ async def get_travel_app():
         workflow.add_edge("analyst", "manager")
         # research_loop 子图闭环完成后回到 Manager 进行下一跳决策
         workflow.add_edge("research_loop", "manager")
-        # Recommender 完成后回到 Manager — Manager 判断是否继续推荐下一维度
-        workflow.add_edge("recommender", "manager")
+        # Recommender 完成后 → Reply 呈现结果给用户，等待下一轮输入
+        workflow.add_edge("recommender", "reply")
         # Planner 完成后返回给前端（呈现最终行程）
         workflow.add_edge("planner", END)
 

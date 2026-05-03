@@ -27,11 +27,19 @@ parser = JsonOutputParser(pydantic_object=RecommenderOutput)
 _DIMENSION_PRIORITY = ("destination", "accommodation", "dining")
 
 
-def _next_dimension(recommended_dimensions: list) -> str:
-    """返回下一个应该推荐的维度。按 destination → accommodation → dining 顺序。"""
+def _next_dimension(recommended_dimensions: list, hint: str | None = None) -> str:
+    """返回下一个应该推荐的维度。
+
+    若有 hint（用户明确请求的维度），优先使用 hint，即使该维度已在列表中（允许重推）。
+    否则按 destination → accommodation → dining 顺序返回第一个未覆盖的维度。
+    """
+    if hint and hint in _DIMENSION_PRIORITY:
+        return hint
     for dim in _DIMENSION_PRIORITY:
         if dim not in recommended_dimensions:
             return dim
+    if hint and hint in _DIMENSION_PRIORITY:
+        return hint  # 全部覆盖但用户明确要求重推某维度
     return ""
 
 
@@ -40,7 +48,12 @@ async def recommender_node(state: TravelState) -> Dict[str, Any]:
 
     signs = state.get("execution_signs")
     recommended_dimensions = list(getattr(signs, 'recommended_dimensions', []) or []) if signs else []
-    focus_dim = _next_dimension(recommended_dimensions)
+
+    # 读取 Manager 传入的维度提示（用户明确请求某维度时）
+    route_meta = state.get("route_metadata")
+    focus_hint = getattr(route_meta, 'focus_dimension', None) if route_meta else None
+
+    focus_dim = _next_dimension(recommended_dimensions, focus_hint)
 
     if not focus_dim:
         logger.warning("Recommender called but all dimensions already covered")
