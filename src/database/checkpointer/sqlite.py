@@ -82,14 +82,3 @@ class SqliteCheckpointer:
                 logger.error(f"Error while closing checkpointer for loop {id(loop)}: {e}")
         cls._instances.clear()
         cls._cms.clear()
-    def connection(cls):
-        """
-        Context manager for clean checkpointer session management.
-        """
-        checkpointer = cls.get_instance()
-        try:
-            yield checkpointer
-        finally:
-            # In SqliteSaver, connection management is mostly internal, 
-            # but this provides an extension point for future cleanup logic.
-            pass

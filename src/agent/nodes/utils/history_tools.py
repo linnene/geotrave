@@ -3,7 +3,6 @@ Module: src.agent.nodes.utils.history_tools
 Responsibility: Node-level utilities for formatting conversation history and building audit traces.
 """
 
-import json
 from typing import Any, Dict, List, Optional
 
 from langchain_core.messages import BaseMessage

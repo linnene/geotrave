@@ -202,8 +202,8 @@ database/
 │   │   ├── 02-views.sql            # geotrave_poi + routing_ways 视图
 │   │   ├── 03-indexes.sql          # GIST 空间索引
 │   │   └── 04-topology.sql         # pgr_createTopology() 路网拓扑构建
+│   ├── scripts/                    # 视图/索引/拓扑 SQL 脚本
 │   └── osm_data/                   # .gitignore 排除，存放 .pbf 文件
-│       └── china-latest.osm.pbf    # Geofabrik 下载
 └── Spatial_DB_Spec.md
 ```
 

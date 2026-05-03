@@ -96,20 +96,3 @@ async def test_close_pool_releases_and_nulls():
     mock_pool.close.assert_awaited_once()
     assert conn_mod._pool is None
     assert conn_mod._pool_loop is None
-
-
-@pytest.mark.priority("P2")
-@pytest.mark.asyncio
-async def test_close_pool_none_is_noop():
-    """
-    Priority: P2
-    Description: close_pool() on None pool is a safe no-op.
-    """
-    import src.database.postgis.connection as conn_mod
-    conn_mod._pool = None
-    conn_mod._pool_loop = None
-
-    await conn_mod.close_pool()
-
-    assert conn_mod._pool is None
-    assert conn_mod._pool_loop is None

@@ -26,6 +26,9 @@ database/checkpointer/
 *.db
 
 
+# Test cache
+.pytest_cache/
+
 # IDEs
 .vscode/
 .idea/
