@@ -38,10 +38,7 @@ async def test_planner_produces_output():
     state = {
         "research_data": manifest,
         "recommendation_data": {
-            "destinations": [{"name": "东京", "type": "destination", "score": 90, "rationale": "经典目的地"}],
-            "accommodations": [],
-            "dining": [],
-            "strategy": "test",
+            "destination": {"dimension": "destination", "items": [{"name": "东京", "features": "...", "reason": "经典目的地", "rating": 4.5}], "strategy": "test", "tip": "..."},
         },
         "messages": [],
         "user_request": "东京三日游",

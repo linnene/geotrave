@@ -1,8 +1,8 @@
 """
 Module: src.agent.nodes.recommender.node
-Responsibility: Generates destination, accommodation, and dining recommendations
-               based on real Research Loop results (from Retrieval DB) and UserProfile.
-               Routes to END — API returns recommendations to frontend for user selection.
+Responsibility: Generates single-dimension destination/accommodation/dining recommendations
+               based on Research Loop results and UserProfile.
+               Each call focuses on ONE dimension only; Manager may call multiple times.
 """
 
 import time
@@ -23,10 +23,34 @@ logger = get_logger("RecommenderNode")
 
 parser = JsonOutputParser(pydantic_object=RecommenderOutput)
 
+# 推荐的默认优先级顺序
+_DIMENSION_PRIORITY = ("destination", "accommodation", "dining")
+
+
+def _next_dimension(recommended_dimensions: list) -> str:
+    """返回下一个应该推荐的维度。按 destination → accommodation → dining 顺序。"""
+    for dim in _DIMENSION_PRIORITY:
+        if dim not in recommended_dimensions:
+            return dim
+    return ""
+
 
 async def recommender_node(state: TravelState) -> Dict[str, Any]:
     start_time = time.time()
-    logger.info("Recommender — generating destination/accommodation/dining recommendations...")
+
+    signs = state.get("execution_signs")
+    recommended_dimensions = list(getattr(signs, 'recommended_dimensions', []) or []) if signs else []
+    focus_dim = _next_dimension(recommended_dimensions)
+
+    if not focus_dim:
+        logger.warning("Recommender called but all dimensions already covered")
+        return {
+            "execution_signs": (signs or ExecutionSigns()).model_copy(
+                update={"is_recommendation_complete": True}
+            ),
+        }
+
+    logger.info(f"Recommender — generating {focus_dim} recommendations...")
 
     messages = state.get("messages", [])
     user_profile = state.get("user_profile")
@@ -43,6 +67,7 @@ async def recommender_node(state: TravelState) -> Dict[str, Any]:
         user_request=user_request,
         user_profile=profile_json,
         research_summary=research_summary,
+        focus_dimension=focus_dim,
         format_instructions=parser.get_format_instructions(),
     )
 
@@ -53,33 +78,41 @@ async def recommender_node(state: TravelState) -> Dict[str, Any]:
         raw: dict = await chain.ainvoke(prompt_str)
         rec = RecommenderOutput(**raw)
         logger.info(
-            f"Recommender done — {len(rec.destinations)} destinations, "
-            f"{len(rec.accommodations)} accommodations, {len(rec.dining)} dining"
+            f"Recommender done — dimension={rec.dimension}, {len(rec.items)} items"
         )
     except Exception as exc:
         logger.error(f"Recommender LLM call failed: {exc}", exc_info=True)
         rec = RecommenderOutput(
-            destinations=[],
-            accommodations=[],
-            dining=[],
+            dimension=focus_dim,
+            items=[],
             strategy=f"推荐生成失败: {str(exc)[:200]}",
+            tip="请稍后重试或换一个维度",
         )
+
+    # 累积存储：按维度写入 recommendation_data
+    existing_recs = state.get("recommendation_data") or {}
+    existing_recs[rec.dimension] = rec.model_dump()
+
+    # 追加已覆盖维度
+    new_dimensions = list(recommended_dimensions)
+    if rec.dimension not in new_dimensions:
+        new_dimensions.append(rec.dimension)
 
     trace = build_trace(
         "recommender",
         "SUCCESS",
         latency_ms=int((time.time() - start_time) * 1000),
         detail={
-            "destinations_count": len(rec.destinations),
-            "accommodations_count": len(rec.accommodations),
-            "dining_count": len(rec.dining),
+            "dimension": rec.dimension,
+            "items_count": len(rec.items),
+            "recommended_dimensions": new_dimensions,
         },
     )
 
     return {
-        "recommendation_data": rec.model_dump(),
-        "execution_signs": (state.get("execution_signs") or ExecutionSigns()).model_copy(
-            update={"is_recommendation_complete": True}
+        "recommendation_data": existing_recs,
+        "execution_signs": (signs or ExecutionSigns()).model_copy(
+            update={"recommended_dimensions": new_dimensions}
         ),
         "trace_history": [trace],
     }

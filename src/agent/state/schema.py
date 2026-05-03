@@ -40,6 +40,7 @@ class ExecutionSigns(BaseModel):
     is_recommendation_complete: bool = Field(default=False, description="Recommender: destination/accommodation/dining recommendations generated")
     is_plan_complete: bool = Field(default=False, description="Planner: day-by-day itinerary generated")
     is_selection_made: bool = Field(default=False, description="Manager: user has made selections from recommendations (or explicitly delegated to agent)")
+    recommended_dimensions: List[str] = Field(default_factory=list, description="Dimensions already covered by Recommender, e.g. ['destination', 'accommodation']")
 
 
 class TraceLog(BaseModel):
@@ -382,28 +383,28 @@ class ResearchManifest(BaseModel):
 # ==============================================================================
 
 
-class Recommendation(BaseModel):
-    """单条推荐条目（目的地 / 住宿 / 餐饮）。"""
-    name: str = Field(..., description="Destination, accommodation, or dining name")
-    type: Literal["destination", "accommodation", "dining"] = Field(
-        ..., description="Recommendation category"
-    )
-    score: int = Field(..., ge=1, le=100, description="Recommendation score (1-100)")
-    rationale: str = Field(..., description="Recommendation rationale in natural language")
+class RecommendationItem(BaseModel):
+    """单条推荐项 — 前端渲染用。
+
+    每个推荐项包含名称、特点、推荐原因和五星制评分。
+    rating 支持半星（如 4.5），范围 1.0–5.0。
+    """
+    name: str = Field(..., description="推荐项名称（目的地/酒店/餐厅名）")
+    features: str = Field(..., description="推荐项特点/亮点，如'交通便利，步行到地铁站3分钟'")
+    reason: str = Field(..., description="推荐原因，基于研究数据和用户偏好")
+    rating: float = Field(..., ge=1.0, le=5.0, description="推荐指数 1-5 星，支持半星如 4.5")
 
 
 class RecommenderOutput(BaseModel):
-    """Recommender 节点结构化输出。"""
-    destinations: List[Recommendation] = Field(
-        default_factory=list, description="Destination candidates (1-3)"
+    """Recommender 节点结构化输出 — 每次调用仅输出一个维度。"""
+    dimension: Literal["destination", "accommodation", "dining"] = Field(
+        ..., description="本轮推荐维度"
     )
-    accommodations: List[Recommendation] = Field(
-        default_factory=list, description="Accommodation suggestions"
+    items: List[RecommendationItem] = Field(
+        default_factory=list, description="该维度的推荐列表（1-3 项）"
     )
-    dining: List[Recommendation] = Field(
-        default_factory=list, description="Dining suggestions"
-    )
-    strategy: str = Field(default="", description="Overall recommendation strategy narrative")
+    strategy: str = Field(default="", description="推荐策略简述")
+    tip: str = Field(default="", description="引导用户下一步的提示，如'选定目的地后我帮您挑住宿'")
 
 
 class Activity(BaseModel):

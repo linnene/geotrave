@@ -9,7 +9,6 @@ import pytest
 
 from src.agent.state.schema import (
     ExecutionSigns,
-    RecommenderOutput,
     UserSelections,
 )
 
@@ -156,17 +155,15 @@ def test_summarise_recommendation_data_with_content():
 
     state = {
         "recommendation_data": {
-            "destinations": [{"name": "东京"}],
-            "accommodations": [{"name": "浅草民宿"}, {"name": "新宿酒店"}],
-            "dining": [
-                {"name": "寿司店"}, {"name": "拉面店"}, {"name": "天妇罗店"}
-            ],
+            "destination": {"dimension": "destination", "items": [{"name": "东京", "features": "...", "reason": "...", "rating": 4.5}], "strategy": "...", "tip": "..."},
+            "accommodation": {"dimension": "accommodation", "items": [{"name": "浅草民宿", "features": "...", "reason": "...", "rating": 4.0}, {"name": "新宿酒店", "features": "...", "reason": "...", "rating": 4.0}], "strategy": "...", "tip": "..."},
+            "dining": {"dimension": "dining", "items": [{"name": "寿司店", "features": "...", "reason": "...", "rating": 3.5}, {"name": "拉面店", "features": "...", "reason": "...", "rating": 4.0}, {"name": "天妇罗店", "features": "...", "reason": "...", "rating": 4.5}], "strategy": "...", "tip": "..."},
         }
     }
     result = _summarise_recommendation_data(state)
     assert "东京" in result
-    assert "住宿(2)" in result
-    assert "餐饮(3)" in result
+    assert "accommodation(2)" in result
+    assert "dining(3)" in result
     assert "浅草民宿" in result
 
 

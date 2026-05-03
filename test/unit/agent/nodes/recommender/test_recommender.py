@@ -1,7 +1,7 @@
 """
 Test Suite: Recommender Node
 Mapping: /src/agent/nodes/recommender/node.py
-Priority: P0 — Delivery node producing destination/accommodation/dining recommendations
+Priority: P0 — Single-dimension recommendation delivery node
 """
 
 import pytest
@@ -12,49 +12,33 @@ from src.agent.state.schema import CriticResult, ResearchLoopInternal
 
 
 # =============================================================================
-# P0 — recommender_node full pipeline
+# P0 — recommender_node single-dimension pipeline
 # =============================================================================
 
 
 @pytest.mark.priority("P0")
 @pytest.mark.asyncio
-async def test_recommender_produces_output():
-    """Mock LLM returns valid recommendation data → RecommenderOutput written to state."""
+async def test_recommender_single_dimension_output():
+    """First call with no prior dimensions → focuses on destination, accumulates by dimension."""
     from src.agent.nodes.recommender.node import recommender_node
 
-    loop_state = ResearchLoopInternal(
-        all_passed_results=[
-            CriticResult(
-                query="东京酒店推荐",
-                tool_name="spatial_search",
-                safety_tag="safe",
-                relevance_score=85.0,
-                utility_score=90.0,
-                rationale="覆盖了浅草地区的酒店信息",
-            ),
-        ]
-    )
-    manifest = ResearchManifest(loop_state=loop_state)
+    manifest = ResearchManifest()
     state = {
         "research_data": manifest,
         "messages": [],
         "user_request": "东京三日游",
-        "execution_signs": ExecutionSigns(is_core_complete=True),
+        "execution_signs": ExecutionSigns(recommended_dimensions=[]),
     }
 
     mock_llm = MagicMock()
     mock_chain = AsyncMock()
     mock_chain.ainvoke.return_value = {
-        "destinations": [
-            {"name": "东京", "type": "destination", "score": 90, "rationale": "经典目的地"},
+        "dimension": "destination",
+        "items": [
+            {"name": "东京", "features": "国际化大都市", "reason": "经典目的地", "rating": 4.5},
         ],
-        "accommodations": [
-            {"name": "浅草民宿", "type": "accommodation", "score": 85, "rationale": "交通便利"},
-        ],
-        "dining": [
-            {"name": "银座寿司店", "type": "dining", "score": 80, "rationale": "新鲜食材"},
-        ],
-        "strategy": "优先推荐浅草/上野周边住宿，兼顾交通和性价比",
+        "strategy": "推荐东京作为首选目的地",
+        "tip": "选定目的地后我帮您挑住宿",
     }
     mock_llm.__or__.return_value = mock_chain
 
@@ -64,36 +48,46 @@ async def test_recommender_produces_output():
     ):
         result = await recommender_node(state)
 
-    assert "recommendation_data" in result
-    rec = result["recommendation_data"]
-    assert len(rec["destinations"]) == 1
-    assert rec["destinations"][0]["name"] == "东京"
-    assert len(rec["accommodations"]) == 1
-    assert len(rec["dining"]) == 1
-    assert "优先推荐" in rec["strategy"]
+    rec_data = result["recommendation_data"]
+    assert isinstance(rec_data, dict)
+    assert "destination" in rec_data
+    assert rec_data["destination"]["dimension"] == "destination"
+    assert len(rec_data["destination"]["items"]) == 1
+    assert rec_data["destination"]["items"][0]["name"] == "东京"
+    assert rec_data["destination"]["items"][0]["rating"] == 4.5
+
+    # Should append dimension, NOT set is_recommendation_complete
+    signs = result["execution_signs"]
+    assert signs.is_recommendation_complete is False
+    assert signs.recommended_dimensions == ["destination"]
 
 
 @pytest.mark.priority("P0")
 @pytest.mark.asyncio
-async def test_recommender_writes_state():
-    """recommendation_data is written to result dict."""
+async def test_recommender_second_dimension():
+    """Second call → focuses on accommodation, accumulates without overwriting."""
     from src.agent.nodes.recommender.node import recommender_node
 
     manifest = ResearchManifest()
     state = {
         "research_data": manifest,
         "messages": [],
-        "user_request": "京都旅行",
-        "execution_signs": ExecutionSigns(),
+        "user_request": "东京三日游",
+        "execution_signs": ExecutionSigns(recommended_dimensions=["destination"]),
+        "recommendation_data": {
+            "destination": {"dimension": "destination", "items": [{"name": "东京", "features": "...", "reason": "...", "rating": 4.5}], "strategy": "...", "tip": "..."},
+        },
     }
 
     mock_llm = MagicMock()
     mock_chain = AsyncMock()
     mock_chain.ainvoke.return_value = {
-        "destinations": [],
-        "accommodations": [],
-        "dining": [],
-        "strategy": "无足够数据",
+        "dimension": "accommodation",
+        "items": [
+            {"name": "浅草民宿", "features": "交通便利", "reason": "靠近浅草寺", "rating": 4.0},
+        ],
+        "strategy": "优先推荐浅草周边住宿",
+        "tip": "有中意的住宿吗？下一步帮您规划行程",
     }
     mock_llm.__or__.return_value = mock_chain
 
@@ -103,39 +97,37 @@ async def test_recommender_writes_state():
     ):
         result = await recommender_node(state)
 
-    assert result["recommendation_data"]["strategy"] == "无足够数据"
+    rec_data = result["recommendation_data"]
+    assert "destination" in rec_data  # preserved
+    assert "accommodation" in rec_data  # new
+    assert len(rec_data["destination"]["items"]) == 1
+    assert len(rec_data["accommodation"]["items"]) == 1
+    assert rec_data["accommodation"]["items"][0]["name"] == "浅草民宿"
+
+    signs = result["execution_signs"]
+    assert signs.recommended_dimensions == ["destination", "accommodation"]
+    assert signs.is_recommendation_complete is False
 
 
 @pytest.mark.priority("P0")
 @pytest.mark.asyncio
-async def test_recommender_sets_complete_flag():
-    """is_recommendation_complete set to True after successful execution."""
+async def test_recommender_all_dimensions_covered():
+    """All 3 dimensions already covered → short-circuit with is_recommendation_complete=True."""
     from src.agent.nodes.recommender.node import recommender_node
 
     manifest = ResearchManifest()
     state = {
         "research_data": manifest,
         "messages": [],
-        "user_request": "test",
-        "execution_signs": ExecutionSigns(),
+        "user_request": "东京三日游",
+        "execution_signs": ExecutionSigns(
+            recommended_dimensions=["destination", "accommodation", "dining"]
+        ),
     }
 
-    mock_llm = MagicMock()
-    mock_chain = AsyncMock()
-    mock_chain.ainvoke.return_value = {
-        "destinations": [],
-        "accommodations": [],
-        "dining": [],
-        "strategy": "test",
-    }
-    mock_llm.__or__.return_value = mock_chain
+    result = await recommender_node(state)
 
-    with patch(
-        "src.agent.nodes.recommender.node.LLMFactory.get_model",
-        return_value=mock_llm,
-    ):
-        result = await recommender_node(state)
-
+    # Should return immediately without LLM call
     assert result["execution_signs"].is_recommendation_complete is True
 
 
@@ -147,7 +139,7 @@ async def test_recommender_sets_complete_flag():
 @pytest.mark.priority("P1")
 @pytest.mark.asyncio
 async def test_recommender_empty_research_data():
-    """No research data → node still runs, produces empty recommendations."""
+    """No research data → node still runs, produces empty recommendations for the focus dimension."""
     from src.agent.nodes.recommender.node import recommender_node
 
     state = {
@@ -160,10 +152,10 @@ async def test_recommender_empty_research_data():
     mock_llm = MagicMock()
     mock_chain = AsyncMock()
     mock_chain.ainvoke.return_value = {
-        "destinations": [],
-        "accommodations": [],
-        "dining": [],
+        "dimension": "destination",
+        "items": [],
         "strategy": "研究数据为空，无法推荐",
+        "tip": "请先完善研究数据",
     }
     mock_llm.__or__.return_value = mock_chain
 
@@ -174,13 +166,15 @@ async def test_recommender_empty_research_data():
         result = await recommender_node(state)
 
     assert "recommendation_data" in result
-    assert result["execution_signs"].is_recommendation_complete is True
+    assert "destination" in result["recommendation_data"]
+    assert result["recommendation_data"]["destination"]["items"] == []
+    assert result["execution_signs"].recommended_dimensions == ["destination"]
 
 
 @pytest.mark.priority("P1")
 @pytest.mark.asyncio
 async def test_recommender_llm_error_graceful():
-    """LLM exception → graceful fallback with empty recommendations."""
+    """LLM exception → graceful fallback with empty items and error strategy."""
     from src.agent.nodes.recommender.node import recommender_node
 
     manifest = ResearchManifest()
@@ -202,6 +196,7 @@ async def test_recommender_llm_error_graceful():
     ):
         result = await recommender_node(state)
 
-    assert "recommendation_data" in result
-    assert "失败" in result["recommendation_data"]["strategy"]
-    assert result["execution_signs"].is_recommendation_complete is True
+    rec_data = result["recommendation_data"]
+    dim = list(rec_data.keys())[0]
+    assert "失败" in rec_data[dim]["strategy"]
+    assert rec_data[dim]["items"] == []
