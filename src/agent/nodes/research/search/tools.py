@@ -7,7 +7,6 @@ Search node). No manual metadata list is required.
 """
 
 import functools
-import json
 import time
 from typing import Any, Dict, List
 
@@ -51,14 +50,6 @@ def register_tool(name: str, description: str, parameters: Dict[str, str]):
 # ---------------------------------------------------------------------------
 # PostGIS spatial tools
 # ---------------------------------------------------------------------------
-
-def _parse_lnglat(raw: str) -> tuple[float, float]:
-    """Parse 'lng,lat' string into (lng, lat) floats."""
-    parts = [p.strip() for p in raw.split(",")]
-    if len(parts) != 2:
-        raise ValueError(f"Invalid coordinate format '{raw}', expected 'lng,lat'")
-    return float(parts[0]), float(parts[1])
-
 
 async def _geocode(place_name: str) -> tuple[float, float]:
     """Resolve a place name to (lng, lat) via PostGIS planet_osm_point.

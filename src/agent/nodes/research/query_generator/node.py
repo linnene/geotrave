@@ -7,7 +7,7 @@ from src.agent.state.schema import ResearchLoopInternal
 from src.utils.llm_factory import LLMFactory
 from src.utils.prompt import query_generator_prompt_template
 from src.utils.logger import get_logger
-from src.agent.nodes.utils import build_trace, format_recent_history, get_beijing_time_now
+from src.agent.nodes.utils import build_trace, extract_content_str, format_recent_history, get_beijing_time_now
 from .config import TEMPERATURE, HISTORY_LIMIT, MAX_TOKENS
 
 logger = get_logger("QueryGeneratorNode")
@@ -71,17 +71,7 @@ async def query_generator_node(state: TravelState) -> Dict[str, Any]:
 
     try:
         raw_result = await bound_llm.ainvoke(prompt_str)
-
-        raw_content = raw_result.content if hasattr(raw_result, "content") else str(raw_result)
-
-        if isinstance(raw_content, list):
-            content = "".join([
-                t.get("text", "") if isinstance(t, dict) else str(t)
-                for t in raw_content
-            ])
-        else:
-            content = str(raw_content)
-
+        content = extract_content_str(raw_result)
         parsed_json = json.loads(content)
         result = QueryGeneratorOutput(**parsed_json)
 

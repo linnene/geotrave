@@ -1,4 +1,4 @@
-from typing import Optional, Dict, Any
+from typing import Optional
 from .fetcher import ContentFetcher
 from .parser import ContentParser
 from .schema import CrawlResult, FetchError

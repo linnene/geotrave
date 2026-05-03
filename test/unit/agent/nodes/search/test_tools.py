@@ -30,53 +30,6 @@ def _mock_pool(fetch_rows, fetchval_values=None):
 
 
 # ---------------------------------------------------------------------------
-# _parse_lnglat
-# ---------------------------------------------------------------------------
-
-@pytest.mark.priority("P0")
-def test_parse_lnglat_valid():
-    """
-    Priority: P0
-    Description: Valid 'lng,lat' string returns (lng, lat) float tuple.
-    """
-    from src.agent.nodes.research.search.tools import _parse_lnglat
-
-    lng, lat = _parse_lnglat("141.35, 43.07")
-    assert lng == 141.35, f"经度应为 141.35，实际: {lng}"
-    assert lat == 43.07, f"纬度应为 43.07，实际: {lat}"
-
-
-@pytest.mark.priority("P0")
-def test_parse_lnglat_no_spaces():
-    """
-    Priority: P0
-    Description: Parsing works without spaces around comma.
-    """
-    from src.agent.nodes.research.search.tools import _parse_lnglat
-
-    lng, lat = _parse_lnglat("139.76,35.68")
-    assert lng == 139.76, f"经度应为 139.76，实际: {lng}"
-    assert lat == 35.68, f"纬度应为 35.68，实际: {lat}"
-
-
-@pytest.mark.priority("P1")
-def test_parse_lnglat_invalid_format():
-    """
-    Priority: P1
-    Description: Invalid coordinate string raises ValueError.
-    """
-    from src.agent.nodes.research.search.tools import _parse_lnglat
-
-    invalid_inputs = ["141.35", "141.35,", "a,b"]
-    for val in invalid_inputs:
-        try:
-            _parse_lnglat(val)
-            pytest.fail(f"输入 '{val}' 应触发 ValueError，但未触发")
-        except ValueError:
-            pass
-
-
-# ---------------------------------------------------------------------------
 # TOOL_METADATA & TOOL_DISPATCH — registration integrity
 # ---------------------------------------------------------------------------
 

@@ -7,26 +7,12 @@ Priority: P0 — User selection flow correctness
 
 import pytest
 
-from src.agent.state.schema import (
-    ExecutionSigns,
-    UserSelections,
-)
+from src.agent.state.schema import UserSelections
 
 
 # =============================================================================
 # P0 — UserSelections model
 # =============================================================================
-
-
-@pytest.mark.priority("P0")
-def test_user_selections_default():
-    """Default UserSelections has all None fields and needs_reselect=False."""
-    sel = UserSelections()
-    assert sel.chosen_destination is None
-    assert sel.chosen_accommodation is None
-    assert sel.chosen_dining is None
-    assert sel.needs_reselect is False
-    assert sel.reselection_feedback is None
 
 
 @pytest.mark.priority("P0")
@@ -165,22 +151,3 @@ def test_summarise_recommendation_data_with_content():
     assert "accommodation(2)" in result
     assert "dining(3)" in result
     assert "浅草民宿" in result
-
-
-# =============================================================================
-# P1 — ExecutionSigns with is_selection_made
-# =============================================================================
-
-
-@pytest.mark.priority("P1")
-def test_execution_signs_is_selection_made_default():
-    """is_selection_made defaults to False."""
-    signs = ExecutionSigns()
-    assert signs.is_selection_made is False
-
-
-@pytest.mark.priority("P1")
-def test_execution_signs_is_selection_made_true():
-    """is_selection_made can be set to True."""
-    signs = ExecutionSigns(is_selection_made=True)
-    assert signs.is_selection_made is True

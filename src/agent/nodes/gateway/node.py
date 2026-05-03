@@ -15,7 +15,7 @@ from src.agent.state import ExecutionSigns, TravelState, GatewayOutput
 from src.utils.llm_factory import LLMFactory
 from src.utils.prompt import gateway_prompt_template
 from src.utils.logger import get_logger
-from src.agent.nodes.utils import build_trace, format_recent_history
+from src.agent.nodes.utils import build_trace, extract_content_str, extract_token_usage, format_recent_history
 from .config import TEMPERATURE, HISTORY_LIMIT, MAX_TOKENS
 
 logger = get_logger("GatewayNode")
@@ -64,24 +64,7 @@ async def gateway_node(state: TravelState) -> Dict[str, Any]:
     try:
         # 3. LLM Reasoning
         raw_result = await bound_llm.ainvoke(prompt_str)
-        
-        # Manual parse from JSON string in AIMessage content
-        import json as json_lib
-                # Manual parse from JSON string
-        content = raw_result.content if hasattr(raw_result, "content") else str(raw_result)
-        
-        # Handle cases where content might be a list (multimodal or complex tool outputs)
-        if isinstance(content, list):
-            # Find the first text block or join them
-            content_str = ""
-            for item in content:
-                if isinstance(item, str):
-                    content_str += item
-                elif isinstance(item, dict) and item.get("type") == "text":
-                    content_str += item.get("text", "")
-        else:
-            content_str = str(content)
-            
+        content_str = extract_content_str(raw_result)
         parsed_json = json_lib.loads(content_str)
         result = GatewayOutput(**parsed_json)
         
@@ -101,19 +84,8 @@ async def gateway_node(state: TravelState) -> Dict[str, Any]:
     # 3. Decision & Audit Assembly
     # Gateway 仅产出业务事实，不实例化 RouteMetadata
     is_safe = is_valid
-    
-    # Extract token usage if available from LLM response
-    token_usage = {}
-    # Use cast or check with getattr to satisfy Pylance when result is potentially a dict or BaseMessage
-    if hasattr(raw_result, "response_metadata"):
-        metadata = getattr(raw_result, "response_metadata", {})
-        usage = metadata.get("token_usage", {})
-        if usage:
-            token_usage = {
-                "prompt": usage.get("prompt_tokens", 0),
-                "completion": usage.get("completion_tokens", 0),
-                "total": usage.get("total_tokens", 0)
-            }
+
+    token_usage = extract_token_usage(raw_result)
 
 
     status = "SUCCESS" if is_valid else ("REJECTED" if category in ["malicious", "chitchat"] else "FAIL")

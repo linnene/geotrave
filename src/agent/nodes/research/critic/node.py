@@ -26,6 +26,7 @@ from src.agent.state.schema import (
 from src.utils.llm_factory import LLMFactory
 from src.utils.prompt import critic_prompt_template, critic_decision_prompt_template
 from src.utils.logger import get_logger
+from src.agent.nodes.utils.content import extract_content_str
 from src.agent.nodes.utils.history_tools import build_trace
 from .config import (
     ACCUMULATED_HARD_MAX,
@@ -174,15 +175,7 @@ async def llm_score_batch(
     bound_llm = llm.bind(response_format={"type": "json_object"})
 
     raw_result = await bound_llm.ainvoke(prompt_str)
-
-    content = raw_result.content if hasattr(raw_result, "content") else str(raw_result)
-    if isinstance(content, list):
-        content_str = "".join(
-            t.get("text", "") if isinstance(t, dict) else str(t) for t in content
-        )
-    else:
-        content_str = str(content)
-
+    content_str = extract_content_str(raw_result)
     parsed = json.loads(content_str)
     results = [CriticResult(**item) for item in parsed.get("results", [])]
 
@@ -243,14 +236,7 @@ async def llm_decide_loop(
 
     raw_result = await bound_llm.ainvoke(prompt_str)
 
-    content = raw_result.content if hasattr(raw_result, "content") else str(raw_result)
-    if isinstance(content, list):
-        content_str = "".join(
-            t.get("text", "") if isinstance(t, dict) else str(t) for t in content
-        )
-    else:
-        content_str = str(content)
-
+    content_str = extract_content_str(raw_result)
     parsed = json.loads(content_str)
     continue_loop = parsed.get("continue_loop", True)
     feedback = parsed.get("feedback", "")

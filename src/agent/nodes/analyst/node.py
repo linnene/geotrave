@@ -14,7 +14,7 @@ from src.agent.state import TravelState, AnalystOutput, ExecutionSigns
 from src.utils.llm_factory import LLMFactory
 from src.utils.prompt import analyst_prompt_template
 from src.utils.logger import get_logger
-from src.agent.nodes.utils import build_trace, format_recent_history, get_beijing_time_now
+from src.agent.nodes.utils import build_trace, extract_content_str, extract_token_usage, format_recent_history, get_beijing_time_now
 from .config import TEMPERATURE, HISTORY_LIMIT, MAX_TOKENS
 
 logger = get_logger("AnalystNode")
@@ -60,22 +60,7 @@ async def analyst_node(state: TravelState) -> Dict[str, Any]:
 
     try:
         raw_result = await bound_llm.ainvoke(prompt_str)
-        
-        # Manual parse from JSON string
-        content = raw_result.content if hasattr(raw_result, "content") else str(raw_result)
-        
-        # Handle cases where content might be a list (multimodal or complex tool outputs)
-        if isinstance(content, list):
-            # Find the first text block or join them
-            content_str = ""
-            for item in content:
-                if isinstance(item, str):
-                    content_str += item
-                elif isinstance(item, dict) and item.get("type") == "text":
-                    content_str += item.get("text", "")
-        else:
-            content_str = str(content)
-
+        content_str = extract_content_str(raw_result)
         parsed_json = json.loads(content_str)
         result = AnalystOutput(**parsed_json)
         
@@ -104,16 +89,7 @@ async def analyst_node(state: TravelState) -> Dict[str, Any]:
     # - Node only provides facts via ExecutionSigns.
     # - Graph router will decide whether to wake up 'reply' and 'manager'.
 
-    token_usage = {}
-    if hasattr(raw_result, "response_metadata"):
-        metadata = getattr(raw_result, "response_metadata", {})
-        usage = metadata.get("token_usage", {})
-        if usage:
-            token_usage = {
-                "prompt": usage.get("prompt_tokens", 0),
-                "completion": usage.get("completion_tokens", 0),
-                "total": usage.get("total_tokens", 0)
-            }
+    token_usage = extract_token_usage(raw_result)
 
     trace = build_trace(
         "analyst",

@@ -36,19 +36,15 @@ uv sync                              # 安装依赖
 uv run python -m src.main            # 启动开发服务器
 uv run pytest test/ -v --asyncio-mode=strict          # 全部测试
 uv run pytest test/unit/ -v --asyncio-mode=strict     # 单元测试
-uv run pytest test/ -m "P0" -v --asyncio-mode=strict   # P0 测试
 uv run streamlit run test/test_ui.py                   # 调试 UI
-powershell -File script/run_eval.ps1                   # 批量评估
 ```
 
 ## Architecture
 
 ```
-user input → gateway → analyst → manager → (query_generator → search) → reply
-                │                     ↑                    │
-                └── unsafe ──→ reply ┘                    │
-                                                          │
-                                            recommender / planner (stub)
+user input → gateway → analyst → manager → (research_loop → manager | recommender → reply | planner → reply)
+                │                     ↑
+                └── unsafe ──→ reply ┘
 ```
 
 | 节点 | 职责 |
@@ -56,9 +52,10 @@ user input → gateway → analyst → manager → (query_generator → search) 
 | **Gateway** | 安全网关 — 意图分类 (legal/malicious/chitchat) + PII 脱敏 |
 | **Analyst** | 需求分析 — 提取 UserProfile，判定信息完备性 |
 | **Manager** | 总调度官 — LLM 驱动路由，读 trace_history/research 信号决策 |
-| **QueryGenerator** | 研究规划 — 目的地驱动的多维度空间检索方案 |
-| **Search** | 工具执行 — PostGIS POI 搜索 + pgRouting 路网计算 |
-| **Reply** | 对话出口 — 循循善诱收集缺失信息 |
+| **Research Loop** | 调研子图 — QueryGenerator → Search → Critic ⇄ QueryGenerator → Hash |
+| **Recommender** | 推荐引擎 — 目的地/住宿/餐饮三维度渐进式推荐 |
+| **Planner** | 行程规划 — 基于调研+推荐生成逐日行程方案 |
+| **Reply** | 对话出口 — 收集缺失信息或呈现最终计划 |
 
 > 拓扑细节与路由逻辑见 [src/agent/graph.py](src/agent/graph.py)，Prompt 设计见 [src/utils/prompt.py](src/utils/prompt.py)。
 
@@ -86,13 +83,14 @@ src/
 │       ├── gateway/              # 安全网关
 │       ├── manager/              # LLM 路由调度
 │       ├── analyst/              # 需求提取
-│       ├── query_generator/      # 研究方案规划
-│       ├── search/               # 工具执行 + @register_tool
+│       ├── research/             # 调研子图 (QG / Search / Critic / Hash)
+│       ├── recommender/          # 渐进式推荐
+│       ├── planner/              # 行程规划
 │       └── reply/                # 对话回复
 ├── api/                          # FastAPI 路由 + schema
 ├── database/
 │   ├── checkpointer/             # SQLite 状态持久化
-│   └── postgis/                  # asyncpg 连接池
+│   └── retrieval_db.py           # PostgreSQL JSONB 检索存储
 └── utils/                        # LLM Factory, Prompt, Logger
 
 database/postgis/
@@ -103,7 +101,7 @@ database/postgis/
 └── osm_data/                     # OSM .pbf 文件 (gitignored)
 
 test/
-├── unit/                         # 单元测试 (32 tests, 16 P0)
+├── unit/                         # 单元测试 (166 tests, 89 P0)
 ├── integration/                  # 集成测试 (需 PostGIS)
 └── TEST_MANIFEST.md              # 测试覆盖矩阵
 ```
@@ -113,9 +111,8 @@ test/
 | 文档 | 内容 |
 |---|---|
 | [docs/PLAN.md](docs/PLAN.md) | 开发计划与完成状态 |
-| [docs/STASH.md](docs/STASH.md) | 搁置工作清单 (Recommender, Planner, Crawler, Evaluator) |
-| [test/TEST_MANIFEST.md](test/TEST_MANIFEST.md) | 测试覆盖矩阵 (32 tests) |
-| [src/database/Spatial_DB_Spec.md](src/database/Spatial_DB_Spec.md) | PostGIS 空间数据库规格 |
+| [test/TEST_MANIFEST.md](test/TEST_MANIFEST.md) | 测试覆盖矩阵 (166 tests) |
+| [src/database/postgis/Spatial_DB_Spec.md](src/database/postgis/Spatial_DB_Spec.md) | PostGIS 空间数据库规格 |
 | [docs/local/stash/project_goal.md](docs/local/stash/project_goal.md) | 项目最终目标 |
 | [docs/local/stash/development_plan.md](docs/local/stash/development_plan.md) | 原始分阶段开发计划 |
 

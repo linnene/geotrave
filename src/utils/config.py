@@ -39,11 +39,6 @@ PLANNER_MODEL_API_KEY = os.getenv("PLANNER_MODEL_API_KEY", GLOBAL_MODEL_API_KEY)
 PLANNER_MODEL_BASE_URL = os.getenv("PLANNER_MODEL_BASE_URL", GLOBAL_MODEL_BASE_URL)
 PLANNER_MODEL_ID = os.getenv("PLANNER_MODEL_ID", GLOBAL_MODEL_ID)
 
-# --- 3. Agent Tuning Parameters ---
-PLANNING_TEMPERATURE = 0.7
-MAX_TOKENS = 4096
-LLM_TIMEOUT = 60
-
 # --- 4. System Base Configuration ---
 # Checkpoint 数据库配置 (Sqlite)
 CHECKPOINT_DB_PATH = os.getenv("CHECKPOINT_DB_PATH", "database/checkpointer/checkpoints.sqlite")
