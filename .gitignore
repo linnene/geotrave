@@ -18,6 +18,7 @@ ENV/
 
 # Claude Code local settings
 .claude/
+CLAUDE.md
 
 # Databases
 database/checkpointer/
