@@ -94,14 +94,14 @@ Step 2 (P0 缺陷) ─── C3 (completion flags) + C4 (search config)
 Step 3 (P0 守卫) ─── H1 (Analyst error path) + H2 (needs_reselect guard)
 Step 4 (P1 数据流) ─ H3 (dimensions_covered) + H4 (research_history dedup)
 Step 5 (P0 测试) ─── H5 (Gateway/Analyst/Manager/Reply 测试) + M1-M4 顺手修复
-Step 6 (工具链) ─── Postman/Newman 集成 + CI job
+Step 6 (工具链) ─── Postman/Newman 集成 + CI job ✅ 已完成 (2026-05-04)
 ```
 
 **并行建议**:
 - Steps 1-2 可并行（独立缺陷）
 - Steps 3-4 可并行（不同模块）
 - Step 5 在 Step 1-4 后（测试依赖修复完成）
-- Step 6 可与 Step 5 并行
+- ~~Step 6 可与 Step 5 并行~~
 
 ## 5. 验证
 
@@ -110,7 +110,7 @@ Step 6 (工具链) ─── Postman/Newman 集成 + CI job
 uv run pytest test/ -v --asyncio-mode=strict
 # 预期: ≥190 个测试全部通过
 
-# API 集成测试
-npx newman run postman/GeoTrave-API-Tests.json --env-var "base_url=http://localhost:8000"
-# 预期: 全部请求通过
+# API 集成测试（一键自动化）
+uv run python script/run_api_tests.py
+# 预期: 6/6 requests passed, 17/17 assertions passed
 ```
