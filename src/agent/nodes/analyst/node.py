@@ -12,7 +12,7 @@ from typing import Dict, Any
 
 from src.agent.state import TravelState, AnalystOutput, ExecutionSigns
 from src.utils.llm_factory import LLMFactory
-from src.utils.prompt import analyst_prompt_template
+from src.utils.prompt import prompt
 from src.utils.logger import get_logger
 from src.agent.nodes.utils import build_trace, extract_content_str, extract_token_usage, format_recent_history, get_beijing_time_now
 from .config import TEMPERATURE, HISTORY_LIMIT, MAX_TOKENS
@@ -44,7 +44,7 @@ async def analyst_node(state: TravelState) -> Dict[str, Any]:
     current_profile_json = state.get("user_profile").model_dump_json(indent=2) if state.get("user_profile") else "{}"
 
     # 2. LLM Orchestration
-    prompt_str = analyst_prompt_template.format(
+    prompt_str = prompt.analyst.format(
         current_time=get_beijing_time_now(),
         current_profile=current_profile_json,
         history=history,

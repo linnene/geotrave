@@ -11,7 +11,7 @@ from typing import Dict, Any
 from langchain_core.messages import AIMessage
 from src.agent.state import TravelState
 from src.utils.llm_factory import LLMFactory
-from src.utils.prompt import reply_prompt_template
+from src.utils.prompt import prompt
 from src.utils.logger import get_logger
 from src.agent.nodes.utils import build_trace, get_beijing_time_now
 from .config import TEMPERATURE, MAX_TOKENS
@@ -42,7 +42,7 @@ async def reply_node(state: TravelState) -> Dict[str, Any]:
     current_profile_json = current_profile.model_dump_json(indent=2) if current_profile else "{}"
 
     # 2. LLM Orchestration
-    prompt_str = reply_prompt_template.format(
+    prompt_str = prompt.reply.format(
         current_time=get_beijing_time_now(),
         last_user_message=last_user_msg,
         user_request=user_request,

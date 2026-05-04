@@ -24,7 +24,7 @@ from src.agent.state.schema import (
     ResearchResult,
 )
 from src.utils.llm_factory import LLMFactory
-from src.utils.prompt import critic_prompt_template, critic_decision_prompt_template
+from src.utils.prompt import prompt
 from src.utils.logger import get_logger
 from src.agent.nodes.utils.content import extract_content_str
 from src.agent.nodes.utils.history_tools import build_trace
@@ -164,7 +164,7 @@ async def llm_score_batch(
     format_instructions = _get_critic_format_instructions()
     results_json = _build_batch_json(batch)
 
-    prompt_str = critic_prompt_template.format(
+    prompt_str = prompt.critic.format(
         results_json=results_json,
         format_instructions=format_instructions,
     )
@@ -223,7 +223,7 @@ async def llm_decide_loop(
     accumulated_json = _build_summary_json(accumulated)
     current_json = _build_summary_json(current)
 
-    prompt_str = critic_decision_prompt_template.format(
+    prompt_str = prompt.critic_decision.format(
         accumulated_summary_json=accumulated_json,
         current_summary_json=current_json,
         format_instructions=format_instructions,

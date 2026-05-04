@@ -13,7 +13,7 @@ from typing import Dict, Any
 from langchain_core.messages import HumanMessage
 from src.agent.state import ExecutionSigns, TravelState, GatewayOutput
 from src.utils.llm_factory import LLMFactory
-from src.utils.prompt import gateway_prompt_template
+from src.utils.prompt import prompt
 from src.utils.logger import get_logger
 from src.agent.nodes.utils import build_trace, extract_content_str, extract_token_usage, format_recent_history
 from .config import TEMPERATURE, HISTORY_LIMIT, MAX_TOKENS
@@ -48,7 +48,7 @@ async def gateway_node(state: TravelState) -> Dict[str, Any]:
     history = format_recent_history(messages, HISTORY_LIMIT)
     
     # 2. LLM Orchestration with dynamic schema injection
-    prompt_str = gateway_prompt_template.format(
+    prompt_str = prompt.gateway.format(
         history=history if history else "无对话历史",
         user_input=last_user_msg,
         format_instructions=_get_format_instructions()

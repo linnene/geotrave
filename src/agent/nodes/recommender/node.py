@@ -11,7 +11,7 @@ from typing import Any, Dict
 from src.agent.state import TravelState
 from src.agent.state.schema import ExecutionSigns, RecommenderOutput
 from src.utils.llm_factory import LLMFactory
-from src.utils.prompt import recommender_prompt_template
+from src.utils.prompt import prompt
 from src.utils.logger import get_logger
 from src.agent.nodes.utils import build_trace, format_recent_history, fetch_research_content, get_beijing_time_now
 
@@ -74,7 +74,7 @@ async def recommender_node(state: TravelState) -> Dict[str, Any]:
     research_summary = await fetch_research_content(research_manifest)
     profile_json = user_profile.model_dump_json(indent=2, ensure_ascii=False) if user_profile else "{}"
 
-    prompt_str = recommender_prompt_template.format(
+    prompt_str = prompt.recommender.format(
         current_time=get_beijing_time_now(),
         history=history,
         user_request=user_request,

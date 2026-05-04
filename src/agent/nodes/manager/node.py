@@ -12,7 +12,7 @@ from typing import Any, Dict
 from src.agent.state import TravelState, RouteMetadata, ManagerOutput
 from src.agent.state.schema import ExecutionSigns, ResearchLoopInternal
 from src.utils.llm_factory import LLMFactory
-from src.utils.prompt import manager_prompt_template
+from src.utils.prompt import prompt
 from src.utils.logger import get_logger
 from src.agent.nodes.utils import build_trace, format_recent_history, format_trace_history
 from .config import TEMPERATURE, MAX_TOKENS, HISTORY_LIMIT, NODE_HISTORY_LIMIT
@@ -83,7 +83,7 @@ async def manager_node(state: TravelState) -> Dict[str, Any]:
     )
 
     # 2. LLM Orchestration
-    prompt_str = manager_prompt_template.format(
+    prompt_str = prompt.manager.format(
         is_safe=is_safe,
         is_core_complete=is_core_complete,
         is_recommendation_complete=is_recommendation_complete,

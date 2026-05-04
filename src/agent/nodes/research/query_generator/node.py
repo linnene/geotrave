@@ -5,7 +5,7 @@ from typing import Dict, Any
 from src.agent.state import TravelState, QueryGeneratorOutput, ResearchManifest
 from src.agent.state.schema import ResearchLoopInternal
 from src.utils.llm_factory import LLMFactory
-from src.utils.prompt import query_generator_prompt_template
+from src.utils.prompt import prompt
 from src.utils.logger import get_logger
 from src.agent.nodes.utils import build_trace, extract_content_str, format_recent_history, get_beijing_time_now
 from .config import TEMPERATURE, HISTORY_LIMIT, MAX_TOKENS
@@ -53,7 +53,7 @@ async def query_generator_node(state: TravelState) -> Dict[str, Any]:
     tools_doc = _get_tools_documentation()
     format_instructions = _get_format_instructions()
 
-    prompt_str = query_generator_prompt_template.format(
+    prompt_str = prompt.query_generator.format(
         current_time=get_beijing_time_now(),
         user_profile=user_profile.model_dump_json(indent=2) if user_profile else "{}",
         user_request=user_request,

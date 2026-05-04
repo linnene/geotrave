@@ -55,10 +55,6 @@ GeoTrave 是一个高性能的多智能体旅游构建系统，能够根据用�
 {user_input}
 """
 
-gateway_prompt_template = PromptTemplate(
-    input_variables=["history", "user_input", "format_instructions"],
-    template=_GATEWAY_TEMPLATE
-)
 
 # ==============================================================================
 # ANALYST NODE PROMPT
@@ -122,10 +118,7 @@ _ANALYST_TEMPLATE = """你现在是 GeoTrave 项目的【需求分析专家 (Ana
 {user_input}
 """
 
-analyst_prompt_template = PromptTemplate(
-    input_variables=["current_time", "current_profile", "history", "user_input", "format_instructions"],
-    template=_ANALYST_TEMPLATE
-)
+
 
 # ==============================================================================
 # QUERY GENERATOR NODE PROMPT
@@ -200,13 +193,7 @@ _QUERY_GENERATOR_TEMPLATE = """你现在是 GeoTrave 项目的【研究方案规
 
 """
 
-query_generator_prompt_template = PromptTemplate(
-    input_variables=[
-        "current_time", "history", "user_profile", "user_request", "tools_doc",
-        "format_instructions", "missing_fields", "feedback", "passed_queries",
-    ],
-    template=_QUERY_GENERATOR_TEMPLATE
-)
+
 
 # ==============================================================================
 # CRITIC 节点 Prompt（Research Loop Layer 2a — LLM 逐条评分）
@@ -233,10 +220,7 @@ _CRITIC_TEMPLATE = """你现在是 GeoTrave 检索质量评估员 (Critic)。
 {results_json}
 """
 
-critic_prompt_template = PromptTemplate(
-    input_variables=["results_json", "format_instructions"],
-    template=_CRITIC_TEMPLATE
-)
+
 
 # ==============================================================================
 # CRITIC 循环决策 Prompt（Research Loop Layer 2b — LLM 全局退出判断）
@@ -266,10 +250,7 @@ _CRITIC_DECISION_TEMPLATE = """你现在是 GeoTrave 检索循环决策员。
 {format_instructions}
 """
 
-critic_decision_prompt_template = PromptTemplate(
-    input_variables=["accumulated_summary_json", "current_summary_json", "format_instructions"],
-    template=_CRITIC_DECISION_TEMPLATE
-)
+
 
 # ==============================================================================
 # REPLY NODE PROMPT
@@ -304,10 +285,7 @@ _REPLY_TEMPLATE = """你现在是 GeoTrave 项目的【用户对话专家 (Reply
 仅输出回复文本。严禁包含 JSON、Markdown 标签或类似“这是由于XXX生成的理由”的任何元说明。
 """
 
-reply_prompt_template = PromptTemplate(
-    input_variables=["current_time", "last_user_message", "user_request", "current_profile", "missing_fields"],
-    template=_REPLY_TEMPLATE
-)
+
 
 # ==============================================================================
 # MANAGER NODE PROMPT
@@ -401,10 +379,6 @@ _MANAGER_TEMPLATE = """你现在是 GeoTrave 智能旅行助手的【总调度�
 {user_request}
 """
 
-manager_prompt_template = PromptTemplate(
-    input_variables=["is_core_complete", "is_safe", "is_recommendation_complete", "is_plan_complete", "is_selection_made", "recommended_dimensions", "recommendation_summary", "hashes_count", "research_matches_current", "research_history", "history", "user_request", "trace_history", "user_selections", "format_instructions"],
-    template=_MANAGER_TEMPLATE
-)
 
 # ==============================================================================
 # RECOMMENDER NODE PROMPT
@@ -470,10 +444,6 @@ _RECOMMENDER_TEMPLATE = """你现在是 GeoTrave 旅行推荐专家 (Recommender
 {research_summary}
 """
 
-recommender_prompt_template = PromptTemplate(
-    input_variables=["current_time", "history", "user_request", "user_profile", "research_summary", "focus_dimension", "format_instructions"],
-    template=_RECOMMENDER_TEMPLATE
-)
 
 # ==============================================================================
 # PLANNER NODE PROMPT
@@ -540,7 +510,69 @@ _PLANNER_TEMPLATE = """你现在是 GeoTrave 行程规划专家 (Planner)。
 {user_selections}
 """
 
-planner_prompt_template = PromptTemplate(
-    input_variables=["current_time", "history", "user_request", "user_profile", "research_summary", "recommendations", "user_selections", "format_instructions"],
-    template=_PLANNER_TEMPLATE
-)
+
+class PromptManager:
+    """统一管理所有 Agent 节点的 PromptTemplate。"""
+
+    @property
+    def analyst(self) -> PromptTemplate:
+        return PromptTemplate(
+            input_variables=["current_time", "current_profile", "history", "user_input", "format_instructions"],
+            template=_ANALYST_TEMPLATE)
+    
+    @property
+    def query_generator(self) -> PromptTemplate:
+        return PromptTemplate(
+            input_variables=[
+                "current_time", "history", "user_profile", "user_request", "tools_doc",
+                "format_instructions", "missing_fields", "feedback", "passed_queries",
+            ],
+            template=_QUERY_GENERATOR_TEMPLATE)
+    
+    @property
+    def reply(self) -> PromptTemplate:
+        return PromptTemplate(
+            input_variables=["current_time", "last_user_message", "user_request", "current_profile", "missing_fields"],
+            template=_REPLY_TEMPLATE)
+    
+    
+    @property
+    def recommender(self) -> PromptTemplate:
+        return PromptTemplate(
+            input_variables=["current_time", "history", "user_request", "user_profile", "research_summary", "focus_dimension", "format_instructions"],
+            template=_RECOMMENDER_TEMPLATE)
+    
+    @property
+    def manager(self) -> PromptTemplate:
+        return PromptTemplate(
+            input_variables=["is_core_complete", "is_safe", "is_recommendation_complete", "is_plan_complete", "is_selection_made", "recommended_dimensions", "recommendation_summary", "hashes_count", "research_matches_current", "research_history", "history", "user_request", "trace_history", "user_selections", "format_instructions"],
+            template=_MANAGER_TEMPLATE)
+
+    
+    @property
+    def critic_decision(self) -> PromptTemplate:
+        return PromptTemplate(
+            input_variables=["accumulated_summary_json", "current_summary_json", "format_instructions"],
+            template=_CRITIC_DECISION_TEMPLATE)
+    
+    @property
+    def critic(self) -> PromptTemplate:
+        return PromptTemplate(
+            input_variables=["results_json", "format_instructions"],
+            template=_CRITIC_TEMPLATE)
+
+    @property
+    def gateway(self) -> PromptTemplate:
+        return PromptTemplate(
+            input_variables=["history", "user_input", "format_instructions"],
+            template=_GATEWAY_TEMPLATE)
+
+
+    @property
+    def planner(self) -> PromptTemplate:
+        return PromptTemplate(
+            input_variables=["current_time", "history", "user_request", "user_profile", "research_summary", "recommendations", "user_selections", "format_instructions"],
+            template=_PLANNER_TEMPLATE)
+
+
+prompt = PromptManager()
