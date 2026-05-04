@@ -27,8 +27,9 @@ database/checkpointer/
 *.db
 
 
-# Test cache
+# Test outputs
 .pytest_cache/
+postman/output/
 
 # IDEs
 .vscode/

@@ -1,0 +1,251 @@
+{
+  "info": {
+    "name": "GeoTrave API Tests",
+    "description": "GeoTrave AI Agent API 自动化集成测试集合。覆盖 POST /chat/ 端点的正常/异常路径。",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "geotrave-dev"
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "exec": [
+          "// 生成唯一 session_id（若未通过 --env-var 注入）",
+          "if (!pm.environment.get('session_id')) {",
+          "  pm.environment.set('session_id', 'newman-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8));",
+          "}",
+          "// 生成 11KB 超长消息（用于压力测试）",
+          "const base = '我想去东京进行一次深度的文化探索之旅，';",
+          "let msg = ''; while (msg.length < 12000) { msg += base; }",
+          "pm.environment.set('long_message', msg.slice(0, 12000));"
+        ],
+        "type": "text/javascript"
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000",
+      "type": "string"
+    },
+    {
+      "key": "session_id",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health Check — OpenAPI Docs",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', () => { pm.response.to.have.status(200); });",
+              "pm.test('Response is Swagger UI HTML', () => {",
+              "  pm.expect(pm.response.text()).to.include('swagger');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/docs",
+          "host": ["{{base_url}}"],
+          "path": ["docs"]
+        }
+      }
+    },
+    {
+      "name": "POST /chat/ — 正常对话",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', () => { pm.response.to.have.status(200); });",
+              "const body = pm.response.json();",
+              "pm.test('status is success', () => { pm.expect(body.status).to.eql('success'); });",
+              "pm.test('reply is non-empty string', () => {",
+              "  pm.expect(body.reply).to.be.a('string').and.not.empty;",
+              "});",
+              "pm.test('session_id is returned', () => {",
+              "  pm.expect(body.session_id).to.be.a('string').and.not.empty;",
+              "});",
+              "// 保存首轮 reply 供多轮对比使用",
+              "pm.environment.set('round1_reply', body.reply);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"message\": \"我想去东京玩5天，预算8000元\",\n  \"session_id\": \"{{session_id}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/chat/",
+          "host": ["{{base_url}}"],
+          "path": ["chat"]
+        }
+      }
+    },
+    {
+      "name": "POST /chat/ — 空消息校验 (422)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 422 (Pydantic validation)', () => { pm.response.to.have.status(422); });",
+              "const body = pm.response.json();",
+              "pm.test('detail contains validation error', () => {",
+              "  pm.expect(body.detail).to.be.an('array').and.not.empty;",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"message\": \"\",\n  \"session_id\": \"{{session_id}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/chat/",
+          "host": ["{{base_url}}"],
+          "path": ["chat"]
+        }
+      }
+    },
+    {
+      "name": "POST /chat/ — 多轮对话（同一 session）",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', () => { pm.response.to.have.status(200); });",
+              "const body = pm.response.json();",
+              "pm.test('reply is non-empty', () => {",
+              "  pm.expect(body.reply).to.be.a('string').and.not.empty;",
+              "});",
+              "pm.test('status is success', () => { pm.expect(body.status).to.eql('success'); });",
+              "",
+              "// 与首轮 reply 对比，验证 state 在推进",
+              "const prev = pm.environment.get('round1_reply');",
+              "if (prev) {",
+              "  pm.test('多轮 reply 不同（state 推进中）', () => {",
+              "    pm.expect(body.reply).to.not.eql(prev);",
+              "  });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"message\": \"帮我推荐几家餐厅\",\n  \"session_id\": \"{{session_id}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/chat/",
+          "host": ["{{base_url}}"],
+          "path": ["chat"]
+        }
+      }
+    },
+    {
+      "name": "POST /chat/ — 缺失 session_id（默认值生效）",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', () => { pm.response.to.have.status(200); });",
+              "const body = pm.response.json();",
+              "pm.test('session_id 回退到 default_session', () => {",
+              "  pm.expect(body.session_id).to.eql('default_session');",
+              "});",
+              "pm.test('reply is non-empty', () => {",
+              "  pm.expect(body.reply).to.be.a('string').and.not.empty;",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"message\": \"你好，我想去大阪\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/chat/",
+          "host": ["{{base_url}}"],
+          "path": ["chat"]
+        }
+      }
+    },
+    {
+      "name": "POST /chat/ — 超长消息（压力测试）",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Response within 200 or 422', () => {",
+              "  pm.expect(pm.response.code).to.be.oneOf([200, 422]);",
+              "});",
+              "if (pm.response.code === 200) {",
+              "  const body = pm.response.json();",
+              "  pm.test('status is success', () => { pm.expect(body.status).to.eql('success'); });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"message\": \"{{long_message}}\",\n  \"session_id\": \"{{session_id}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/chat/",
+          "host": ["{{base_url}}"],
+          "path": ["chat"]
+        }
+      }
+    }
+  ]
+}

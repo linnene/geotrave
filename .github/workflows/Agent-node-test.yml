@@ -38,3 +38,19 @@ jobs:
           EMBEDDING_MODEL: ${{ secrets.EMBEDDING_MODEL }}
           EMBEDDING_MODEL_API_KEY: ${{ secrets.EMBEDDING_MODEL_API_KEY }}
         run: uv run pytest test/ -v
+
+      # 6. Setup Node.js (Newman 运行时依赖)
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      # 7. 运行 API 集成测试 (Newman + Postman Collection)
+      - name: Run API Integration Tests (Newman)
+        env:
+          GLOBAL_MODEL_API_KEY: ${{ secrets.GLOBAL_MODEL_API_KEY }}
+          GLOBAL_MODEL_BASE_URL: ${{ secrets.GLOBAL_MODEL_BASE_URL }}
+          GLOBAL_MODEL_ID: ${{ secrets.GLOBAL_MODEL_ID }}
+          EMBEDDING_MODEL: ${{ secrets.EMBEDDING_MODEL }}
+          EMBEDDING_MODEL_API_KEY: ${{ secrets.EMBEDDING_MODEL_API_KEY }}
+        run: uv run python script/run_api_tests.py --timeout 120

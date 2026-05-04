@@ -6,7 +6,7 @@ Responsibility: Generates single-dimension destination/accommodation/dining reco
 """
 
 import time
-from typing import Any, Dict
+from typing import Any, Dict, Literal
 
 from src.agent.state import TravelState
 from src.agent.state.schema import ExecutionSigns, RecommenderOutput
@@ -24,10 +24,11 @@ logger = get_logger("RecommenderNode")
 parser = JsonOutputParser(pydantic_object=RecommenderOutput)
 
 # 推荐的默认优先级顺序
-_DIMENSION_PRIORITY = ("destination", "accommodation", "dining")
+Dimension = Literal["destination", "accommodation", "dining"]
+_DIMENSION_PRIORITY: tuple[Dimension, ...] = ("destination", "accommodation", "dining")
 
 
-def _next_dimension(recommended_dimensions: list, hint: str | None = None) -> str:
+def _next_dimension(recommended_dimensions: list, hint: str | None = None) -> Dimension | None:
     """返回下一个应该推荐的维度。
 
     若有 hint（用户明确请求的维度），优先使用 hint，即使该维度已在列表中（允许重推）。
@@ -40,7 +41,7 @@ def _next_dimension(recommended_dimensions: list, hint: str | None = None) -> st
             return dim
     if hint and hint in _DIMENSION_PRIORITY:
         return hint  # 全部覆盖但用户明确要求重推某维度
-    return ""
+    return None
 
 
 async def recommender_node(state: TravelState) -> Dict[str, Any]:

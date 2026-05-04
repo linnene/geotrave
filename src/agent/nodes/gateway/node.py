@@ -65,7 +65,7 @@ async def gateway_node(state: TravelState) -> Dict[str, Any]:
         # 3. LLM Reasoning
         raw_result = await bound_llm.ainvoke(prompt_str)
         content_str = extract_content_str(raw_result)
-        parsed_json = json_lib.loads(content_str)
+        parsed_json = json.loads(content_str)
         result = GatewayOutput(**parsed_json)
         
         is_valid = result.is_valid
