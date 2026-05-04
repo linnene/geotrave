@@ -69,7 +69,14 @@ async def persist_results(
             raw_content = raw.get("content") if isinstance(raw, dict) else getattr(raw, "content", None)
             payload["_research_content"] = raw_content
         hk = generate_hash_key(r.query, payload)
-        mapping[r.query].append(hk)
+        
+        # 对于 web_search，去除后面的 #idx，统一归属到原始 query 里，因为
+        # payload 里存放了实际某一条抓取的数据
+        original_query = r.query
+        if r.tool_name == "web_search" and "#" in original_query:
+            original_query = original_query.split("#")[0]
+            
+        mapping[original_query].append(hk)
         records.append({
             "hash_key": hk,
             "payload": payload,

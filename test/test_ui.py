@@ -6,6 +6,10 @@ import sys
 import os
 from typing import cast
 
+# 针对 Windows 特有的异步子进程报错进行的修复
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+
 # 将项目根目录添加到 pythonpath
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 

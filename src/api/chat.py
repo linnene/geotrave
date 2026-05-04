@@ -18,6 +18,7 @@ from src.utils import logger
 
 router = APIRouter()
 
+@router.post("")
 @router.post("/")
 async def chat_endpoint(request: ChatRequest):
     """

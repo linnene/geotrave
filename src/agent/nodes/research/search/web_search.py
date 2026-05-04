@@ -126,23 +126,34 @@ async def crawl_urls(
             logger.warning(
                 "Crawl cancelled for %s — replacing browser instance", url
             )
+            
+            async def _replace_instance():
+                try:
+                    # 避免旧浏览器断开时卡死，加上5秒超时
+                    await asyncio.wait_for(crawler.close_browser(), timeout=5.0)
+                except Exception:
+                    pass
+                try:
+                    new_inst = WebCrawler(timeout=20)
+                    # 避免新浏览器启动卡死，加上20秒超时
+                    await asyncio.wait_for(new_inst.start_browser(), timeout=20.0)
+                    await pool.put(new_inst)
+                    # Track new instance for close_crawler() cleanup
+                    for i, c in enumerate(_pool_instances):
+                        if c is crawler:
+                            _pool_instances[i] = new_inst
+                            break
+                    else:
+                        _pool_instances.append(new_inst)
+                except Exception as e:
+                    logger.error("Failed to replace cancelled crawler: %s", e)
+
+            # 把替换工作放到后台，防止阻塞正在等待当前 task 取消的父协程
             try:
-                await crawler.close_browser()
+                asyncio.create_task(_replace_instance())
             except Exception:
                 pass
-            try:
-                new_inst = WebCrawler(timeout=20)
-                await new_inst.start_browser()
-                await pool.put(new_inst)
-                # Track new instance for close_crawler() cleanup
-                for i, c in enumerate(_pool_instances):
-                    if c is crawler:
-                        _pool_instances[i] = new_inst
-                        break
-                else:
-                    _pool_instances.append(new_inst)
-            except Exception as e:
-                logger.error("Failed to replace cancelled crawler: %s", e)
+
             raise  # 让外层 crawl_urls 应用 timeout_fallback
         except Exception as exc:
             logger.warning("Crawl failed for %s: %s", url, exc)

@@ -11,13 +11,16 @@ Usage:
 import argparse
 import asyncio
 import json
+import random
+import string
 import sys
+import time
 from pathlib import Path
 
 from newman_runner import NewmanReport, NewmanRunner
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-COLLECTION_PATH = PROJECT_ROOT / "postman" / "GeoTrave-API-Tests.json"
+DEFAULT_COLLECTION = PROJECT_ROOT / "postman" / "GeoTrave-API-Tests.json"
 ENV_PATH = PROJECT_ROOT / "postman" / "GeoTrave-Local.postman_environment.json"
 
 
@@ -62,6 +65,13 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="Directory for structured run logs (default: postman/output)",
     )
+    parser.add_argument(
+        "--collection",
+        type=str,
+        default=None,
+        help="Collection file path (default: postman/GeoTrave-API-Tests.json). "
+             "Use 'TEST' for GeoTrave-TEST.json.",
+    )
     return parser.parse_args()
 
 
@@ -93,8 +103,17 @@ def print_report(report: NewmanReport):
 async def main():
     args = parse_args()
 
-    if not COLLECTION_PATH.exists():
-        print(f"ERROR: Collection not found: {COLLECTION_PATH}", file=sys.stderr)
+    # Resolve collection path
+    if args.collection:
+        if args.collection.upper() == "TEST":
+            collection_path = PROJECT_ROOT / "postman" / "GeoTrave-TEST.json"
+        else:
+            collection_path = Path(args.collection)
+    else:
+        collection_path = DEFAULT_COLLECTION
+
+    if not collection_path.exists():
+        print(f"ERROR: Collection not found: {collection_path}", file=sys.stderr)
         sys.exit(2)
 
     # 从 base_url 解析 host/port
@@ -109,10 +128,26 @@ async def main():
         else:
             host = host_port
 
+    # 为多对话测试生成唯一 session_ids（每次运行都不同）
+    import random, string
+    ts = str(int(time.time() * 1000))
+    def _rand_suffix():
+        return ''.join(random.choices(string.ascii_lowercase + string.digits, k=6))
+    env_vars = {"base_url": base}
+    if collection_path.name == "GeoTrave-TEST.json":
+        env_vars.update({
+            "chat1_session": f"test-chat1-{ts}-{_rand_suffix()}",
+            "chat2_session": f"test-chat2-{ts}-{_rand_suffix()}",
+            "chat3_session": f"test-chat3-{ts}-{_rand_suffix()}",
+            "safety_session": f"test-safety-{ts}-{_rand_suffix()}",
+            "pii_session": f"test-pii-{ts}-{_rand_suffix()}",
+        })
+        print(f"[Session IDs] chat1={env_vars['chat1_session']}")
+
     runner = NewmanRunner(
-        collection_path=str(COLLECTION_PATH),
+        collection_path=str(collection_path),
         env_path=str(ENV_PATH) if ENV_PATH.exists() else None,
-        env_vars={"base_url": base},
+        env_vars=env_vars,
         project_root=str(PROJECT_ROOT),
         output_dir=args.output_dir,
     )

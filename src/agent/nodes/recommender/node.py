@@ -94,6 +94,10 @@ async def recommender_node(state: TravelState) -> Dict[str, Any]:
         logger.info(
             f"Recommender done — dimension={rec.dimension}, {len(rec.items)} items"
         )
+        for idx, item in enumerate(rec.items, 1):
+            logger.info(
+                f"  [{idx}] {item.name} | rating={item.rating} | {item.features} | reason={item.reason}"
+            )
     except Exception as exc:
         logger.error(f"Recommender LLM call failed: {exc}", exc_info=True)
         rec = RecommenderOutput(
