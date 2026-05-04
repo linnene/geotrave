@@ -106,6 +106,8 @@ async def manager_node(state: TravelState) -> Dict[str, Any]:
     try:
         chain = llm | parser
         decision = await chain.ainvoke(prompt_str)
+        if decision is None:
+            raise ValueError("LLM returned empty or unparseable response")
 
         next_node = decision.get("next_stage")
         reason = decision.get("rationale", "无具体理由")

@@ -109,7 +109,9 @@ async def planner_node(state: TravelState) -> Dict[str, Any]:
 
     try:
         chain = llm | parser
-        raw: dict = await chain.ainvoke(prompt_str)
+        raw = await chain.ainvoke(prompt_str)
+        if raw is None:
+            raise ValueError("LLM returned empty or unparseable response")
         plan = PlannerOutput(**raw)
         logger.info(f"Planner done — {len(plan.days)} days planned")
     except Exception as exc:

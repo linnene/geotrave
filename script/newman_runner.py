@@ -280,12 +280,54 @@ class NewmanRunner:
         }
 
     def _extract_request_details(self, raw: dict) -> list:
-        """从 Newman 原始输出中提取每个请求的详情。"""
+        """从 Newman 原始输出中提取每个请求的详情（含请求/响应内容）。"""
+        import base64
+
         details = []
         for execution in raw.get("run", {}).get("executions", []):
             item = execution.get("item", {})
+            request = execution.get("request", {})
             response = execution.get("response", {})
             assertions = execution.get("assertions", [])
+
+            # Decode response body
+            resp_body_str = ""
+            resp_json = None
+            resp_stream = response.get("stream")
+            if isinstance(resp_stream, str):
+                try:
+                    resp_body_str = base64.b64decode(resp_stream).decode("utf-8")
+                except Exception:
+                    resp_body_str = "(binary/non-utf8 response)"
+            elif isinstance(response.get("body"), str):
+                resp_body_str = response["body"]
+            if resp_body_str:
+                try:
+                    resp_json = json.loads(resp_body_str)
+                except (json.JSONDecodeError, TypeError):
+                    pass
+
+            # Decode request body
+            req_body_str = ""
+            req_json = None
+            req_body = request.get("body")
+            if isinstance(req_body, dict):
+                req_body_str = req_body.get("raw", "")
+            elif isinstance(req_body, str):
+                req_body_str = req_body
+            if req_body_str:
+                try:
+                    req_json = json.loads(req_body_str)
+                except (json.JSONDecodeError, TypeError):
+                    pass
+
+            # Extract request URL
+            req_url = ""
+            req_url_obj = request.get("url")
+            if isinstance(req_url_obj, dict):
+                req_url = req_url_obj.get("raw", "")
+            elif isinstance(req_url_obj, str):
+                req_url = req_url_obj
 
             assertion_results = []
             passed = 0
@@ -304,9 +346,13 @@ class NewmanRunner:
 
             details.append({
                 "name": item.get("name", "Unknown"),
+                "method": request.get("method", "POST"),
+                "url": req_url,
+                "request_body": req_json or req_body_str,
                 "status": response.get("code", 0),
                 "response_time_ms": response.get("responseTime", 0),
                 "response_size_bytes": response.get("responseSize", 0),
+                "response_body": resp_json or resp_body_str,
                 "assertions_passed": passed,
                 "assertions_failed": failed,
                 "assertions": assertion_results,

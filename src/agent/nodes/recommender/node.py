@@ -89,7 +89,9 @@ async def recommender_node(state: TravelState) -> Dict[str, Any]:
 
     try:
         chain = llm | parser
-        raw: dict = await chain.ainvoke(prompt_str)
+        raw = await chain.ainvoke(prompt_str)
+        if raw is None:
+            raise ValueError("LLM returned empty or unparseable response")
         rec = RecommenderOutput(**raw)
         logger.info(
             f"Recommender done — dimension={rec.dimension}, {len(rec.items)} items"
