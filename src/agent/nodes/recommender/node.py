@@ -108,19 +108,22 @@ async def recommender_node(state: TravelState) -> Dict[str, Any]:
             strategy=f"推荐生成失败: {str(exc)[:200]}",
             tip="请稍后重试或换一个维度",
         )
+        rec_failed = True
+    else:
+        rec_failed = False
 
     # 累积存储：按维度写入 recommendation_data
     existing_recs = state.get("recommendation_data") or {}
     existing_recs[rec.dimension] = rec.model_dump()
 
-    # 追加已覆盖维度
+    # 追加已覆盖维度（仅在成功时标记维度已覆盖）
     new_dimensions = list(recommended_dimensions)
-    if rec.dimension not in new_dimensions:
+    if not rec_failed and rec.dimension not in new_dimensions:
         new_dimensions.append(rec.dimension)
 
     trace = build_trace(
         "recommender",
-        "SUCCESS",
+        "FAIL" if rec_failed else "SUCCESS",
         latency_ms=int((time.time() - start_time) * 1000),
         detail={
             "dimension": rec.dimension,

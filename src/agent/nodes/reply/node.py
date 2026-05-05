@@ -113,7 +113,7 @@ async def reply_node(state: TravelState) -> Dict[str, Any]:
     start_time = time.time()
 
     scenario = _detect_scenario(state)
-    logger.info(f"Reply — scenario={scenario}")
+    logger.info("Reply — scenario=%s", scenario)
 
     # --- Block 分支 ---
     if scenario == "block":
@@ -189,7 +189,7 @@ async def reply_node(state: TravelState) -> Dict[str, Any]:
                 [i.get("text", "") if isinstance(i, dict) else str(i) for i in reply_text]
             )
     except Exception as exc:
-        logger.error(f"Reply generation failed: {str(exc)}", exc_info=True)
+        logger.error("Reply generation failed: %s", str(exc), exc_info=True)
         if scenario == "block":
             reply_text = "系统检测到异常输入，请提出与旅行规划相关的问题。"
         elif scenario == "recommend":
@@ -197,7 +197,7 @@ async def reply_node(state: TravelState) -> Dict[str, Any]:
         else:
             reply_text = "我还需要了解更多关于您旅行意图的信息，比如目的地或天数。您可以详细说说吗？"
 
-    logger.debug(f"Generated reply ({scenario}): {reply_text[:80]}...")
+    logger.debug("Generated reply (%s): %s...", scenario, reply_text[:80])
 
     return {
         "messages": [AIMessage(content=reply_text)],

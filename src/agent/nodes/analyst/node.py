@@ -69,11 +69,14 @@ async def analyst_node(state: TravelState) -> Dict[str, Any]:
         # all_missing: UserProfile 中所有尚未填写的字段，传给 Reply 节点
         is_core_complete, all_missing = result.updated_profile.check_completeness()
         
-        logger.info(f"Analyst Audit: CoreComplete={is_core_complete}, TotalMissing={len(all_missing)}")
+        logger.info("Analyst Audit: CoreComplete=%s, TotalMissing=%s", is_core_complete, len(all_missing))
     except Exception as e:
-        logger.error(f"Analyst execution failed: {str(e)}", exc_info=True)
-        # Fallback to existing profile if extraction fails
+        logger.error("Analyst execution failed: %s", str(e), exc_info=True)
+        # Fallback: preserve existing profile, mark core as incomplete
         return {
+            "execution_signs": (state.get("execution_signs") or ExecutionSigns()).model_copy(
+                update={"is_core_complete": False}
+            ),
             "trace_history": [build_trace(
                 "analyst",
                 "FAIL",

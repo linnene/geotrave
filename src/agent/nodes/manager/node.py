@@ -10,7 +10,7 @@ import time
 from typing import Any, Dict
 
 from src.agent.state import TravelState, RouteMetadata, ManagerOutput
-from src.agent.state.schema import ExecutionSigns, ResearchLoopInternal
+from src.agent.state.schema import ExecutionSigns, ResearchLoopInternal, UserSelections
 from src.utils.llm_factory import LLMFactory
 from src.utils.prompt import prompt
 from src.utils.logger import get_logger
@@ -114,9 +114,9 @@ async def manager_node(state: TravelState) -> Dict[str, Any]:
         user_selections = decision.get("user_selections")
         focus_dimension = decision.get("focus_dimension")
 
-        logger.info(f"Manager Decision: -> {next_node.upper()} | Reason: {reason}")
+        logger.info("Manager Decision: -> %s | Reason: %s", next_node.upper(), reason)
     except Exception as e:
-        logger.error(f"Manager reasoning failed: {str(e)}", exc_info=True)
+        logger.error("Manager reasoning failed: %s", str(e), exc_info=True)
         next_node = "reply" if not is_core_complete else "research_loop"
         reason = f"Fallback due to error: {str(e)}"
         user_selections = None
@@ -130,11 +130,23 @@ async def manager_node(state: TravelState) -> Dict[str, Any]:
         reason = f"[硬守卫覆写] is_core_complete 为 False，强制导向 reply。原决策: {next_node}，原理由: {reason}"
         next_node = "reply"
 
+    # 硬守卫: needs_reselect=True 时禁止导向 planner
+    if user_selections_raw:
+        try:
+            sel = user_selections_raw if isinstance(user_selections_raw, dict) else {}
+            if sel.get("needs_reselect") and next_node == "planner":
+                logger.warning(
+                    "Manager override: needs_reselect=True, blocking planner (was: planner)"
+                )
+                reason = f"[硬守卫覆写] needs_reselect 为 True，禁止导向 planner。原决策: {next_node}"
+                next_node = "recommender"
+        except (AttributeError, TypeError):
+            pass
+
     # 3. Issue Routing Command
     route = RouteMetadata(
         next_node=next_node,
         reason=reason,
-        is_error=False,
         focus_dimension=focus_dimension,
     )
 

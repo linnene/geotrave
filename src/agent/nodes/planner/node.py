@@ -120,10 +120,13 @@ async def planner_node(state: TravelState) -> Dict[str, Any]:
             days=[],
             notes=[f"行程生成失败: {str(exc)[:200]}"],
         )
+        plan_failed = True
+    else:
+        plan_failed = False
 
     trace = build_trace(
         "planner",
-        "SUCCESS",
+        "FAIL" if plan_failed else "SUCCESS",
         latency_ms=int((time.time() - start_time) * 1000),
         detail={
             "days_count": len(plan.days),
@@ -134,7 +137,7 @@ async def planner_node(state: TravelState) -> Dict[str, Any]:
     return {
         "plan_data": plan.model_dump(),
         "execution_signs": (state.get("execution_signs") or ExecutionSigns()).model_copy(
-            update={"is_plan_complete": True}
+            update={"is_plan_complete": not plan_failed}
         ),
         "trace_history": [trace],
     }

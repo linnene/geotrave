@@ -73,9 +73,9 @@ async def gateway_node(state: TravelState) -> Dict[str, Any]:
         reply = result.reply
         category = result.category
         
-        logger.info(f"Gateway Verdict: {category.upper()} | Valid: {is_valid}")
+        logger.info("Gateway Verdict: %s | Valid: %s", category.upper(), is_valid)
     except Exception as e:
-        logger.error(f"Gateway execution failed: {str(e)}", exc_info=True)
+        logger.error("Gateway execution failed: %s", str(e), exc_info=True)
         is_valid, reason, category = False, f"System Error: {str(e)}", "system_error"
         reply = "系统安全网关暂时繁忙，请稍后再试。"
 
@@ -85,7 +85,10 @@ async def gateway_node(state: TravelState) -> Dict[str, Any]:
     # Gateway 仅产出业务事实，不实例化 RouteMetadata
     is_safe = is_valid
 
-    token_usage = extract_token_usage(raw_result)
+    try:
+        token_usage = extract_token_usage(raw_result)
+    except UnboundLocalError:
+        token_usage = None
 
 
     status = "SUCCESS" if is_valid else ("REJECTED" if category in ["malicious", "chitchat"] else "FAIL")
