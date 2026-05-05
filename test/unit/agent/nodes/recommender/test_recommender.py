@@ -7,7 +7,7 @@ Priority: P0 — Single-dimension recommendation delivery node
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from src.agent.state import ExecutionSigns, ResearchManifest
+from src.agent.state import ExecutionSigns, ResearchManifest, RouteMetadata
 from src.agent.state.schema import CriticResult, ResearchLoopInternal
 
 
@@ -28,6 +28,7 @@ async def test_recommender_single_dimension_output():
         "messages": [],
         "user_request": "东京三日游",
         "execution_signs": ExecutionSigns(recommended_dimensions=[]),
+        "route_metadata": RouteMetadata(next_node="recommender", reason="test", focus_dimension="destination"),
     }
 
     mock_llm = MagicMock()
@@ -74,6 +75,7 @@ async def test_recommender_second_dimension():
         "messages": [],
         "user_request": "东京三日游",
         "execution_signs": ExecutionSigns(recommended_dimensions=["destination"]),
+        "route_metadata": RouteMetadata(next_node="recommender", reason="test", focus_dimension="accommodation"),
         "recommendation_data": {
             "destination": {"dimension": "destination", "items": [{"name": "东京", "features": "...", "reason": "...", "rating": 4.5}], "strategy": "...", "tip": "..."},
         },
@@ -147,6 +149,7 @@ async def test_recommender_empty_research_data():
         "messages": [],
         "user_request": "test",
         "execution_signs": ExecutionSigns(),
+        "route_metadata": RouteMetadata(next_node="recommender", reason="test", focus_dimension="destination"),
     }
 
     mock_llm = MagicMock()
@@ -183,6 +186,7 @@ async def test_recommender_llm_error_graceful():
         "messages": [],
         "user_request": "test",
         "execution_signs": ExecutionSigns(),
+        "route_metadata": RouteMetadata(next_node="recommender", reason="test", focus_dimension="destination"),
     }
 
     mock_llm = MagicMock()

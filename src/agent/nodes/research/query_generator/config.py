@@ -1,8 +1,8 @@
 # QueryGenerator Node Configuration
-TEMPERATURE = 0.2
+TEMPERATURE = 0.6
 """
-QueryGenerator 需要在稳定性和发散性之间取得平衡。
-0.2 的温度允许它在生成搜索维度和关键词时具有一定的联想能力，同时保持 JSON 结构的确定性。
+QueryGenerator 需要足够的发散性来生成多样化的搜索维度和关键词。
+0.6 的温度让 LLM 在生成搜索策略时具有明显的联想多样性，避免每次输出高度一致。
 """
 HISTORY_LIMIT = 3
 """

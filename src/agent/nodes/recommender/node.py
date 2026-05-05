@@ -1,12 +1,12 @@
 """
 Module: src.agent.nodes.recommender.node
-Responsibility: Generates single-dimension destination/accommodation/dining recommendations
-               based on Research Loop results and UserProfile.
+Responsibility: Generates single-dimension recommendations based on Research Loop results
+               and UserProfile. Dimension is driven by Manager's focus_dimension hint.
                Each call focuses on ONE dimension only; Manager may call multiple times.
 """
 
 import time
-from typing import Any, Dict, Literal
+from typing import Any, Dict
 
 from src.agent.state import TravelState
 from src.agent.state.schema import ExecutionSigns, RecommenderOutput
@@ -23,24 +23,11 @@ logger = get_logger("RecommenderNode")
 
 parser = JsonOutputParser(pydantic_object=RecommenderOutput)
 
-# 推荐的默认优先级顺序
-Dimension = Literal["destination", "accommodation", "dining"]
-_DIMENSION_PRIORITY: tuple[Dimension, ...] = ("destination", "accommodation", "dining")
 
-
-def _next_dimension(recommended_dimensions: list, hint: str | None = None) -> Dimension | None:
-    """返回下一个应该推荐的维度。
-
-    若有 hint（用户明确请求的维度），优先使用 hint，即使该维度已在列表中（允许重推）。
-    否则按 destination → accommodation → dining 顺序返回第一个未覆盖的维度。
-    """
-    if hint and hint in _DIMENSION_PRIORITY:
-        return hint
-    for dim in _DIMENSION_PRIORITY:
-        if dim not in recommended_dimensions:
-            return dim
-    if hint and hint in _DIMENSION_PRIORITY:
-        return hint  # 全部覆盖但用户明确要求重推某维度
+def _resolve_dimension(focus_hint: str | None) -> str | None:
+    """返回本轮推荐维度。直接使用 Manager 传入的 focus_dimension hint。"""
+    if focus_hint:
+        return focus_hint
     return None
 
 
@@ -54,10 +41,10 @@ async def recommender_node(state: TravelState) -> Dict[str, Any]:
     route_meta = state.get("route_metadata")
     focus_hint = getattr(route_meta, 'focus_dimension', None) if route_meta else None
 
-    focus_dim = _next_dimension(recommended_dimensions, focus_hint)
+    focus_dim = _resolve_dimension(focus_hint)
 
     if not focus_dim:
-        logger.warning("Recommender called but all dimensions already covered")
+        logger.warning("Recommender called without focus_dimension hint from Manager")
         return {
             "execution_signs": (signs or ExecutionSigns()).model_copy(
                 update={"is_recommendation_complete": True}

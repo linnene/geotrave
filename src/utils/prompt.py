@@ -325,8 +325,28 @@ _REPLY_RECOMMEND_TEMPLATE = """你现在是 GeoTrave 智能旅行助手的【旅
 1. **热情呈现**：用生动的语言介绍每个推荐项，包括名称、评分（★星级）、亮点和推荐理由。让用户感受到你真心觉得这些选项不错。
 2. **信息完整**：每个推荐项必须包含：名称 + 星级评分（转换为 "★★★★☆" 形式）+ 核心亮点 + 推荐理由。不要遗漏评分。
 3. **引导选择**：自然地引导用户从推荐中做出选择，或表达偏好以便进一步细化。
-4. **进度提示**：如果还有剩余维度待推荐（remaining_dimensions 非空），在末尾简短提及，如"选好目的地后我帮您挑住宿和美食哦～"
+4. **进度提示**：如果还有剩余维度待推荐（remaining_dimensions 非空），在末尾简短提及，自然引导用户继续下一个维度
 5. **不编造**：只根据提供的推荐项目进行呈现，不要自行添加不存在的目的地、酒店或餐厅。
+
+### 输出格式
+仅输出回复文本。严禁包含 JSON、Markdown 标签或任何元说明。
+"""
+
+_REPLY_GUIDE_FALLBACK_TEMPLATE = """你现在是 GeoTrave 智能旅行助手的【旅行推荐官 (Reply/Fallback) 】。
+本轮推荐生成时遇到了技术问题（{focus_dimension}维度数据暂时不可用），你需要礼貌地告知用户当前情况。
+
+### 时间感知
+当前北京时间: {current_time}
+
+### 输入信息
+1. **用户诉求**: {user_request}
+2. **尝试推荐的维度**: {focus_dimension}
+3. **失败原因**: {strategy}
+
+### 任务规则
+1. **诚实告知**：用 1-2 句话说明当前维度的推荐暂时无法生成，不要编造任何推荐内容
+2. **安抚引导**：建议用户稍后重试，或换个方向继续提问
+3. **简洁克制**：不要展开技术细节，保持友好亲和的语气
 
 ### 输出格式
 仅输出回复文本。严禁包含 JSON、Markdown 标签或任何元说明。
@@ -350,17 +370,17 @@ _MANAGER_TEMPLATE = """你现在是 GeoTrave 智能旅行助手的【总调度�
    - **启动或继续研究**：当 `is_core_complete` 为 True 时：
      - 若 `research_matches_current` 为 False（当前诉求尚未调研），必须导向 `research_loop`，即使 hashes_count > 0
      - 若 `research_matches_current` 为 True 但调研维度尚未充分覆盖（见规则 2），可以再次路由到 `research_loop` 补充调研
-   - **生成推荐（增量单维度）**：Recommender 每次只推一个维度（destination / accommodation / dining）。图拓扑已保证推荐后直达 reply 呈现结果，下一轮用户输入后 Manager 才会再次决策。
+   - **生成推荐（增量单维度）**：Recommender 每次只推一个维度。图拓扑已保证推荐后直达 reply 呈现结果，下一轮用户输入后 Manager 才会再次决策。
      **触发条件**（需同时满足）：
      - `is_core_complete` 为 True
-     - 检索数据对某维度有足够信息（`hashes_count > 0` 且 `research_matches_current` 为 True）
+     - 检索数据有足够信息（`hashes_count > 0` 且 `research_matches_current` 为 True）
      - 用户明确请求推荐（"推荐一下"、"有什么好的"），或 Manager 判断时机合适（核心画像完成且调研充分）
      - 该维度尚未在 `recommended_dimensions` 中
-     **推荐顺序**（建议）：destination → accommodation → dining
+     **推荐顺序**（建议）：优先推荐用户当前最关注的维度（从对话中判断），不必拘泥于固定顺序
      - 当所有有数据的维度都已覆盖，设 `is_recommendation_complete=True`，路由 `reply`
      - 若某维度检索数据不足，跳过该维度
      **用户明确请求某维度时（用户意图优先）**：
-     - 若用户最新消息明确要求特定维度的推荐（"推荐餐厅"、"有什么好吃的"→dining，"住哪里"、"有什么酒店"→accommodation，"去哪玩"、"推荐目的地"→destination），必须在输出中设置 `focus_dimension` 为对应维度，然后路由 `recommender`
+     - 若用户最新消息明确要求特定维度的推荐（"推荐餐厅"→dining，"住哪里"→accommodation，"去哪玩"→destination，"有什么好玩的"→attraction，"买什么"→shopping 等），必须在输出中设置 `focus_dimension` 为对应维度，然后路由 `recommender`
    - **检测用户选择**：当 `recommended_dimensions` 非空时，分析用户最新消息判断用户是否在回应已呈现的推荐：
      - 若用户表达了选择（如"选1号"、"第二家不错"、"目的地选A"），在 `user_selections` 中填写对应维度字段（如 chosen_destination），设置 `is_selection_made=True`
      - 若用户不满意（"不满意"、"换一批"、"有没有更便宜的"），设置 `needs_reselect=True`，填入 `reselection_feedback`，路由 `recommender` 重新推荐
@@ -443,9 +463,8 @@ _RECOMMENDER_TEMPLATE = """你现在是 GeoTrave 旅行推荐专家 (Recommender
 ### 你的任务
 **本轮只推荐一个维度: {focus_dimension}**
 
-- 若 focus_dimension="destination": 推荐 1-3 个候选目的地
-- 若 focus_dimension="accommodation": 推荐 1-3 个住宿选项（区域/酒店）
-- 若 focus_dimension="dining": 推荐 1-3 个餐饮选项（餐厅/美食类型）
+根据用户的实际需求，当前维度可能是目的地、住宿、餐饮、景点、购物、交通、活动等任意旅行相关维度。
+推荐 1-3 个该维度下的候选项目。具体推荐什么由用户需求和调研数据共同决定。
 
 **严禁推荐其他维度**。如果检索数据不足以支撑该维度的推荐，宁可不推（1 个甚至 0 个）也不要编造。
 
@@ -464,10 +483,10 @@ _RECOMMENDER_TEMPLATE = """你现在是 GeoTrave 旅行推荐专家 (Recommender
 用一句话概括本轮推荐思路。
 
 ### 引导语 (tip)
-在推荐末尾附加一句引导，帮助用户决定下一步。例如：
-- (destination 后) "选定目的地后我帮您挑住宿和餐厅"
-- (accommodation 后) "有中意的住宿吗？下一步我可以帮您规划每日行程"
-- (dining 后) "美食已就位！选好后我帮您生成完整行程"
+在推荐末尾附加一句简短的引导，帮助用户决定下一步。根据当前推荐维度自然引导即可，例如：
+- "选定后我帮您继续细化其他方面"
+- "有中意的吗？选好后我帮您规划行程"
+- "还需要其他维度的推荐吗？"
 
 ### 运行规则
 - 基于研究数据进行推荐，不要凭空编造
@@ -593,8 +612,14 @@ class PromptManager:
         return PromptTemplate(
             input_variables=["current_time", "user_request", "user_profile", "focus_dimension", "strategy", "recommendation_items", "tip", "remaining_dimensions"],
             template=_REPLY_RECOMMEND_TEMPLATE)
-    
-    
+
+    @property
+    def reply_guide_fallback(self) -> PromptTemplate:
+        return PromptTemplate(
+            input_variables=["current_time", "user_request", "focus_dimension", "strategy"],
+            template=_REPLY_GUIDE_FALLBACK_TEMPLATE)
+
+
     @property
     def recommender(self) -> PromptTemplate:
         return PromptTemplate(

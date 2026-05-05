@@ -23,8 +23,14 @@ logger = get_logger("ReplyNode")
 
 Scenario = Literal["block", "recommend", "guide"]
 
-DIM_LABELS = {"destination": "目的地", "accommodation": "住宿", "dining": "餐饮"}
-_DIM_ORDER = ("destination", "accommodation", "dining")
+DIM_LABELS = {"destination": "目的地", "accommodation": "住宿", "dining": "餐饮",
+              "attraction": "景点", "shopping": "购物", "transportation": "交通",
+              "weather": "天气", "policy": "政策", "general": "综合"}
+
+
+def _label_dim(dim: str) -> str:
+    """返回维度的中文标签，未知维度返回原始名称。"""
+    return DIM_LABELS.get(dim, dim)
 
 
 def _detect_scenario(state: TravelState) -> Scenario:
@@ -33,10 +39,15 @@ def _detect_scenario(state: TravelState) -> Scenario:
     signs = state.get("execution_signs")
     is_safe = signs.is_safe if signs else True
     rec_data = state.get("recommendation_data")
+    route_meta = state.get("route_metadata")
+    # 仅当 Manager 本轮明确路由到 recommender 且推荐数据存在时，才进入推荐呈现模式。
+    # 避免 Manager 路由到 reply（guide）时因旧数据而误入推荐模式，
+    # 也避免 Recommender 失败后 Reply 呈现不相关维度的旧数据。
+    routed_to_recommender = getattr(route_meta, 'next_node', None) == "recommender" if route_meta else False
 
     if needs_exit and not is_safe:
         return "block"
-    if rec_data:
+    if rec_data and routed_to_recommender:
         return "recommend"
     return "guide"
 
@@ -65,11 +76,18 @@ def _get_recommend_context(state: TravelState) -> Dict[str, str]:
     rec_data = state.get("recommendation_data") or {}
     signs = state.get("execution_signs")
     recommended_dims = list(getattr(signs, "recommended_dimensions", []) or []) if signs else []
+    route_meta = state.get("route_metadata")
+    focus_hint = getattr(route_meta, "focus_dimension", None) if route_meta else None
 
-    current_dim = recommended_dims[-1] if recommended_dims else None
+    current_dim = focus_hint
     if not current_dim:
-        for dim in _DIM_ORDER:
-            if dim in rec_data:
+        for dim in reversed(recommended_dims):
+            if dim in rec_data and rec_data[dim].get("items"):
+                current_dim = dim
+                break
+    if not current_dim:
+        for dim, data in rec_data.items():
+            if data.get("items"):
                 current_dim = dim
                 break
 
@@ -92,8 +110,11 @@ def _get_recommend_context(state: TravelState) -> Dict[str, str]:
         )
     items_text = "\n".join(item_lines) if item_lines else "（暂无推荐项）"
 
-    remaining = [d for d in _DIM_ORDER if d not in recommended_dims]
-    remaining_labels = [DIM_LABELS.get(d, d) for d in remaining]
+    rec_failed = not items and ("失败" in strategy or "异常" in strategy)
+
+    all_dims = list(rec_data.keys())
+    remaining = [d for d in all_dims if d not in recommended_dims]
+    remaining_labels = [_label_dim(d) for d in remaining]
 
     profile = state.get("user_profile")
     profile_text = profile.model_dump_json(indent=2, ensure_ascii=False) if profile else "暂无画像"
@@ -101,11 +122,12 @@ def _get_recommend_context(state: TravelState) -> Dict[str, str]:
     return {
         "user_request": state.get("user_request", "旅行规划"),
         "user_profile": profile_text,
-        "focus_dimension": DIM_LABELS.get(current_dim, current_dim or "推荐"),
+        "focus_dimension": _label_dim(current_dim or "推荐"),
         "strategy": strategy,
         "recommendation_items": items_text,
         "tip": tip,
         "remaining_dimensions": "、".join(remaining_labels) if remaining_labels else "无（全部维度已完成）",
+        "rec_failed": rec_failed,
     }
 
 
@@ -133,16 +155,26 @@ async def reply_node(state: TravelState) -> Dict[str, Any]:
     # --- Recommend 分支 ---
     elif scenario == "recommend":
         ctx = _get_recommend_context(state)
-        prompt_str = prompt.reply_recommend.format(
-            current_time=get_beijing_time_now(),
-            user_request=ctx["user_request"],
-            user_profile=ctx["user_profile"],
-            focus_dimension=ctx["focus_dimension"],
-            strategy=ctx["strategy"],
-            recommendation_items=ctx["recommendation_items"],
-            tip=ctx["tip"],
-            remaining_dimensions=ctx["remaining_dimensions"],
-        )
+        if ctx.get("rec_failed"):
+            # Recommender 失败时直接使用 guide 模式降级，避免 LLM 根据旧数据编造推荐
+            logger.warning("Reply — Recommender failed for %s, downgrading to guide", ctx["focus_dimension"])
+            prompt_str = prompt.reply_guide_fallback.format(
+                current_time=get_beijing_time_now(),
+                user_request=ctx["user_request"],
+                focus_dimension=ctx["focus_dimension"],
+                strategy=ctx["strategy"],
+            )
+        else:
+            prompt_str = prompt.reply_recommend.format(
+                current_time=get_beijing_time_now(),
+                user_request=ctx["user_request"],
+                user_profile=ctx["user_profile"],
+                focus_dimension=ctx["focus_dimension"],
+                strategy=ctx["strategy"],
+                recommendation_items=ctx["recommendation_items"],
+                tip=ctx["tip"],
+                remaining_dimensions=ctx["remaining_dimensions"],
+            )
         trace = build_trace(
             "reply",
             "SUCCESS",
@@ -197,7 +229,7 @@ async def reply_node(state: TravelState) -> Dict[str, Any]:
         else:
             reply_text = "我还需要了解更多关于您旅行意图的信息，比如目的地或天数。您可以详细说说吗？"
 
-    logger.debug("Generated reply (%s): %s...", scenario, reply_text[:80])
+    logger.debug("Generated reply (%s): %s...", scenario, reply_text)
 
     return {
         "messages": [AIMessage(content=reply_text)],

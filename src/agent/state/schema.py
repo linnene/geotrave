@@ -26,7 +26,7 @@ class RouteMetadata(BaseModel):
     """
     next_node: str = Field(..., description="Target node name for the next hop")
     reason: str = Field(..., description="Rationale behind the routing decision")
-    focus_dimension: Optional[str] = Field(default=None, description="Manager: explicit dimension hint for recommender (destination/accommodation/dining)")
+    focus_dimension: Optional[str] = Field(default=None, description="Manager: explicit dimension hint for recommender (any domain-appropriate dimension)")
 
 
 class ExecutionSigns(BaseModel):
@@ -36,7 +36,7 @@ class ExecutionSigns(BaseModel):
     """
     is_safe: bool = Field(default=True, description="Gateway: input passed safety check")
     is_core_complete: bool = Field(default=False, description="Analyst: core profile fields sufficient")
-    is_recommendation_complete: bool = Field(default=False, description="Recommender: destination/accommodation/dining recommendations generated")
+    is_recommendation_complete: bool = Field(default=False, description="Recommender: all requested recommendation dimensions covered")
     is_plan_complete: bool = Field(default=False, description="Planner: day-by-day itinerary generated")
     is_selection_made: bool = Field(default=False, description="Manager: user has made selections from recommendations (or explicitly delegated to agent)")
     recommended_dimensions: List[str] = Field(default_factory=list, description="Dimensions already covered by Recommender, e.g. ['destination', 'accommodation']")
@@ -224,9 +224,9 @@ class ManagerOutput(BaseModel):
         )
     )
     rationale: str = Field(..., description="Detailed logic behind this routing decision")
-    focus_dimension: Optional[Literal["destination", "accommodation", "dining"]] = Field(
+    focus_dimension: Optional[str] = Field(
         default=None,
-        description="When user explicitly requests a specific recommendation dimension, set this to guide Recommender"
+        description="When user explicitly requests a specific recommendation dimension, set this to guide Recommender (any dimension, e.g. 'attraction', 'shopping', 'food', 'accommodation')"
     )
     user_selections: Optional[UserSelections] = Field(
         default=None,
@@ -398,14 +398,14 @@ class RecommendationItem(BaseModel):
     """
     name: str = Field(..., description="推荐项名称（目的地/酒店/餐厅名）")
     features: str = Field(..., description="推荐项特点/亮点，如'交通便利，步行到地铁站3分钟'")
-    reason: str = Field(..., description="推荐原因，基于研究数据和用户偏好")
+    reason: str = Field(default="基于研究数据匹配", description="推荐原因，基于研究数据和用户偏好")
     rating: float = Field(..., ge=1.0, le=5.0, description="推荐指数 1-5 星，支持半星如 4.5")
 
 
 class RecommenderOutput(BaseModel):
     """Recommender 节点结构化输出 — 每次调用仅输出一个维度。"""
-    dimension: Literal["destination", "accommodation", "dining"] = Field(
-        ..., description="本轮推荐维度"
+    dimension: str = Field(
+        ..., description="本轮推荐维度（自由维度，如 'destination' / 'accommodation' / 'dining' / 'shopping' / 'attraction' 等）"
     )
     items: List[RecommendationItem] = Field(
         default_factory=list, description="该维度的推荐列表（1-3 项）"

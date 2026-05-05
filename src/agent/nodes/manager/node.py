@@ -30,12 +30,10 @@ def _summarise_recommendation_data(state: TravelState) -> str:
     if not rec:
         return "暂无"
     parts = []
-    for dim in ("destination", "accommodation", "dining"):
-        dim_data = rec.get(dim)
-        if dim_data:
-            items = dim_data.get("items", [])
-            names = [i.get("name", "") for i in items]
-            parts.append(f"{dim}({len(items)}): {', '.join(names[:3])}")
+    for dim, dim_data in rec.items():
+        items = dim_data.get("items", [])
+        names = [i.get("name", "") for i in items]
+        parts.append(f"{dim}({len(items)}): {', '.join(names[:3])}")
     return " | ".join(parts) if parts else "暂无"
 
 

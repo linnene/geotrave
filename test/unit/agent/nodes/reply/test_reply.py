@@ -8,6 +8,7 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from langchain_core.messages import AIMessage, HumanMessage
+from src.agent.state import RouteMetadata
 from src.agent.state.schema import ExecutionSigns
 
 
@@ -89,6 +90,7 @@ async def test_reply_recommend_scenario():
         },
         "execution_signs": ExecutionSigns(is_safe=True, recommended_dimensions=["destination"]),
         "user_request": "东京推荐",
+        "route_metadata": RouteMetadata(next_node="recommender", reason="test"),
     }
 
     mock_llm = MagicMock()
