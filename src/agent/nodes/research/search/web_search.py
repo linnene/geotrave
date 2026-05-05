@@ -19,14 +19,16 @@ from src.utils.logger import get_logger
 logging.getLogger("crawl4ai").setLevel(logging.WARNING)
 logging.getLogger("playwright").setLevel(logging.WARNING)
 
+from .config import POOL_SIZE, DEFAULT_CRAWL_TIMEOUT
+
 logger = get_logger("WebSearch")
 
-_MAX_CRAWL_CONCURRENCY = 2
-_DEFAULT_CRAWL_TIMEOUT = 60.0
+_MAX_CRAWL_CONCURRENCY = POOL_SIZE - 1
+_DEFAULT_CRAWL_TIMEOUT = DEFAULT_CRAWL_TIMEOUT
 
 # Browser pool — each instance owns its own Chromium process, enabling true
 # parallelism that bypasses crawl4ai's internal asyncio.Lock in arun().
-_POOL_SIZE = 3
+_POOL_SIZE = POOL_SIZE
 _pool: asyncio.Queue[WebCrawler] | None = None
 _pool_lock = asyncio.Lock()
 _pool_instances: List[WebCrawler] = []
@@ -171,7 +173,7 @@ async def crawl_urls(
 
     tasks = [_crawl_one(url) for url in urls]
     done, pending = await asyncio.wait(
-        [asyncio.ensure_future(t) for t in tasks],
+        [asyncio.create_task(t) for t in tasks],
         timeout=timeout,
     )
 

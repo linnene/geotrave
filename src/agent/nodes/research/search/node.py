@@ -91,6 +91,7 @@ async def _execute_tasks(
                 content_type="json",
                 content={"error": f"Unknown tool: {task.tool_name}"},
                 content_summary=f"错误: 未知工具 {task.tool_name}",
+                dimension=task.dimension,
                 timestamp=datetime.now(timezone.utc).isoformat(),
             )
             continue
@@ -109,7 +110,8 @@ async def _execute_tasks(
                             content_type="json",
                             content=item,
                             content_summary=_generate_summary(item),
-                            timestamp=datetime.now(timezone.utc).isoformat(),
+                            dimension=task.dimension,
+                timestamp=datetime.now(timezone.utc).isoformat(),
                         )
                 else:
                     # 无结果也保留一条空 envelope，供 Critic 识别
@@ -119,7 +121,8 @@ async def _execute_tasks(
                         content_type="json",
                         content={"query": raw.payload.get("query", ""), "total": 0, "results": []},
                         content_summary=f"web_search: 无结果 (query={raw.payload.get('query', '?')})",
-                        timestamp=datetime.now(timezone.utc).isoformat(),
+                        dimension=task.dimension,
+                timestamp=datetime.now(timezone.utc).isoformat(),
                     )
             else:
                 envelope = ResearchResult(
@@ -128,7 +131,8 @@ async def _execute_tasks(
                     content_type="json",
                     content=raw.payload,
                     content_summary=_generate_summary(raw.payload),
-                    timestamp=datetime.now(timezone.utc).isoformat(),
+                    dimension=task.dimension,
+                timestamp=datetime.now(timezone.utc).isoformat(),
                 )
                 results[query_text] = envelope
         except Exception as e:
@@ -142,6 +146,7 @@ async def _execute_tasks(
                 content_type="json",
                 content={"error": str(e)},
                 content_summary=f"执行失败: {str(e)[:500]}",
+                dimension=task.dimension,
                 timestamp=datetime.now(timezone.utc).isoformat(),
             )
             results[query_text] = error_env

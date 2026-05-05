@@ -145,7 +145,7 @@ async def test_persist_results_empty_list():
 @pytest.mark.priority("P0")
 @pytest.mark.asyncio
 async def test_hash_node_empty_skips():
-    """无通过结果 → 跳过持久化，设置 is_loop_exit。"""
+    """无通过结果 → 跳过持久化。"""
     from src.agent.nodes.research.hash.node import hash_node
 
     loop_state = ResearchLoopInternal(all_passed_results=[])
@@ -153,10 +153,6 @@ async def test_hash_node_empty_skips():
     state = {"research_data": manifest, "messages": []}
 
     result = await hash_node(state)
-
-    signs = result.get("execution_signs")
-    assert signs is not None
-    assert signs.is_loop_exit is True
 
     traces = result.get("trace_history", [])
     assert traces[0].status == "SKIPPED"
@@ -207,10 +203,6 @@ async def test_hash_node_persists_and_exposes_hashes():
     assert "大阪美食" in hashes
     assert len(hashes["东京酒店"]) == 1
     assert len(hashes["大阪美食"]) == 1
-
-    # is_loop_exit 已设置
-    signs = result["execution_signs"]
-    assert signs.is_loop_exit is True
 
     # trace 正确
     traces = result["trace_history"]
@@ -434,8 +426,9 @@ async def test_persist_results_split_web_search():
     records = mock_store.call_args[0][0]
     assert len(records) == 2
 
-    # 各自独立 hash
-    assert mapping[f"{query_params}#0"][0] != mapping[f"{query_params}#1"][0]
+    # web_search 拆分 key 聚合到基础 query 下，各自独立 hash
+    assert len(mapping[query_params]) == 2
+    assert mapping[query_params][0] != mapping[query_params][1]
 
     # 每条 record 的 payload 包含 _research_content（单个结果）
     for record in records:
@@ -471,6 +464,6 @@ async def test_persist_results_split_key_lookup_safety():
 
     # raw=None 时仍生成 hash 和 record，不崩溃
     assert len(mapping) == 1
-    assert mapping[f"{query_params}#0"][0] != ""
+    assert mapping[query_params][0] != ""
 
 

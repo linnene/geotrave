@@ -337,12 +337,11 @@ def should_continue_loop(
 
 
 def aggregate_loop_summary(
-    passed: List[CriticResult], total_count: int
+    passed: List[CriticResult], total_count: int, typed_results: Dict[str, Any] | None = None
 ) -> LoopSummary:
     """计算单轮迭代的聚合统计。
 
-    TODO: dimensions_covered 当前为空，Search 适配（Step 5）后从
-          ResearchResult 中获取维度信息。
+    从 ResearchResult.dimension 中提取本轮的维度覆盖信息。
     """
     if not passed:
         return LoopSummary(
@@ -356,12 +355,25 @@ def aggregate_loop_summary(
     avg_relevance = sum(r.relevance_score for r in passed) / len(passed)
     avg_utility = sum(r.utility_score for r in passed) / len(passed)
 
+    # 提取本层通过的维度信息
+    dimensions: list = []
+    if typed_results:
+        seen_dims: set = set()
+        for r in passed:
+            rr = typed_results.get(r.query)
+            if rr is None:
+                continue
+            dim = getattr(rr, "dimension", None) if not isinstance(rr, dict) else rr.get("dimension")
+            if dim and dim not in seen_dims:
+                seen_dims.add(dim)
+                dimensions.append(dim)
+
     return LoopSummary(
         pass_count=len(passed),
         total_count=total_count,
         avg_relevance=round(avg_relevance, 1),
         avg_utility=round(avg_utility, 1),
-        dimensions_covered=[],  # Step 5 后补全
+        dimensions_covered=dimensions,
     )
 
 
@@ -454,7 +466,7 @@ async def critic_node(state: TravelState) -> Dict[str, Any]:
         llm_feedback = f"决策 LLM 异常，fallback: {'继续' if llm_continue_loop else '退出'}"
 
     # --- 聚合统计 ---
-    loop_summary = aggregate_loop_summary(passed_l3, total_count)
+    loop_summary = aggregate_loop_summary(passed_l3, total_count, typed_results)
 
     # --- 循环退出决策 ---
     loop_iter = loop_state.loop_iteration

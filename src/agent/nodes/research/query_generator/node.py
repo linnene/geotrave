@@ -79,10 +79,15 @@ async def query_generator_node(state: TravelState) -> Dict[str, Any]:
         old_history = research_data.research_history if research_data else []
         current_request = state.get("user_request", "")
 
+        # 去重: 仅在 last entry 不同于 current_request 时追加
+        new_history = old_history[:]
+        if not new_history or new_history[-1] != current_request:
+            new_history.append(current_request)
+
         if research_data:
             new_research_data = research_data.model_copy(
                 update={
-                    "research_history": old_history + [current_request],
+                    "research_history": new_history,
                     "loop_state": research_data.loop_state.model_copy(
                         update={"active_queries": result.tasks}
                     ),
@@ -90,7 +95,7 @@ async def query_generator_node(state: TravelState) -> Dict[str, Any]:
             )
         else:
             new_research_data = ResearchManifest(
-                research_history=[current_request],
+                research_history=new_history,
                 loop_state=ResearchLoopInternal(active_queries=result.tasks),
             )
 
