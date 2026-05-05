@@ -203,7 +203,7 @@ async def test_planner_llm_error_graceful():
 
     assert "plan_data" in result
     assert "失败" in result["plan_data"]["notes"][0]
-    assert result["execution_signs"].is_plan_complete is True
+    assert result["execution_signs"].is_plan_complete is False
 
 
 @pytest.mark.priority("P1")

@@ -19,9 +19,13 @@
 | `src/agent/nodes/research/hash.py` | `test/unit/agent/nodes/research/test_hash.py` | 8 | 5 | 1 | 14 |
 | `src/agent/nodes/recommender/node.py` | `test/unit/agent/nodes/recommender/test_recommender.py` | 3 | 2 | 0 | 5 |
 | `src/agent/nodes/planner/node.py` | `test/unit/agent/nodes/planner/test_planner.py` | 3 | 2 | 0 | 5 |
+| `src/agent/nodes/gateway/node.py` | `test/unit/agent/nodes/gateway/test_gateway.py` | 6 | 0 | 0 | 6 |
+| `src/agent/nodes/analyst/node.py` | `test/unit/agent/nodes/analyst/test_analyst.py` | 6 | 0 | 0 | 6 |
+| `src/agent/nodes/manager/node.py` | `test/unit/agent/nodes/manager/test_manager.py` | 6 | 0 | 0 | 6 |
+| `src/agent/nodes/reply/node.py` | `test/unit/agent/nodes/reply/test_reply.py` | 4 | 0 | 0 | 4 |
 | `src/agent/state/schema.py` | `test/unit/agent/test_user_selections.py` | 7 | 2 | 0 | 9 |
 | `src/agent/nodes/search/tools.py` | `test/integration/test_spatial_tools.py` | 4 | 0 | 0 | 4 |
-| **Total** | | **89** | **63** | **14** | **166** |
+| **Total** | | **111** | **63** | **14** | **188** |
 
 ## P0 — Blocker Items
 
