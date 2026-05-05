@@ -32,6 +32,14 @@ from src.utils.config import (
     CRITIC_MODEL_API_KEY,
     CRITIC_MODEL_BASE_URL,
     CRITIC_MODEL_ID,
+
+    MANAGER_MODEL_API_KEY,
+    MANAGER_MODEL_BASE_URL,
+    MANAGER_MODEL_ID,
+
+    REPLY_MODEL_API_KEY,
+    REPLY_MODEL_BASE_URL,
+    REPLY_MODEL_ID,
 )
 
 class LLMFactory:
@@ -66,13 +74,13 @@ class LLMFactory:
             config["base_url"] = RESEARCHER_MODEL_BASE_URL
             config["model"] = RESEARCHER_MODEL_ID
         elif node_name == "Manager":
-            config["api_key"] = GLOBAL_MODEL_API_KEY
-            config["base_url"] = GLOBAL_MODEL_BASE_URL
-            config["model"] = GLOBAL_MODEL_ID
+            config["api_key"] = MANAGER_MODEL_API_KEY
+            config["base_url"] = MANAGER_MODEL_BASE_URL
+            config["model"] = MANAGER_MODEL_ID
         elif node_name == "Reply":
-            config["api_key"] = GLOBAL_MODEL_API_KEY
-            config["base_url"] = GLOBAL_MODEL_BASE_URL
-            config["model"] = GLOBAL_MODEL_ID
+            config["api_key"] = REPLY_MODEL_API_KEY
+            config["base_url"] = REPLY_MODEL_BASE_URL
+            config["model"] = REPLY_MODEL_ID
         elif node_name == "Recommender":
             config["api_key"] = RECOMMENDER_MODEL_API_KEY
             config["base_url"] = RECOMMENDER_MODEL_BASE_URL
