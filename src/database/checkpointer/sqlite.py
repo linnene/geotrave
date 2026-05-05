@@ -32,7 +32,16 @@ class SqliteCheckpointer:
         if db_path:
             cls._db_path = db_path
             
-        # Clean up stale instances for closed loops
+        # Clean up stale instances for closed loops — attempt proper teardown
+        stale_loops = [loop for loop in cls._cms if loop.is_closed()]
+        for loop in stale_loops:
+            logger.warning(
+                "Checkpointer: discarding stale instance for closed loop %d",
+                id(loop),
+            )
+            del cls._cms[loop]
+            cls._instances.pop(loop, None)
+        # Prune instances for non-closed loops that were cleaned up
         cls._instances = {loop: inst for loop, inst in cls._instances.items() if not loop.is_closed()}
         cls._cms = {loop: cm for loop, cm in cls._cms.items() if not loop.is_closed()}
 

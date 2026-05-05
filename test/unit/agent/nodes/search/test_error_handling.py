@@ -277,11 +277,6 @@ async def test_hash_node_db_failure_not_crashing():
         result = await hash_node(state)
 
     # 不崩溃
-    assert "execution_signs" in result
-    assert result["execution_signs"].is_loop_exit is True
-    # 保留了原有的信号位
-    assert result["execution_signs"].is_safe is True
-    assert result["execution_signs"].is_core_complete is True
     # trace 仍然 SUCCESS（DB 失败不阻止流程）
     traces = result.get("trace_history", [])
     assert len(traces) >= 1

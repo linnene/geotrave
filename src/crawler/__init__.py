@@ -1,7 +1,10 @@
+import os
 from typing import Optional
 from .fetcher import ContentFetcher
 from .parser import ContentParser
 from .schema import CrawlResult, FetchError
+
+_DEFAULT_BLOCKED_DOMAINS = ["booking.com", "tripadvisor.com", "ctrip.com", "xiaohongshu.com", "xhslink.com"]
 
 class WebCrawler:
     """
@@ -33,7 +36,12 @@ class WebCrawler:
         error_message: Optional[str] = None
 
         # Heuristic: certain domains are known to block fast mode or require JS
-        block_prone_domains = ["booking.com", "tripadvisor.com", "ctrip.com", "xiaohongshu.com", "xhslink.com"]
+        env_domains = os.getenv("CRAWLER_BLOCKED_DOMAINS", "")
+        block_prone_domains = (
+            [d.strip() for d in env_domains.split(",") if d.strip()]
+            if env_domains
+            else _DEFAULT_BLOCKED_DOMAINS
+        )
         if any(domain in url.lower() for domain in block_prone_domains):
             force_deep = True
 

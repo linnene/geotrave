@@ -23,13 +23,4 @@ class ChatRequest(BaseModel):
         description="对话会话 ID，用于在 LangGraph 中维护历史上下文"
     )
 
-class ChatResponse(BaseModel):
-    """对话响应模型"""
-    response: str = Field(
-        ...,
-        description="助手返回的回复内容"
-    )
-    session_id: str = Field(
-        ...,
-        description="本次对话的会话 ID"
-    )
+

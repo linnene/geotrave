@@ -100,7 +100,6 @@ async def hash_node(state: TravelState) -> Dict[str, Any]:
     1. 读取 loop_state.all_passed_results（Critic 累计通过的结果）
     2. 生成 hash_key 并写入 Retrieval DB
     3. 将 {query: [hash_key, ...]} 写入 research_data.research_hashes
-    4. 设置 execution_signs.is_loop_exit = True，通知父图子图已退出
     """
     start_time = time.time()
     logger.info("Hash: starting persistence")
@@ -130,7 +129,6 @@ async def hash_node(state: TravelState) -> Dict[str, Any]:
             )
             return {
                 "research_data": new_research_data,
-                "execution_signs": (state.get("execution_signs") or ExecutionSigns()).model_copy(update={"is_loop_exit": True}),
                 "trace_history": [trace],
             }
         trace = build_trace(

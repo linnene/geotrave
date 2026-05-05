@@ -26,7 +26,6 @@ class RouteMetadata(BaseModel):
     """
     next_node: str = Field(..., description="Target node name for the next hop")
     reason: str = Field(..., description="Rationale behind the routing decision")
-    is_error: bool = Field(default=False, description="[DEPRECATED] Always False, never checked")
     focus_dimension: Optional[str] = Field(default=None, description="Manager: explicit dimension hint for recommender (destination/accommodation/dining)")
 
 
@@ -37,7 +36,6 @@ class ExecutionSigns(BaseModel):
     """
     is_safe: bool = Field(default=True, description="Gateway: input passed safety check")
     is_core_complete: bool = Field(default=False, description="Analyst: core profile fields sufficient")
-    is_loop_exit: bool = Field(default=False, description="Hash: research loop exited cleanly")
     is_recommendation_complete: bool = Field(default=False, description="Recommender: destination/accommodation/dining recommendations generated")
     is_plan_complete: bool = Field(default=False, description="Planner: day-by-day itinerary generated")
     is_selection_made: bool = Field(default=False, description="Manager: user has made selections from recommendations (or explicitly delegated to agent)")
@@ -265,6 +263,10 @@ class ResearchResult(BaseModel):
     content_summary: str = Field(
         ...,
         description="Short summary (≤500 chars) for Critic LLM scoring; avoids token blow-up on long text"
+    )
+    dimension: str = Field(
+        default="general",
+        description="Research dimension from the originating SearchTask"
     )
     timestamp: str = Field(
         default_factory=lambda: datetime.now().isoformat(),
