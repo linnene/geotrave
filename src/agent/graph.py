@@ -108,21 +108,22 @@ async def get_travel_app():
         # Attach serializer (register all state Pydantic models used in TravelState)
         serializer = JsonPlusSerializer(
             allowed_msgpack_modules=[
-                ('src.agent.state.schema', 'RouteMetadata'),
-                ('src.agent.state.schema', 'UserProfile'),
-                ('src.agent.state.schema', 'TraceLog'),
-                ('src.agent.state.schema', 'ResearchManifest'),
-                ('src.agent.state.schema', 'ExecutionSigns'),
-                ('src.agent.state.schema', 'SearchTask'),
-                ('src.agent.state.schema', 'ResearchLoopInternal'),
-                ('src.agent.state.schema', 'ResearchResult'),
-                ('src.agent.state.schema', 'CriticResult'),
-                ('src.agent.state.schema', 'LoopSummary'),
-                ('src.agent.state.schema', 'RecommendationItem'),
-                ('src.agent.state.schema', 'RecommenderOutput'),
-                ('src.agent.state.schema', 'Activity'),
-                ('src.agent.state.schema', 'DayPlan'),
-                ('src.agent.state.schema', 'PlannerOutput'),
+                ('src.agent.state.schema.control', 'RouteMetadata'),
+                ('src.agent.state.schema.control', 'ExecutionSigns'),
+                ('src.agent.state.schema.control', 'TraceLog'),
+                ('src.agent.state.schema.domain', 'UserProfile'),
+                ('src.agent.state.schema.domain', 'SearchTask'),
+                ('src.agent.state.schema.domain', 'RetrievalMetadata'),
+                ('src.agent.state.schema.research', 'ResearchManifest'),
+                ('src.agent.state.schema.research', 'ResearchLoopInternal'),
+                ('src.agent.state.schema.research', 'ResearchResult'),
+                ('src.agent.state.schema.research', 'CriticResult'),
+                ('src.agent.state.schema.research', 'LoopSummary'),
+                ('src.agent.state.schema.delivery', 'RecommendationItem'),
+                ('src.agent.state.schema.delivery', 'RecommenderOutput'),
+                ('src.agent.state.schema.delivery', 'Activity'),
+                ('src.agent.state.schema.delivery', 'DayPlan'),
+                ('src.agent.state.schema.delivery', 'PlannerOutput'),
             ]
         )
         checkpointer.serde = serializer
