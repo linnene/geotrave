@@ -62,3 +62,18 @@ class QueryGeneratorOutput(BaseModel):
         ...,
         description="Overall research strategy narrative, e.g. '先通过通用搜索确定热门商圈，再针对性检索高评分民宿'"
     )
+
+
+class DimensionItem(BaseModel):
+    """单个调研维度规划。"""
+    name: str = Field(
+        ..., description="Dimension: attraction/accommodation/dining/transportation/weather/general/policy"
+    )
+    focus: str = Field(..., description="What specifically to search for in this dimension")
+    priority: int = Field(default=3, ge=1, le=5, description="Priority 1-5, higher = more urgent")
+
+
+class DimensionPlannerOutput(BaseModel):
+    """DimensionPlanner 节点结构化输出。"""
+    dimensions: List[DimensionItem] = Field(..., description="Decomposed research dimensions")
+    rationale: str = Field(..., description="Why these dimensions were chosen")

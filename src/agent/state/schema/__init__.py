@@ -24,6 +24,8 @@ from .llm_contracts import (
     AnalystOutput,
     ManagerOutput,
     QueryGeneratorOutput,
+    DimensionItem,
+    DimensionPlannerOutput,
 )
 
 __all__ = [
@@ -52,4 +54,6 @@ __all__ = [
     "AnalystOutput",
     "ManagerOutput",
     "QueryGeneratorOutput",
+    "DimensionItem",
+    "DimensionPlannerOutput",
 ]

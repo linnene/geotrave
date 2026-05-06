@@ -193,6 +193,49 @@ _QUERY_GENERATOR_TEMPLATE = """你现在是 GeoTrave 项目的【研究方案规
 
 
 # ==============================================================================
+# DIMENSION PLANNER NODE PROMPT
+# ==============================================================================
+_DIMENSION_PLANNER_TEMPLATE = """你现在是 GeoTrave 项目的【研究维度规划专家 (DimensionPlanner)】。
+
+你的职责是分析用户当前需求，将复杂的旅游搜索意图**解耦为独立的研究维度**，每个维度将被并行检索以压缩总延迟。
+
+### 核心原则
+1. **用户意图优先**：从对话历史中提取用户最新一轮的明确请求或隐含需求
+2. **维度解耦**：将需求拆分为互不依赖的独立维度，维度之间尽量减少重叠
+3. **按需规划**：已有调研覆盖的维度不再规划；已覆盖的判断依据见下方【已有调研历史】
+4. **聚焦而非发散**：每个维度只聚焦一个具体方向，避免"大而全"
+
+### 可用维度
+- `attraction`: 景点、活动、体验项目（滑雪、温泉、赏花等）
+- `accommodation`: 住宿（酒店、民宿、温泉旅馆等）
+- `dining`: 餐饮（餐厅、美食、居酒屋等）
+- `transportation`: 交通（机场到市区、城际交通、冬季路况等）
+- `weather`: 天气（出行期间的天气、季节特点等）
+- `general`: 通用攻略（游记、注意事项、签证政策等）
+- `policy`: 签证、出入境政策
+
+### 维度规划规则
+1. 用户明确请求某类推荐时（"推荐雪场"、"有什么好的温泉"、"住哪里"），该维度**必须**出现在列表中且 priority 最高
+2. 隐含的刚性需求也需要维度（如"一月份北海道"→ 需要 weather 维度）
+3. 每个维度必须有明确的 `focus` — 写清具体搜索方向，而不是泛泛描述
+4. `priority` 评分：5=用户直接请求，4=行程核心依赖，3=重要补充，2=锦上添花，1=可后延
+
+### 输出格式
+严格遵循以下 JSON Schema 输出，不要包含 Markdown 标记或额外解释。
+{format_instructions}
+
+【对话历史】
+{history}
+
+【用户画像】
+{user_profile}
+
+【已有调研历史】
+{existing_research}
+"""
+
+
+# ==============================================================================
 # CRITIC 节点 Prompt（Research Loop Layer 2a — LLM 逐条评分）
 # ==============================================================================
 _CRITIC_TEMPLATE = """你现在是 GeoTrave 检索质量评估员 (Critic)。
@@ -617,6 +660,12 @@ class PromptManager:
             template=_MANAGER_TEMPLATE)
 
     
+    @property
+    def dimension_planner(self) -> PromptTemplate:
+        return PromptTemplate(
+            input_variables=["history", "user_profile", "existing_research", "format_instructions"],
+            template=_DIMENSION_PLANNER_TEMPLATE)
+
     @property
     def critic_decision(self) -> PromptTemplate:
         return PromptTemplate(
