@@ -97,14 +97,10 @@ async def get_travel_app():
         # DimensionPlanner fan-out: 根据 planned_dimensions 扇出并行 research_loop
         def dimension_fanout(state: state_mod.TravelState):
             dims = state.get("planned_dimensions", [])
-            hints = state.get("dimension_hints", {})
             if not dims:
                 return "research_merge"
             return [
-                Send("research_loop", {
-                    "focus_dimension": dim,
-                    "dimension_hints": {dim: hints.get(dim, "")},
-                })
+                Send("research_loop", {"focus_dimension": dim})
                 for dim in dims
             ]
 
