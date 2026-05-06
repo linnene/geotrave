@@ -406,13 +406,22 @@ async def critic_node(state: TravelState) -> Dict[str, Any]:
 
     if total_count == 0:
         logger.info("Critic: no results to evaluate, skipping")
+        # 递增 loop_iteration 防止死循环（MAX_LOOPS 兜底）
+        new_loop_state = loop_state.model_copy(
+            update={
+                "loop_iteration": loop_state.loop_iteration + 1,
+                "continue_loop": loop_state.loop_iteration + 1 < MAX_LOOPS,
+            }
+        )
+        updated = research_data.model_copy(update={"loop_state": new_loop_state})
         return {
+            "research_data": updated,
             "trace_history": [
                 build_trace(
                     "critic",
                     "SKIPPED",
                     latency_ms=int((time.time() - start_time) * 1000),
-                    detail={"reason": "query_results 为空"},
+                    detail={"reason": "query_results 为空", "loop_iteration": new_loop_state.loop_iteration},
                 )
             ]
         }

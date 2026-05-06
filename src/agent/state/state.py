@@ -23,11 +23,12 @@ from src.agent.state.schema.research import ResearchLoopInternal
 def _merge_research_manifest(left: Optional[ResearchManifest], right: Optional[ResearchManifest]) -> ResearchManifest:
     """并行 research_loop 分支的结果合并 reducer。
 
-    LangGraph Send 扇出后多个分支并发写入 research_data 时触发。
-    - research_hashes: dict 合并（并行分支产出的 query key 不冲突）
-    - research_history: 拼接去重（保持插入顺序）
+    Annotated reducer 在 LangGraph 中每次写入都触发（不仅并行合并），因此必须
+    保留 right.loop_state 而非重置，否则子图内部的 QG→Search→Critic 循环状态丢失。
+    - research_hashes: dict 合并
+    - research_history: 拼接去重
     - matched_doc_ids: 拼接去重
-    - loop_state: 重置（合并后不再需要内部循环状态）
+    - loop_state: 保留最新写入（子图内部状态由各节点自行管理）
     """
     if left is None:
         return right
@@ -40,7 +41,7 @@ def _merge_research_manifest(left: Optional[ResearchManifest], right: Optional[R
         research_hashes=merged_hashes,
         research_history=merged_history,
         matched_doc_ids=merged_doc_ids,
-        loop_state=ResearchLoopInternal(),
+        loop_state=right.loop_state,
     )
 
 
