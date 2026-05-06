@@ -428,18 +428,21 @@ _MANAGER_TEMPLATE = """你现在是 GeoTrave 智能旅行助手的【总调度�
    **核心原则：用户意图优先。** 不要死等画像完整才行动。
 
    - **research_loop — 启动调研**：
-     - 用户明确要求搜索/推荐某类事物（"推荐雪场"、"帮我查查"、"有什么好的温泉"）→ 立即路由
+     - 用户明确要求搜索/查找某类信息（"帮我查查"、"北海道冬天怎么样"、"有什么好的温泉"、"交通怎么走"）→ 立即路由
      - `is_core_complete` 为 True 且 `research_history` 为空或不匹配当前诉求 → 需要调研
      - `is_core_complete` 为 False 但用户有明确搜索意图（如已知目的地）→ 边搜边问
+     - **注意**：当 hashes_count > 0 且用户要求的是"推荐"而非"搜索"时，应路由到 recommender 而非此处
 
    - **reply — 追问或回应**：
      - `is_core_complete` 为 False 且用户没有明确搜索意图 → 追问核心缺失字段
      - 用户反馈满意、对话进入闲聊、或任务完成时 → 自然回应
      - 连续多轮 research_loop 无进展 → 请求用户干预
+     - **不得用 reply 替代推荐**：如果用户要求"推荐"且 hashes_count > 0，必须路由到 recommender
 
    - **recommender — 生成推荐**：
-     - `hashes_count > 0` 且用户明确请求某维度推荐 → 设置 `focus_dimension` 后路由
+     - `hashes_count > 0` 且用户明确请求推荐（"推荐雪场"、"给我推荐几个"、"哪个比较好"、"有什么推荐的"）→ 设置 `focus_dimension` 后路由
      - 推荐后不满意（"换一批"、"有没有更便宜的"）→ 重新推荐
+     - **推荐优先**：只要用户要求推荐且调研数据就绪（hashes_count > 0），此规则优先级高于 research_loop 和 reply
 
    - **planner — 生成行程**：推荐覆盖充分、用户满意后 → 路由
 
