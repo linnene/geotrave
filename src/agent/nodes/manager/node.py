@@ -97,12 +97,12 @@ async def manager_node(state: TravelState) -> Dict[str, Any]:
         reason = f"Fallback due to error: {str(e)}"
         focus_dimension = None
 
-    # 硬守卫: is_core_complete=False 时必须导向 reply
-    if not is_core_complete and next_node != "reply":
+    # 软守卫: is_core_complete=False 时阻止推荐/规划（需完整上下文），但允许研究先行
+    if not is_core_complete and next_node in ("recommender", "planner"):
         logger.warning(
-            f"Manager override: is_core_complete=False, forcing reply (was: {next_node})"
+            f"Manager override: is_core_complete=False, blocking {next_node} (requires full profile)"
         )
-        reason = f"[硬守卫覆写] is_core_complete 为 False，强制导向 reply。原决策: {next_node}，原理由: {reason}"
+        reason = f"[软守卫覆写] is_core_complete 为 False，阻止 {next_node}（需完整画像），回退到 reply"
         next_node = "reply"
 
     # 3. Issue Routing Command
