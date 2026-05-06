@@ -167,26 +167,29 @@ async def search_node(state: Dict[str, Any]) -> Dict[str, Any]:
     3. 分流：文档结果 → passed_doc_ids（跳过 Critic）；非文档 → query_results
     """
     start_time = time.time()
-    logger.info("Executing search tasks at [SearchNode]...")
+    focus_dim = state.get("focus_dimension")
+    dim_tag = f"[{focus_dim}] " if focus_dim else ""
+    dim_ctx = {"dimension": focus_dim} if focus_dim else {}
+    logger.info("%sExecuting search tasks at [SearchNode]...", dim_tag)
 
     research_data: ResearchManifest = state.get("research_data")
 
     if not research_data:
-        logger.warning("No research_data found, skipping search.")
+        logger.warning("%sNo research_data found, skipping search.", dim_tag)
         trace = build_trace(
             "search", "SKIPPED",
             int((time.time() - start_time) * 1000),
-            {"reason": "research_data missing"},
+            {"reason": "research_data missing", **dim_ctx},
         )
         return {"trace_history": [trace]}
 
     tasks: List[SearchTask] = research_data.loop_state.active_queries
     if not tasks:
-        logger.info("No active queries present.")
+        logger.info("%sNo active queries present.", dim_tag)
         trace = build_trace(
             "search", "SUCCESS",
             int((time.time() - start_time) * 1000),
-            {"task_count": 0},
+            {"task_count": 0, **dim_ctx},
         )
         return {
             "research_data": research_data,
@@ -245,12 +248,13 @@ async def search_node(state: Dict[str, Any]) -> Dict[str, Any]:
             "doc_results": len(doc_results),
             "doc_ids_added": len(new_doc_ids),
             "error_results_filtered": len(error_results),
+            **dim_ctx,
         },
     )
 
     logger.info(
-        f"Search done: {len(tasks)} tasks → {len(clean_non_doc)} non-doc + {len(doc_results)} doc"
-        f" (+ {len(error_results)} errors filtered)"
+        "%sSearch done: %d tasks → %d non-doc + %d doc (+ %d errors filtered)",
+        dim_tag, len(tasks), len(clean_non_doc), len(doc_results), len(error_results),
     )
     return {
         "research_data": new_research_data,

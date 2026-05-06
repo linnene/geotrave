@@ -101,7 +101,10 @@ async def hash_node(state: TravelState) -> Dict[str, Any]:
     3. 将 {query: [hash_key, ...]} 写入 research_data.research_hashes
     """
     start_time = time.time()
-    logger.info("Hash: starting persistence")
+    focus_dim = state.get("focus_dimension")
+    dim_tag = f"[{focus_dim}] " if focus_dim else ""
+    dim_ctx = {"dimension": focus_dim} if focus_dim else {}
+    logger.info("%sHash: starting persistence", dim_tag)
 
     research_data = state.get("research_data")
     loop_state: ResearchLoopInternal = research_data.loop_state
@@ -114,7 +117,7 @@ async def hash_node(state: TravelState) -> Dict[str, Any]:
     merged_doc_ids = existing_doc_ids + [d for d in new_doc_ids if d not in existing_doc_ids]
 
     if not all_passed:
-        logger.info("Hash: no passed results, skipping persistence")
+        logger.info("%sHash: no passed results, skipping persistence", dim_tag)
         # 仍有文档 ID 需要提升
         if merged_doc_ids != existing_doc_ids:
             new_research_data = research_data.model_copy(
@@ -124,7 +127,7 @@ async def hash_node(state: TravelState) -> Dict[str, Any]:
                 "hash",
                 "SKIPPED",
                 latency_ms=int((time.time() - start_time) * 1000),
-                detail={"reason": "all_passed_results 为空", "matched_docs": len(merged_doc_ids)},
+                detail={"reason": "all_passed_results 为空", "matched_docs": len(merged_doc_ids), **dim_ctx},
             )
             return {
                 "research_data": new_research_data,
@@ -134,7 +137,7 @@ async def hash_node(state: TravelState) -> Dict[str, Any]:
             "hash",
             "SKIPPED",
             latency_ms=int((time.time() - start_time) * 1000),
-            detail={"reason": "all_passed_results 为空"},
+            detail={"reason": "all_passed_results 为空", **dim_ctx},
         )
         return {
             "trace_history": [trace],
@@ -174,13 +177,13 @@ async def hash_node(state: TravelState) -> Dict[str, Any]:
             "persisted_count": len(all_passed),
             "hash_groups": len(research_hashes),
             "session_id": session_id,
+            **dim_ctx,
         },
     )
 
     logger.info(
-        f"Hash done: persisted {len(all_passed)} results, "
-        f"{len(research_hashes)} query groups, "
-        f"{len(merged_doc_ids)} matched docs"
+        "%sHash done: persisted %d results, %d query groups, %d matched docs",
+        dim_tag, len(all_passed), len(research_hashes), len(merged_doc_ids),
     )
 
     return {

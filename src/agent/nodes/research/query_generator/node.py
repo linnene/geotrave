@@ -38,8 +38,10 @@ async def query_generator_node(state: TravelState) -> Dict[str, Any]:
     hints = state.get("dimension_hints", {})
     focus_hint = hints.get(focus_dimension, "") if focus_dimension else ""
 
+    dim_tag = f"[{focus_dimension}] " if focus_dimension else ""
+    dim_ctx = {"dimension": focus_dimension} if focus_dimension else {}
     if focus_dimension:
-        logger.info("Generating focused research plan for dimension '%s' at [QueryGenerator]...", focus_dimension)
+        logger.info("%sGenerating focused research plan at [QueryGenerator]...", dim_tag)
     else:
         logger.info("Generating research plan at [QueryGenerator]...")
 
@@ -116,6 +118,7 @@ async def query_generator_node(state: TravelState) -> Dict[str, Any]:
             detail={
                 "task_count": len(result.tasks),
                 "strategy": result.research_strategy,
+                **dim_ctx,
             }
         )
 
@@ -125,11 +128,11 @@ async def query_generator_node(state: TravelState) -> Dict[str, Any]:
         }
 
     except Exception as e:
-        logger.error(f"QueryGenerator execution failed: {str(e)}", exc_info=True)
+        logger.error("%sQueryGenerator execution failed: %s", dim_tag, str(e), exc_info=True)
         trace = build_trace(
             "query_generator",
             "FAIL",
             latency_ms=int((time.time() - start_time) * 1000),
-            detail={"error": str(e)}
+            detail={"error": str(e), **dim_ctx}
         )
         return {"trace_history": [trace]}

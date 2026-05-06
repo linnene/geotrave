@@ -396,7 +396,10 @@ async def critic_node(state: TravelState) -> Dict[str, Any]:
     管线: L1(黑名单) → L2a(LLM逐条评分) → L3(阈值过滤) → L2b(LLM全局决策)
     """
     start_time = time.time()
-    logger.info("Critic: starting 4-layer evaluation pipeline")
+    focus_dim = state.get("focus_dimension")
+    dim_tag = f"[{focus_dim}] " if focus_dim else ""
+    dim_ctx = {"dimension": focus_dim} if focus_dim else {}
+    logger.info("%sCritic: starting 4-layer evaluation pipeline", dim_tag)
 
     research_data = state.get("research_data")
     loop_state: ResearchLoopInternal = research_data.loop_state
@@ -405,7 +408,7 @@ async def critic_node(state: TravelState) -> Dict[str, Any]:
     total_count = len(query_results_raw)
 
     if total_count == 0:
-        logger.info("Critic: no results to evaluate, skipping")
+        logger.info("%sCritic: no results to evaluate, skipping", dim_tag)
         # 递增 loop_iteration 防止死循环（MAX_LOOPS 兜底）
         new_loop_state = loop_state.model_copy(
             update={
@@ -421,7 +424,7 @@ async def critic_node(state: TravelState) -> Dict[str, Any]:
                     "critic",
                     "SKIPPED",
                     latency_ms=int((time.time() - start_time) * 1000),
-                    detail={"reason": "query_results 为空", "loop_iteration": new_loop_state.loop_iteration},
+                    detail={"reason": "query_results 为空", "loop_iteration": new_loop_state.loop_iteration, **dim_ctx},
                 )
             ]
         }
@@ -438,7 +441,7 @@ async def critic_node(state: TravelState) -> Dict[str, Any]:
     passed_l1, _rejected_l1 = blacklist_filter(typed_results, blacklist)
 
     if not passed_l1:
-        logger.info("Critic: all results filtered by blacklist")
+        logger.info("%sCritic: all results filtered by blacklist", dim_tag)
 
     # --- 收集前序累积结果（供决策 LLM 使用）---
     previous_all_passed = list(loop_state.all_passed_results)
@@ -522,13 +525,15 @@ async def critic_node(state: TravelState) -> Dict[str, Any]:
             "exit_reason": exit_reason,
             "avg_relevance": loop_summary.avg_relevance,
             "avg_utility": loop_summary.avg_utility,
+            **dim_ctx,
         },
     )
 
     logger.info(
-        f"Critic done: {total_count}→L1:{len(passed_l1)}→L2a:{len(all_critic_results)}"
-        f"→L3:{len(passed_l3)}→L2b:decision={llm_continue_loop}, "
-        f"total_passed={total_passed_count}, continue={continue_loop}, reason={exit_reason}"
+        "%sCritic done: %d→L1:%d→L2a:%d→L3:%d→L2b:decision=%s, "
+        "total_passed=%d, continue=%s, reason=%s",
+        dim_tag, total_count, len(passed_l1), len(all_critic_results),
+        len(passed_l3), llm_continue_loop, total_passed_count, continue_loop, exit_reason,
     )
 
     return {
