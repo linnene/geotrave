@@ -7,6 +7,7 @@ Dependencies: langgraph, src.agent.state, src.agent.nodes
 
 from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
+from langgraph.types import Send
 from src.database.checkpointer import SqliteCheckpointer
 import src.agent.state.state as state_mod
 
@@ -35,6 +36,8 @@ async def get_travel_app():
         from src.agent.nodes.reply.node import reply_node
         from src.agent.nodes.manager.node import manager_node
         from src.agent.nodes.research.subgraph import research_loop_subgraph
+        from src.agent.nodes.research.dimension_planner.node import dimension_planner_node
+        from src.agent.nodes.research.merge.node import research_merge_node
         from src.agent.nodes.recommender.node import recommender_node
         from src.agent.nodes.planner.node import planner_node
 
@@ -43,6 +46,8 @@ async def get_travel_app():
         workflow.add_node("reply", reply_node)
         workflow.add_node("manager", manager_node)
         workflow.add_node("research_loop", research_loop_subgraph)
+        workflow.add_node("dimension_planner", dimension_planner_node)
+        workflow.add_node("research_merge", research_merge_node)
         workflow.add_node("recommender", recommender_node)
         workflow.add_node("planner", planner_node)
 
@@ -65,13 +70,13 @@ async def get_travel_app():
             }
         )
 
-        # Manager Routing: Post-analyst 路由，Manager 不再负责 analyst 的分发
+        # Manager Routing: research_loop 现在映射到 dimension_planner
         def manager_router(state: state_mod.TravelState) -> str:
             route = state.get("route_metadata")
             target = route.next_node if route else "reply"
 
             mapping = {
-                "research_loop": "research_loop",
+                "research_loop": "dimension_planner",
                 "recommender": "recommender",
                 "planner": "planner",
                 "reply": "reply"
@@ -83,16 +88,54 @@ async def get_travel_app():
             manager_router,
             {
                 "reply": "reply",
-                "research_loop": "research_loop",
+                "dimension_planner": "dimension_planner",
                 "recommender": "recommender",
                 "planner": "planner",
             }
         )
 
+        # DimensionPlanner fan-out: 根据 planned_dimensions 扇出并行 research_loop
+        def dimension_fanout(state: state_mod.TravelState):
+            dims = state.get("planned_dimensions", [])
+            hints = state.get("dimension_hints", {})
+            if not dims:
+                return "research_merge"
+            return [
+                Send("research_loop", {
+                    "focus_dimension": dim,
+                    "dimension_hints": {dim: hints.get(dim, "")},
+                })
+                for dim in dims
+            ]
+
+        workflow.add_conditional_edges(
+            "dimension_planner",
+            dimension_fanout,
+            {
+                "research_loop": "research_loop",
+                "research_merge": "research_merge",
+            }
+        )
+
+        # Research Loop exit routing: 并行模式时先汇聚到 research_merge
+        def research_exit_router(state: state_mod.TravelState) -> str:
+            if state.get("focus_dimension"):
+                return "research_merge"
+            return "manager"
+
+        workflow.add_conditional_edges(
+            "research_loop",
+            research_exit_router,
+            {
+                "research_merge": "research_merge",
+                "manager": "manager",
+            }
+        )
+
         # Analyst → Manager: 需求提取完成后交给 Manager 做后续路由
         workflow.add_edge("analyst", "manager")
-        # research_loop 子图闭环完成后回到 Manager 进行下一跳决策
-        workflow.add_edge("research_loop", "manager")
+        # research_merge → Manager: 并行结果汇聚后回到 Manager
+        workflow.add_edge("research_merge", "manager")
         # Recommender 完成后 → Reply 呈现结果给用户，等待下一轮输入
         workflow.add_edge("recommender", "reply")
         # Planner 完成后返回给前端（呈现最终行程）
@@ -119,6 +162,8 @@ async def get_travel_app():
                 ('src.agent.state.schema.research', 'ResearchResult'),
                 ('src.agent.state.schema.research', 'CriticResult'),
                 ('src.agent.state.schema.research', 'LoopSummary'),
+                ('src.agent.state.schema.llm_contracts', 'DimensionItem'),
+                ('src.agent.state.schema.llm_contracts', 'DimensionPlannerOutput'),
                 ('src.agent.state.schema.delivery', 'RecommendationItem'),
                 ('src.agent.state.schema.delivery', 'RecommenderOutput'),
                 ('src.agent.state.schema.delivery', 'Activity'),
