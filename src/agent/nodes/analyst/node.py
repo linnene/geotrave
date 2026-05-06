@@ -68,7 +68,8 @@ async def analyst_node(state: TravelState) -> Dict[str, Any]:
         # is_core_complete: 是否达到了开启 Manager 的门槛
         # all_missing: UserProfile 中所有尚未填写的字段，传给 Reply 节点
         is_core_complete, all_missing = result.updated_profile.check_completeness()
-        
+        result.updated_profile.all_missing_fields = all_missing
+
         logger.info("Analyst Audit: CoreComplete=%s, TotalMissing=%s", is_core_complete, len(all_missing))
     except Exception as e:
         logger.error("Analyst execution failed: %s", str(e), exc_info=True)
@@ -109,7 +110,6 @@ async def analyst_node(state: TravelState) -> Dict[str, Any]:
     return {
         "user_profile": result.updated_profile,
         "user_request": result.user_request,
-        "missing_fields": all_missing, # Transmission of all missing fields to 'reply' node
         "execution_signs": (state.get("execution_signs") or ExecutionSigns()).model_copy(update={"is_core_complete": is_core_complete}),
         "trace_history": [trace]
     }

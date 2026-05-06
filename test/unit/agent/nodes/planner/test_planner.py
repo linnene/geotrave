@@ -8,7 +8,7 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from src.agent.state import ExecutionSigns, ResearchManifest
-from src.agent.state.schema import CriticResult, ResearchLoopInternal
+from src.agent.state.schema import CriticResult, ResearchLoopInternal, RecommenderOutput, RecommendationItem
 
 
 # =============================================================================
@@ -38,7 +38,7 @@ async def test_planner_produces_output():
     state = {
         "research_data": manifest,
         "recommendation_data": {
-            "destination": {"dimension": "destination", "items": [{"name": "东京", "features": "...", "reason": "经典目的地", "rating": 4.5}], "strategy": "test", "tip": "..."},
+            "destination": RecommenderOutput(dimension="destination", items=[RecommendationItem(name="东京", features="...", reason="经典目的地", rating=4.5)], strategy="test", tip="..."),
         },
         "messages": [],
         "user_request": "东京三日游",
@@ -98,14 +98,14 @@ async def test_planner_produces_output():
 
     assert "plan_data" in result
     plan = result["plan_data"]
-    assert len(plan["days"]) == 2
-    assert plan["days"][0]["day"] == 1
-    assert plan["days"][0]["date"] == "2026-05-02"
-    assert len(plan["days"][0]["activities"]) == 2
-    assert plan["days"][0]["activities"][0]["place"] == "浅草寺"
-    assert plan["days"][0]["activities"][1]["type"] == "dining"
-    assert plan["total_budget_estimate"] == "约 5000 元/人"
-    assert "雨天备选" in plan["notes"][0]
+    assert len(plan.days) == 2
+    assert plan.days[0].day == 1
+    assert plan.days[0].date == "2026-05-02"
+    assert len(plan.days[0].activities) == 2
+    assert plan.days[0].activities[0].place == "浅草寺"
+    assert plan.days[0].activities[1].type == "dining"
+    assert plan.total_budget_estimate == "约 5000 元/人"
+    assert "雨天备选" in plan.notes[0]
 
 
 @pytest.mark.priority("P0")
@@ -137,7 +137,7 @@ async def test_planner_writes_state():
         result = await planner_node(state)
 
     assert "plan_data" in result
-    assert result["plan_data"]["notes"][0] == "无足够数据生成行程"
+    assert result["plan_data"].notes[0] == "无足够数据生成行程"
 
 
 @pytest.mark.priority("P0")
@@ -202,7 +202,7 @@ async def test_planner_llm_error_graceful():
         result = await planner_node(state)
 
     assert "plan_data" in result
-    assert "失败" in result["plan_data"]["notes"][0]
+    assert "失败" in result["plan_data"].notes[0]
     assert result["execution_signs"].is_plan_complete is False
 
 
@@ -234,4 +234,4 @@ async def test_planner_multiple_days():
     ):
         result = await planner_node(state)
 
-    assert len(result["plan_data"]["days"]) == 7
+    assert len(result["plan_data"].days) == 7

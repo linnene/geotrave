@@ -60,7 +60,7 @@ async def query_generator_node(state: TravelState) -> Dict[str, Any]:
         tools_doc=tools_doc,
         format_instructions=format_instructions,
         history=history,
-        missing_fields=", ".join(state.get("missing_fields", [])) if state.get("missing_fields") else "无核心缺失",
+        missing_fields=", ".join(user_profile.all_missing_fields) if user_profile and user_profile.all_missing_fields else "无核心缺失",
         feedback=feedback_str,
         passed_queries=passed_queries_str,
     )

@@ -31,9 +31,8 @@ def _summarise_recommendation_data(state: TravelState) -> str:
         return "暂无"
     parts = []
     for dim, dim_data in rec.items():
-        items = dim_data.get("items", [])
-        names = [i.get("name", "") for i in items]
-        parts.append(f"{dim}({len(items)}): {', '.join(names[:3])}")
+        names = [i.name for i in dim_data.items]
+        parts.append(f"{dim}({len(dim_data.items)}): {', '.join(names[:3])}")
     return " | ".join(parts) if parts else "暂无"
 
 
@@ -68,11 +67,10 @@ async def manager_node(state: TravelState) -> Dict[str, Any]:
     trace_history_str = format_trace_history(trace_logs, 5)
 
     user_selections_raw = state.get("user_selections")
-    user_selections_str = (
-        json.dumps(user_selections_raw, ensure_ascii=False)
-        if user_selections_raw
-        else "无"
-    )
+    if user_selections_raw is not None:
+        user_selections_str = user_selections_raw.model_dump_json(indent=2) if isinstance(user_selections_raw, UserSelections) else json.dumps(user_selections_raw, ensure_ascii=False)
+    else:
+        user_selections_str = "无"
 
     research_matches_current = (
         research_history[-1] == user_request
@@ -131,14 +129,14 @@ async def manager_node(state: TravelState) -> Dict[str, Any]:
     # 硬守卫: needs_reselect=True 时禁止导向 planner
     if user_selections_raw:
         try:
-            sel = user_selections_raw if isinstance(user_selections_raw, dict) else {}
-            if sel.get("needs_reselect") and next_node == "planner":
+            sel = user_selections_raw if isinstance(user_selections_raw, UserSelections) else UserSelections(**user_selections_raw)
+            if sel.needs_reselect and next_node == "planner":
                 logger.warning(
                     "Manager override: needs_reselect=True, blocking planner (was: planner)"
                 )
                 reason = f"[硬守卫覆写] needs_reselect 为 True，禁止导向 planner。原决策: {next_node}"
                 next_node = "recommender"
-        except (AttributeError, TypeError):
+        except Exception:
             pass
 
     # 3. Issue Routing Command
@@ -167,9 +165,9 @@ async def manager_node(state: TravelState) -> Dict[str, Any]:
         "trace_history": [trace],
     }
 
-    # 写入用户选择到 state
+    # 写入用户选择到 state (直接存 UserSelections 模型)
     if user_selections is not None:
-        result["user_selections"] = user_selections
+        result["user_selections"] = user_selections if isinstance(user_selections, UserSelections) else UserSelections(**user_selections)
         result["execution_signs"] = (signs or ExecutionSigns()).model_copy(
             update={"is_selection_made": True}
         )

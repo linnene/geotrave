@@ -10,7 +10,7 @@ import time
 from typing import Any, Dict
 
 from src.agent.state import TravelState
-from src.agent.state.schema import ExecutionSigns, PlannerOutput, UserSelections
+from src.agent.state.schema import ExecutionSigns, PlannerOutput
 from src.utils.llm_factory import LLMFactory
 from src.utils.prompt import prompt
 from src.utils.logger import get_logger
@@ -34,18 +34,16 @@ def _summarise_recommendations(state: TravelState) -> str:
     dim_labels = {"destination": "目的地", "accommodation": "住宿", "dining": "餐饮"}
     lines = []
     for dim, label in dim_labels.items():
-        dim_data = rec_data.get(dim)
-        if dim_data:
-            items = dim_data.get("items", [])
-            if items:
-                lines.append(f"**{label}**:")
-                for item in items[:5]:
-                    rating = item.get("rating", "?")
-                    stars = "★" * int(rating) + ("☆" if rating - int(rating) >= 0.5 else "")
-                    lines.append(
-                        f"  - {item.get('name', 'N/A')} ({stars} {rating}/5): "
-                        f"{item.get('reason', '')[:120]}"
-                    )
+        dim_out = rec_data.get(dim)
+        if dim_out and dim_out.items:
+            lines.append(f"**{label}**:")
+            for item in dim_out.items[:5]:
+                rating = item.rating
+                stars = "★" * int(rating) + ("☆" if rating - int(rating) >= 0.5 else "")
+                lines.append(
+                    f"  - {item.name} ({stars} {rating}/5): "
+                    f"{item.reason[:120]}"
+                )
     if not lines:
         return "推荐数据为空"
     return "\n".join(lines)
@@ -53,11 +51,9 @@ def _summarise_recommendations(state: TravelState) -> str:
 
 def _summarise_user_selections(state: TravelState) -> str:
     """Build a summary of user selections that constrains Planner output."""
-    sel_data = state.get("user_selections")
-    if not sel_data:
+    se = state.get("user_selections")
+    if not se:
         return "用户尚未做出选择（由 Planner 从推荐中自由选取最优项）"
-
-    se = UserSelections(**sel_data) if isinstance(sel_data, dict) else sel_data
 
     # User delegated authority
     all_agent = all(
@@ -135,7 +131,7 @@ async def planner_node(state: TravelState) -> Dict[str, Any]:
     )
 
     return {
-        "plan_data": plan.model_dump(),
+        "plan_data": plan,
         "execution_signs": (state.get("execution_signs") or ExecutionSigns()).model_copy(
             update={"is_plan_complete": not plan_failed}
         ),

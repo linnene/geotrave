@@ -30,10 +30,7 @@ class RouteMetadata(BaseModel):
 
 
 class ExecutionSigns(BaseModel):
-    """跨节点信号面 — 各业务节点设置的布尔标记。
-
-    is_loop_exit 由 Hash 节点在子图退出时设置；目前已预留，尚未被条件边消费。
-    """
+    """跨节点信号面 — 各业务节点设置的布尔标记。"""
     is_safe: bool = Field(default=True, description="Gateway: input passed safety check")
     is_core_complete: bool = Field(default=False, description="Analyst: core profile fields sufficient")
     is_recommendation_complete: bool = Field(default=False, description="Recommender: all requested recommendation dimensions covered")
@@ -81,6 +78,12 @@ class UserProfile(BaseModel):
         description="Overflow for unstructured preferences not covered by named fields"
     )
 
+    # Analyst 写入的缺失字段列表，供 Reply/QG 读取，消除 TravelState 顶层字段
+    all_missing_fields: List[str] = Field(
+        default_factory=list,
+        description="All fields still missing from UserProfile; set by Analyst, consumed by Reply and QueryGenerator"
+    )
+
     # ------------------------------------------------------------------
     # Core-UserProfile 完备性审计
     # ------------------------------------------------------------------
@@ -94,6 +97,8 @@ class UserProfile(BaseModel):
         核心字段决定是否可启动调研:
             destination, days/date, people_count, budget_limit。
         完整缺失字段列表供 Reply 节点引导用户补充信息。
+
+        调用方应在调用后将 all_missing_fields 写入模型字段。
         """
         # 1. 核心字段 — 决定是否可启动调研
         core_missing: List[str] = []
@@ -110,8 +115,8 @@ class UserProfile(BaseModel):
 
         # 2. 全部字段 — 供 Reply 节点引导追问
         all_missing: List[str] = []
-        for field_name in self.model_fields.keys():
-            if field_name == "Flex":
+        for field_name in type(self).model_fields.keys():
+            if field_name in ("Flex", "all_missing_fields"):
                 continue
             val = getattr(self, field_name)
             if val is None or val == "" or val == [] or val == 0:

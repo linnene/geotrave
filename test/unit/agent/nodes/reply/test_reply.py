@@ -9,7 +9,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from langchain_core.messages import AIMessage, HumanMessage
 from src.agent.state import RouteMetadata
-from src.agent.state.schema import ExecutionSigns
+from src.agent.state.schema import ExecutionSigns, UserProfile, RecommenderOutput, RecommendationItem
 
 
 # =============================================================================
@@ -25,7 +25,7 @@ async def test_reply_guide_scenario():
 
     state = {
         "messages": [HumanMessage(content="我想去旅行")],
-        "missing_fields": ["destination", "days"],
+        "user_profile": UserProfile(all_missing_fields=["destination", "days"]),
         "user_request": "模糊旅行意向",
         "execution_signs": ExecutionSigns(is_safe=True),
     }
@@ -80,13 +80,14 @@ async def test_reply_recommend_scenario():
     state = {
         "messages": [HumanMessage(content="推荐目的地")],
         "recommendation_data": {
-            "destination": {
-                "items": [
-                    {"name": "东京", "features": "繁华", "reason": "热门", "rating": 4.5},
+            "destination": RecommenderOutput(
+                dimension="destination",
+                items=[
+                    RecommendationItem(name="东京", features="繁华", reason="热门", rating=4.5),
                 ],
-                "strategy": "综合评分排序",
-                "tip": "可尝试周边游",
-            }
+                strategy="综合评分排序",
+                tip="可尝试周边游",
+            ),
         },
         "execution_signs": ExecutionSigns(is_safe=True, recommended_dimensions=["destination"]),
         "user_request": "东京推荐",
@@ -115,7 +116,7 @@ async def test_reply_llm_error_fallback():
 
     state = {
         "messages": [HumanMessage(content="测试")],
-        "missing_fields": [],
+        "user_profile": UserProfile(),
         "user_request": "测试",
         "execution_signs": ExecutionSigns(is_safe=True),
     }

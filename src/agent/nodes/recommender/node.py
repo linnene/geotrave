@@ -99,9 +99,9 @@ async def recommender_node(state: TravelState) -> Dict[str, Any]:
     else:
         rec_failed = False
 
-    # 累积存储：按维度写入 recommendation_data
+    # 累积存储：按维度写入 recommendation_data (直接存模型，非 dict)
     existing_recs = state.get("recommendation_data") or {}
-    existing_recs[rec.dimension] = rec.model_dump()
+    existing_recs[rec.dimension] = rec
 
     # 追加已覆盖维度（仅在成功时标记维度已覆盖）
     new_dimensions = list(recommended_dimensions)

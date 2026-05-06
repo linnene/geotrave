@@ -82,31 +82,29 @@ def _get_recommend_context(state: TravelState) -> Dict[str, str]:
     current_dim = focus_hint
     if not current_dim:
         for dim in reversed(recommended_dims):
-            if dim in rec_data and rec_data[dim].get("items"):
+            dim_out = rec_data.get(dim)
+            if dim_out and dim_out.items:
                 current_dim = dim
                 break
     if not current_dim:
         for dim, data in rec_data.items():
-            if data.get("items"):
+            if data.items:
                 current_dim = dim
                 break
 
-    dim_data = rec_data.get(current_dim, {}) if current_dim else {}
-    items = dim_data.get("items", [])
-    strategy = dim_data.get("strategy", "")
-    tip = dim_data.get("tip", "")
+    dim_data = rec_data.get(current_dim) if current_dim else None
+    items = dim_data.items if dim_data else []
+    strategy = dim_data.strategy if dim_data else ""
+    tip = dim_data.tip if dim_data else ""
 
     item_lines = []
     for idx, item in enumerate(items, 1):
-        name = item.get("name", "")
-        features = item.get("features", "")
-        reason = item.get("reason", "")
-        rating = item.get("rating", 0)
+        rating = item.rating
         stars = "★" * int(rating) + ("☆" if rating - int(rating) >= 0.5 else "")
         item_lines.append(
-            f"  [{idx}] {name} | 评分: {stars} {rating}/5\n"
-            f"      亮点: {features}\n"
-            f"      推荐理由: {reason}"
+            f"  [{idx}] {item.name} | 评分: {stars} {rating}/5\n"
+            f"      亮点: {item.features}\n"
+            f"      推荐理由: {item.reason}"
         )
     items_text = "\n".join(item_lines) if item_lines else "（暂无推荐项）"
 
@@ -184,8 +182,8 @@ async def reply_node(state: TravelState) -> Dict[str, Any]:
 
     # --- Guide 分支 (existing logic) ---
     else:
-        missing_fields = state.get("missing_fields", [])
         current_profile = state.get("user_profile")
+        missing_fields = current_profile.all_missing_fields if current_profile else []
         user_request = state.get("user_request", "")
         messages = state.get("messages", [])
 

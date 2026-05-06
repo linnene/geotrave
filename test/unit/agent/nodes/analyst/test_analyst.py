@@ -71,7 +71,7 @@ async def test_analyst_missing_fields():
         result = await analyst_node(state)
 
     assert result["execution_signs"].is_core_complete is False
-    assert len(result["missing_fields"]) > 0
+    assert len(result["user_profile"].all_missing_fields) > 0
 
 
 @pytest.mark.priority("P0")

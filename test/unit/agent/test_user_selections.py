@@ -7,7 +7,7 @@ Priority: P0 — User selection flow correctness
 
 import pytest
 
-from src.agent.state.schema import UserSelections
+from src.agent.state.schema import UserSelections, RecommenderOutput, RecommendationItem
 
 
 # =============================================================================
@@ -91,11 +91,11 @@ def test_summarise_user_selections_all_agent_choice():
     from src.agent.nodes.planner.node import _summarise_user_selections
 
     state = {
-        "user_selections": {
-            "chosen_destination": "agent_choice",
-            "chosen_accommodation": "agent_choice",
-            "chosen_dining": "agent_choice",
-        }
+        "user_selections": UserSelections(
+            chosen_destination="agent_choice",
+            chosen_accommodation="agent_choice",
+            chosen_dining="agent_choice",
+        ),
     }
     result = _summarise_user_selections(state)
     assert "随便" in result or "都行" in result or "自由选取" in result
@@ -107,11 +107,11 @@ def test_summarise_user_selections_specific():
     from src.agent.nodes.planner.node import _summarise_user_selections
 
     state = {
-        "user_selections": {
-            "chosen_destination": "京都",
-            "chosen_accommodation": "agent_choice",
-            "chosen_dining": "祇园怀石料理",
-        }
+        "user_selections": UserSelections(
+            chosen_destination="京都",
+            chosen_accommodation="agent_choice",
+            chosen_dining="祇园怀石料理",
+        ),
     }
     result = _summarise_user_selections(state)
     assert "京都" in result
@@ -141,9 +141,9 @@ def test_summarise_recommendation_data_with_content():
 
     state = {
         "recommendation_data": {
-            "destination": {"dimension": "destination", "items": [{"name": "东京", "features": "...", "reason": "...", "rating": 4.5}], "strategy": "...", "tip": "..."},
-            "accommodation": {"dimension": "accommodation", "items": [{"name": "浅草民宿", "features": "...", "reason": "...", "rating": 4.0}, {"name": "新宿酒店", "features": "...", "reason": "...", "rating": 4.0}], "strategy": "...", "tip": "..."},
-            "dining": {"dimension": "dining", "items": [{"name": "寿司店", "features": "...", "reason": "...", "rating": 3.5}, {"name": "拉面店", "features": "...", "reason": "...", "rating": 4.0}, {"name": "天妇罗店", "features": "...", "reason": "...", "rating": 4.5}], "strategy": "...", "tip": "..."},
+            "destination": RecommenderOutput(dimension="destination", items=[RecommendationItem(name="东京", features="...", reason="...", rating=4.5)], strategy="...", tip="..."),
+            "accommodation": RecommenderOutput(dimension="accommodation", items=[RecommendationItem(name="浅草民宿", features="...", reason="...", rating=4.0), RecommendationItem(name="新宿酒店", features="...", reason="...", rating=4.0)], strategy="...", tip="..."),
+            "dining": RecommenderOutput(dimension="dining", items=[RecommendationItem(name="寿司店", features="...", reason="...", rating=3.5), RecommendationItem(name="拉面店", features="...", reason="...", rating=4.0), RecommendationItem(name="天妇罗店", features="...", reason="...", rating=4.5)], strategy="...", tip="..."),
         }
     }
     result = _summarise_recommendation_data(state)

@@ -8,7 +8,7 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from src.agent.state import ExecutionSigns, ResearchManifest, RouteMetadata
-from src.agent.state.schema import CriticResult, ResearchLoopInternal
+from src.agent.state.schema import CriticResult, ResearchLoopInternal, RecommenderOutput, RecommendationItem
 
 
 # =============================================================================
@@ -52,10 +52,11 @@ async def test_recommender_single_dimension_output():
     rec_data = result["recommendation_data"]
     assert isinstance(rec_data, dict)
     assert "destination" in rec_data
-    assert rec_data["destination"]["dimension"] == "destination"
-    assert len(rec_data["destination"]["items"]) == 1
-    assert rec_data["destination"]["items"][0]["name"] == "东京"
-    assert rec_data["destination"]["items"][0]["rating"] == 4.5
+    dst_out = rec_data["destination"]
+    assert dst_out.dimension == "destination"
+    assert len(dst_out.items) == 1
+    assert dst_out.items[0].name == "东京"
+    assert dst_out.items[0].rating == 4.5
 
     # Should append dimension, NOT set is_recommendation_complete
     signs = result["execution_signs"]
@@ -77,7 +78,7 @@ async def test_recommender_second_dimension():
         "execution_signs": ExecutionSigns(recommended_dimensions=["destination"]),
         "route_metadata": RouteMetadata(next_node="recommender", reason="test", focus_dimension="accommodation"),
         "recommendation_data": {
-            "destination": {"dimension": "destination", "items": [{"name": "东京", "features": "...", "reason": "...", "rating": 4.5}], "strategy": "...", "tip": "..."},
+            "destination": RecommenderOutput(dimension="destination", items=[RecommendationItem(name="东京", features="...", reason="...", rating=4.5)], strategy="...", tip="..."),
         },
     }
 
@@ -102,9 +103,9 @@ async def test_recommender_second_dimension():
     rec_data = result["recommendation_data"]
     assert "destination" in rec_data  # preserved
     assert "accommodation" in rec_data  # new
-    assert len(rec_data["destination"]["items"]) == 1
-    assert len(rec_data["accommodation"]["items"]) == 1
-    assert rec_data["accommodation"]["items"][0]["name"] == "浅草民宿"
+    assert len(rec_data["destination"].items) == 1
+    assert len(rec_data["accommodation"].items) == 1
+    assert rec_data["accommodation"].items[0].name == "浅草民宿"
 
     signs = result["execution_signs"]
     assert signs.recommended_dimensions == ["destination", "accommodation"]
@@ -170,7 +171,7 @@ async def test_recommender_empty_research_data():
 
     assert "recommendation_data" in result
     assert "destination" in result["recommendation_data"]
-    assert result["recommendation_data"]["destination"]["items"] == []
+    assert result["recommendation_data"]["destination"].items == []
     assert result["execution_signs"].recommended_dimensions == ["destination"]
 
 
@@ -202,5 +203,5 @@ async def test_recommender_llm_error_graceful():
 
     rec_data = result["recommendation_data"]
     dim = list(rec_data.keys())[0]
-    assert "失败" in rec_data[dim]["strategy"]
-    assert rec_data[dim]["items"] == []
+    assert "失败" in rec_data[dim].strategy
+    assert rec_data[dim].items == []

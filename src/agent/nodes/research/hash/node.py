@@ -15,7 +15,6 @@ from typing import Any, Dict, List
 from src.agent.state import TravelState
 from src.agent.state.schema import (
     CriticResult,
-    ExecutionSigns,
     ResearchLoopInternal,
 )
 from src.database.retrieval_db import batch_store_results
@@ -138,7 +137,6 @@ async def hash_node(state: TravelState) -> Dict[str, Any]:
             detail={"reason": "all_passed_results 为空"},
         )
         return {
-            "execution_signs": (state.get("execution_signs") or ExecutionSigns()).model_copy(update={"is_loop_exit": True}),
             "trace_history": [trace],
         }
 
@@ -187,6 +185,5 @@ async def hash_node(state: TravelState) -> Dict[str, Any]:
 
     return {
         "research_data": new_research_data,
-        "execution_signs": (state.get("execution_signs") or ExecutionSigns()).model_copy(update={"is_loop_exit": True}),
         "trace_history": [trace],
     }

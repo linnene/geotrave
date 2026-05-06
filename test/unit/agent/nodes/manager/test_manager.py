@@ -7,7 +7,7 @@ Priority: P0 — Central routing brain
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from src.agent.state.schema import ExecutionSigns, ResearchManifest, ResearchLoopInternal
+from src.agent.state.schema import ExecutionSigns, ResearchManifest, ResearchLoopInternal, UserSelections
 
 
 # =============================================================================
@@ -112,7 +112,7 @@ async def test_manager_needs_reselect_blocks_planner():
         "execution_signs": signs,
         "messages": [],
         "user_request": "换一批",
-        "user_selections": {"needs_reselect": True, "reselection_feedback": "太贵了"},
+        "user_selections": UserSelections(needs_reselect=True, reselection_feedback="太贵了"),
     }
 
     mock_llm = MagicMock()

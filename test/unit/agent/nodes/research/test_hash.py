@@ -161,7 +161,7 @@ async def test_hash_node_empty_skips():
 @pytest.mark.priority("P0")
 @pytest.mark.asyncio
 async def test_hash_node_persists_and_exposes_hashes():
-    """验证持久化 + research_hashes 写入 + is_loop_exit 设置。"""
+    """验证持久化 + research_hashes 写入。"""
     from src.agent.nodes.research.hash.node import hash_node
 
     passed = [

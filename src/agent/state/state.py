@@ -10,45 +10,44 @@ references, metadata, and control flags.
 """
 
 from operator import add
-from typing import Annotated, Any, Dict, List, Optional, TypedDict
+from typing import Annotated, Dict, List, Optional, TypedDict
 from langgraph.graph.message import add_messages
 from langchain_core.messages import BaseMessage
-from src.agent.state.schema import UserProfile, ResearchManifest, RouteMetadata, TraceLog, ExecutionSigns
+from src.agent.state.schema import (
+    UserProfile, ResearchManifest, RouteMetadata, TraceLog,
+    ExecutionSigns, RecommenderOutput, PlannerOutput, UserSelections,
+)
 
 class TravelState(TypedDict):
     """
     Agent 2.0 Global Blackboard State.
-    
-    Attributes:
-        messages: Full conversation history, using add_messages for automatic appending.
-        user_profile: Structured constraints and preferences extracted by the Analyst.
-        research_data: Status of the current research loop, including queries and KV hashes.
-        execution_signs: Signal plane for cross-node coordination (is_safe, is_complete, etc.)
-        route_metadata: Global routing instructions issued ONLY by Manager.
-        trace_history: Audit trail of node executions for observability and debugging.
-        needs_exit: Global termination signal.
+
+    字段权限: 每个字段有且仅有一个写入节点。读取权限见 STATE_SPEC.md。
     """
-    # [Conversation & Context]
+
+    # ── 对话上下文 ─────────────────────────────────────────
     messages: Annotated[List[BaseMessage], add_messages]
-    research_data: ResearchManifest
-    
-    # [Structured Business Data]
+
+    # ── 业务数据 (Analyst 写入) ────────────────────────────
     user_profile: UserProfile
     user_request: str
-    missing_fields: List[str]
 
-    # [Delivery Data — Recommender & Planner outputs]
-    recommendation_data: Optional[Dict[str, Any]]
-    plan_data: Optional[Dict[str, Any]]
-    # [User Interaction State — selections from recommendation list]
-    user_selections: Optional[Dict[str, Any]]
-    
-    # [Orchestration & Control]
+    # ── 调研状态 (Research Loop 写入, Manager reset) ───────
+    research_data: ResearchManifest
+
+    # ── 交付数据 ──────────────────────────────────────────
+    recommendation_data: Optional[Dict[str, RecommenderOutput]]
+    plan_data: Optional[PlannerOutput]
+
+    # ── 用户交互 (Manager 写入) ────────────────────────────
+    user_selections: Optional[UserSelections]
+
+    # ── 控制面 ────────────────────────────────────────────
     route_metadata: RouteMetadata
     execution_signs: ExecutionSigns
-    
-    # [Observability & Audit]
+
+    # ── 可观测性 ──────────────────────────────────────────
     trace_history: Annotated[List[TraceLog], add]
-    
-    # [Safety & Signals]
+
+    # ── 终止信号 (Gateway 写入) ────────────────────────────
     needs_exit: bool
