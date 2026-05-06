@@ -4,10 +4,10 @@ Responsibility: Search node constants — browser pool, crawl concurrency, and t
 """
 
 # Browser pool — each instance owns its own Chromium process
-POOL_SIZE = 3
+POOL_SIZE = 5
 
 # Maximum concurrent crawl tasks
-MAX_CRAWL_CONCURRENCY = 2
+MAX_CRAWL_CONCURRENCY = 4
 
-# Default crawl timeout in seconds
-DEFAULT_CRAWL_TIMEOUT = 60.0
+# Default crawl timeout in seconds (reduced from 60 — pages >20s are useless for travel)
+DEFAULT_CRAWL_TIMEOUT = 20.0

@@ -151,6 +151,13 @@ _QUERY_GENERATOR_TEMPLATE = """你现在是 GeoTrave 项目的【研究方案规
   - 景点/公园/博物馆/寺庙/神社 → category="attraction"
   - 车站/机场/地铁/港口 → category="transport"
 
+**聚焦维度下 category 自动对应**（spatial_search 的 category 必须匹配 focus_dimension）：
+- focus_dimension="attraction" → category 仅用 "attraction"
+- focus_dimension="accommodation" → category 仅用 "hotel"
+- focus_dimension="dining" → category 仅用 "restaurant"
+- focus_dimension="transportation" → category 仅用 "transport"
+- 其他维度（weather/general/policy）不生成 spatial_search
+
 ### 工具使用指南
 - **spatial_search**: 查询地点附近 POI。center 优先取 UserProfile.destination 或 Flex 中的地名，radius_m 按场景推断（步行 500-1000m，市内 2000-5000m，广域 10000m+）。
 - **route_search**: 计算两点最短路径或等时圈范围。origin/destination 优先用 destination 中的地名。shortest 模式需 origin + destination，isochrone 模式需 origin + isochrone_minutes。
@@ -162,10 +169,11 @@ _QUERY_GENERATOR_TEMPLATE = """你现在是 GeoTrave 项目的【研究方案规
 聚焦方向提示: {focus_hint}
 
 **维度聚焦模式**（focus_dimension ≠ "无"时生效）：
-- 你**只能**生成聚焦维度内的 SearchTask，严禁扩展到其他维度
+- 你**只能**生成聚焦维度内的 SearchTask，严禁扩展到其他维度（收到 Critic 反馈要求更多结果时也不得越界）
 - 在聚焦维度内生成 1-3 个精准任务即可，不必追求多维度覆盖
 - 任务的 dimension 字段必须与 focus_dimension 一致
 - `research_strategy` 使用前缀标注，如 "[attraction] 搜索北海道滑雪场"
+- **地点锁定**：spatial_search 的 center 和 route_search 的 origin/destination **必须**使用 UserProfile.destination 中的地名，禁止自行替换为其他城市或地区
 
 **全维度模式**（focus_dimension = "无"时生效）：
 - 按常规多维度逻辑生成 SearchTask，覆盖用户需要的所有维度

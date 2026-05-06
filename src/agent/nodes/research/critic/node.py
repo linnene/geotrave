@@ -34,6 +34,7 @@ from .config import (
     CRITIC_BATCH_SIZE,
     CRITIC_TEMPERATURE,
     MAX_LOOPS,
+    MAX_LOOPS_FOCUSED,
     MAX_TOKENS,
     MIN_SCORE_THRESHOLD,
     PASS_COUNT_MIN,
@@ -290,11 +291,12 @@ def should_continue_loop(
     total_passed_count: int,
     llm_continue_loop: bool,
     loop_iter: int,
+    max_iterations: int = MAX_LOOPS,
 ) -> Tuple[bool, str]:
     """混合退出判断（按优先级依次检查）。
 
     退出条件（满足任一即退出）:
-    1. loop_iter >= MAX_LOOPS → 硬上限，强制退出
+    1. loop_iter >= max_iterations → 硬上限，强制退出
     2. total_passed_count >= ACCUMULATED_HARD_MAX → 累积结果充足，强制退出
     3. not llm_continue_loop AND total_passed_count >= ACCUMULATED_MIN
        → LLM 认为充分且累积量达标，退出
@@ -304,8 +306,8 @@ def should_continue_loop(
     Returns:
         (continue_loop, reason)
     """
-    if loop_iter >= MAX_LOOPS:
-        return False, f"达到最大迭代轮次 {MAX_LOOPS}"
+    if loop_iter >= max_iterations:
+        return False, f"达到最大迭代轮次 {max_iterations}"
 
     if total_passed_count >= ACCUMULATED_HARD_MAX:
         return False, (
@@ -407,13 +409,15 @@ async def critic_node(state: TravelState) -> Dict[str, Any]:
     query_results_raw = loop_state.query_results
     total_count = len(query_results_raw)
 
+    max_iter = MAX_LOOPS_FOCUSED if focus_dim else MAX_LOOPS
+
     if total_count == 0:
         logger.info("%sCritic: no results to evaluate, skipping", dim_tag)
-        # 递增 loop_iteration 防止死循环（MAX_LOOPS 兜底）
+        # 递增 loop_iteration 防止死循环（max_iter 兜底）
         new_loop_state = loop_state.model_copy(
             update={
                 "loop_iteration": loop_state.loop_iteration + 1,
-                "continue_loop": loop_state.loop_iteration + 1 < MAX_LOOPS,
+                "continue_loop": loop_state.loop_iteration + 1 < max_iter,
             }
         )
         updated = research_data.model_copy(update={"loop_state": new_loop_state})
@@ -483,7 +487,7 @@ async def critic_node(state: TravelState) -> Dict[str, Any]:
     # --- 循环退出决策 ---
     loop_iter = loop_state.loop_iteration
     continue_loop, exit_reason = should_continue_loop(
-        total_passed_count, llm_continue_loop, loop_iter
+        total_passed_count, llm_continue_loop, loop_iter, max_iterations=max_iter
     )
 
     # --- 更新累计通过 ---

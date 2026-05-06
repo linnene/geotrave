@@ -9,6 +9,9 @@ PASS_COUNT_MIN = 3
 # 硬上限: 无论 LLM 如何决策，最多迭代 N 轮后强制退出
 MAX_LOOPS = 2
 
+# 聚焦维度模式下最多迭代 N 轮（单维度不需多轮）
+MAX_LOOPS_FOCUSED = 1
+
 # 评分任务需低温度以保证一致性
 CRITIC_TEMPERATURE = 0.3
 
