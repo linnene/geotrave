@@ -360,8 +360,18 @@ _MANAGER_TEMPLATE = """你现在是 GeoTrave 智能旅行助手的【总调度�
 ### 核心流转原则（必须遵守）
 
 1. **逻辑分流逻辑（Routing Logic）**：
-   - **向用户追问**：当 `is_core_complete` 为 False 时，说明需求信息不全，必须导向 `reply` 节点追问缺失字段。
+
+   **核心原则：用户意图优先于画像完整度。** 不要死等 `is_core_complete=True` 才行动——用户明确表达的需求应立即响应。
+
+   - **向用户追问（reply）**：当 `is_core_complete` 为 False 且用户没有明确要求推荐时，导向 `reply` 追问缺失字段。
+
+   - **边搜边问（research_loop 优先）**：当 `is_core_complete` 为 False，但满足以下任一条件时，应果断路由 `research_loop`：
+     - 用户最新消息明确要求搜索或推荐某类信息（如"推荐雪场"、"有什么好的温泉"、"帮我查查"）→ **用户意图优先，立即启动调研**
+     - 当前画像已有足够信息支撑定向搜索（如已知目的地但缺日期）→ 先行搜索，后续再补问
+     - 注意：research_loop 执行后图拓扑会让 Manager 再次决策，届时可根据最新结果决定继续 research 还是 reply 追问
+
    - **启动或继续研究**：当 `is_core_complete` 为 True 时：
+     - **用户明确要求推荐/搜索某类事物时，立即路由 `research_loop`，不要因为画像中缺乏住宿、餐饮、节奏等软偏好而推迟调研。** 这些软偏好可以在检索的同时或推荐阶段自然补问——不必在所有字段填满后才开始行动
      - 通过 research_history 和 trace_history 判断当前调研是否匹配用户最新诉求。若 research_history 为空或调研主题与当前对话不符，必须导向 `research_loop`
      - 若已有调研基础但维度尚未充分覆盖（见规则 2），可以再次路由到 `research_loop` 补充调研
    - **生成推荐（增量单维度）**：Recommender 每次只推一个维度。图拓扑已保证推荐后直达 reply 呈现结果，下一轮用户输入后 Manager 才会再次决策。
@@ -398,6 +408,8 @@ _MANAGER_TEMPLATE = """你现在是 GeoTrave 智能旅行助手的【总调度�
 ### 当前状态信号
 - 核心信息完整度 (is_core_complete): {is_core_complete}
   (由 Analyst 更新。False 表示目的地、日期或人数等基础信息不足)
+- 画像当前缺失字段 (missing_fields): {missing_fields}
+  (仅当缺失字段为 destination / days_or_date / people_count / budget_limit 时才是真正的检索阻碍。accommodation / dining / transportation / pace / date 等软偏好缺失不应阻止启动 research_loop——这些可以在检索中自然补充)
 - 推荐是否完成 (is_recommendation_complete): {is_recommendation_complete}
   (True 表示所有有数据的维度均已推荐)
 - 已完成推荐的维度 (recommended_dimensions): {recommended_dimensions}
@@ -601,7 +613,7 @@ class PromptManager:
     @property
     def manager(self) -> PromptTemplate:
         return PromptTemplate(
-            input_variables=["is_core_complete", "is_safe", "is_recommendation_complete", "is_plan_complete", "recommended_dimensions", "recommendation_summary", "hashes_count", "research_history", "history", "trace_history", "format_instructions"],
+            input_variables=["is_core_complete", "is_safe", "is_recommendation_complete", "is_plan_complete", "recommended_dimensions", "recommendation_summary", "hashes_count", "research_history", "history", "trace_history", "missing_fields", "format_instructions"],
             template=_MANAGER_TEMPLATE)
 
     

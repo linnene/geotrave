@@ -63,6 +63,9 @@ async def manager_node(state: TravelState) -> Dict[str, Any]:
     trace_logs = state.get("trace_history", [])
     trace_history_str = format_trace_history(trace_logs, 5)
 
+    user_profile = state.get("user_profile")
+    missing_fields = getattr(user_profile, 'all_missing_fields', []) or [] if user_profile else []
+
     # 2. LLM Orchestration
     prompt_str = prompt.manager.format(
         is_safe=is_safe,
@@ -75,6 +78,7 @@ async def manager_node(state: TravelState) -> Dict[str, Any]:
         research_history=research_history if research_history else "[]",
         history=history,
         trace_history=trace_history_str,
+        missing_fields=", ".join(missing_fields) if missing_fields else "无",
         format_instructions=parser.get_format_instructions()
     )
 
