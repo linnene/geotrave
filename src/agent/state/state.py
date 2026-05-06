@@ -15,7 +15,7 @@ from langgraph.graph.message import add_messages
 from langchain_core.messages import BaseMessage
 from src.agent.state.schema import (
     UserProfile, ResearchManifest, RouteMetadata, TraceLog,
-    ExecutionSigns, RecommenderOutput, PlannerOutput, UserSelections,
+    ExecutionSigns, RecommenderOutput, PlannerOutput,
 )
 
 class TravelState(TypedDict):
@@ -37,9 +37,6 @@ class TravelState(TypedDict):
     # ── 交付数据 ──────────────────────────────────────────
     recommendation_data: Optional[Dict[str, RecommenderOutput]]
     plan_data: Optional[PlannerOutput]
-
-    # ── 用户交互 (Manager 写入) ────────────────────────────
-    user_selections: Optional[UserSelections]
 
     # ── 控制面 ────────────────────────────────────────────
     route_metadata: RouteMetadata

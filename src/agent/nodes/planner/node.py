@@ -49,32 +49,6 @@ def _summarise_recommendations(state: TravelState) -> str:
     return "\n".join(lines)
 
 
-def _summarise_user_selections(state: TravelState) -> str:
-    """Build a summary of user selections that constrains Planner output."""
-    se = state.get("user_selections")
-    if not se:
-        return "用户尚未做出选择（由 Planner 从推荐中自由选取最优项）"
-
-    # User delegated authority
-    all_agent = all(
-        (getattr(se, f, None) == "agent_choice" or getattr(se, f, None) is None)
-        for f in ["chosen_destination", "chosen_accommodation", "chosen_dining"]
-    )
-    if all_agent and not se.needs_reselect:
-        return "用户表示'随便/都行'，由 Planner 从推荐中自由选取最优项"
-
-    lines = ["**用户已做出以下选择，Planner 必须严格遵守**:"]
-    if se.chosen_destination and se.chosen_destination != "agent_choice":
-        lines.append(f"- 目的地: {se.chosen_destination}")
-    elif se.chosen_destination == "agent_choice":
-        lines.append("- 目的地: 用户放弃选择权，从推荐中选最优")
-    if se.chosen_accommodation and se.chosen_accommodation != "agent_choice":
-        lines.append(f"- 住宿: {se.chosen_accommodation}")
-    if se.chosen_dining and se.chosen_dining != "agent_choice":
-        lines.append(f"- 餐饮: {se.chosen_dining}")
-    return "\n".join(lines)
-
-
 async def planner_node(state: TravelState) -> Dict[str, Any]:
     start_time = time.time()
     logger.info("Planner — generating day-by-day itinerary...")
@@ -86,7 +60,6 @@ async def planner_node(state: TravelState) -> Dict[str, Any]:
     history = format_recent_history(messages, HISTORY_LIMIT)
     research_summary = await fetch_research_content(research_manifest)
     rec_summary = _summarise_recommendations(state)
-    sel_summary = _summarise_user_selections(state)
     profile_json = user_profile.model_dump_json(indent=2, ensure_ascii=False) if user_profile else "{}"
 
     prompt_str = prompt.planner.format(
@@ -95,7 +68,6 @@ async def planner_node(state: TravelState) -> Dict[str, Any]:
         user_profile=profile_json,
         research_summary=research_summary,
         recommendations=rec_summary,
-        user_selections=sel_summary,
         format_instructions=parser.get_format_instructions(),
     )
 

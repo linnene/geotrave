@@ -375,12 +375,11 @@ _MANAGER_TEMPLATE = """你现在是 GeoTrave 智能旅行助手的【总调度�
      - 若某维度检索数据不足，跳过该维度
      **用户明确请求某维度时（用户意图优先）**：
      - 若用户最新消息明确要求特定维度的推荐（"推荐餐厅"→dining，"住哪里"→accommodation，"去哪玩"→destination，"有什么好玩的"→attraction，"买什么"→shopping 等），必须在输出中设置 `focus_dimension` 为对应维度，然后路由 `recommender`
-   - **检测用户选择**：当 `recommended_dimensions` 非空时，分析用户最新消息判断用户是否在回应已呈现的推荐：
-     - 若用户表达了选择（如"选1号"、"第二家不错"、"目的地选A"），在 `user_selections` 中填写对应维度字段（如 chosen_destination），设置 `is_selection_made=True`
-     - 若用户不满意（"不满意"、"换一批"、"有没有更便宜的"），设置 `needs_reselect=True`，填入 `reselection_feedback`，路由 `recommender` 重新推荐
-     - 若用户放弃选择（"随便"、"都行"、"你定"），对应字段填 `"agent_choice"`
+   - **响应用户反馈**：当 `recommended_dimensions` 非空时，分析用户最新消息：
+     - 若用户不满意（"不满意"、"换一批"、"有没有更便宜的"），路由 `recommender` 重新推荐
+     - 若用户表达了偏好或新的需求方向，据此调整后续推荐或调研策略
      - 若用户完全换了话题/目的地 → 正常新查询，路由 `research_loop`
-   - **生成行程**：当 `is_selection_made` 为 True 且 `is_plan_complete` 为 False 时，导向 `planner`
+   - **生成行程**：推荐覆盖充分且用户满意后，导向 `planner`
    - **交付结果**：当 `is_plan_complete` 为 True 时，导向 `reply` 向用户呈现最终方案
 
 2. **调研充分性判定（Research Adequacy）**：
@@ -403,14 +402,10 @@ _MANAGER_TEMPLATE = """你现在是 GeoTrave 智能旅行助手的【总调度�
   (True 表示所有有数据的维度均已推荐)
 - 已完成推荐的维度 (recommended_dimensions): {recommended_dimensions}
   (已在 Recommender 中完成的维度列表。当某维度不在其中且有数据支撑时，可路由推荐)
-- 用户选择状态 (user_selections): {user_selections}
-  (各维度用户选择情况。若 recommended_dimensions 中某维度对应的 chosen_* 字段为 None，表示该维度正在等待用户选择)
 - 行程是否完成 (is_plan_complete): {is_plan_complete}
   (由 Planner 更新。True 表示每日行程已生成)
-- 用户是否已做选择 (is_selection_made): {is_selection_made}
-  (由 Manager 在用户选择推荐项后设置。True 表示已提取用户选择)
 - 已生成的推荐摘要: {recommendation_summary}
-  (当前已累积的推荐列表。当 is_recommendation_complete=True 且 is_selection_made=False 时，据此判断用户消息是否为选择/拒绝/重推)
+  (当前已累积的推荐列表，据此判断是否需补充推荐或用户反馈)
 - 最近一轮调研结果数: {hashes_count} 条
   (Research Loop 最近一次输出的调研结果数，不等同于全局调研总量)
 - 已完成调研的策略历史 (research_history): {research_history}
@@ -534,10 +529,7 @@ _PLANNER_TEMPLATE = """你现在是 GeoTrave 行程规划专家 (Planner)。
 - 景点之间的交通时间需合理估算
 - 如果用户偏好中有节奏要求（pace），据此调整每天的活动密度
 - 预算有限时，优先推荐免费/低价景点，标注节省开支的选择
-- **必须遵守用户选择**：下方的【用户选择】字段指定了用户挑选的目的地/住宿/餐饮
-  - 如果用户指定了具体名称，行程中必须使用这些选项，不得替换
-  - 如果用户标注了 "agent_choice"（放弃选择权），从推荐中自由挑选最优项
-  - 如果用户未做任何选择，表示尚未进入选择阶段，从推荐中自由选取
+- **从推荐中选取**：从下方的【推荐结果】中自由挑选最优项用于行程安排
 
 ### 输出格式
 {format_instructions}
@@ -554,9 +546,6 @@ _PLANNER_TEMPLATE = """你现在是 GeoTrave 行程规划专家 (Planner)。
 
 【推荐结果】
 {recommendations}
-
-【用户选择 — 必须遵守】
-{user_selections}
 """
 
 
@@ -612,7 +601,7 @@ class PromptManager:
     @property
     def manager(self) -> PromptTemplate:
         return PromptTemplate(
-            input_variables=["is_core_complete", "is_safe", "is_recommendation_complete", "is_plan_complete", "is_selection_made", "recommended_dimensions", "recommendation_summary", "hashes_count", "research_history", "history", "trace_history", "user_selections", "format_instructions"],
+            input_variables=["is_core_complete", "is_safe", "is_recommendation_complete", "is_plan_complete", "recommended_dimensions", "recommendation_summary", "hashes_count", "research_history", "history", "trace_history", "format_instructions"],
             template=_MANAGER_TEMPLATE)
 
     
@@ -638,7 +627,7 @@ class PromptManager:
     @property
     def planner(self) -> PromptTemplate:
         return PromptTemplate(
-            input_variables=["current_time", "history", "user_profile", "research_summary", "recommendations", "user_selections", "format_instructions"],
+            input_variables=["current_time", "history", "user_profile", "research_summary", "recommendations", "format_instructions"],
             template=_PLANNER_TEMPLATE)
 
 

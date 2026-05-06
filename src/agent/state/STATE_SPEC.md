@@ -16,11 +16,10 @@
 | 3 | `research_data` | `ResearchManifest` | 调研状态 | Manager (reset), QG, Search, Critic, Hash | Manager, Recommender, Planner, Reply (via research_loader) |
 | 4 | `recommendation_data` | `Optional[Dict[str, RecommenderOutput]]` | 交付数据 | Recommender | Manager, Recommender, Planner, Reply |
 | 5 | `plan_data` | `Optional[PlannerOutput]` | 交付数据 | Planner | API response only |
-| 6 | `user_selections` | `Optional[UserSelections]` | 用户交互 | Manager | Manager, Planner |
-| 7 | `route_metadata` | `RouteMetadata` | 控制面 | Manager | manager_router, Recommender, Reply |
-| 8 | `execution_signs` | `ExecutionSigns` | 控制面 | Gateway, Analyst, Manager, Recommender, Planner | Manager, Recommender, Reply |
-| 9 | `trace_history` | `Annotated[List[TraceLog], add]` | 可观测性 | 全部节点 | Manager, Reply |
-| 10 | `needs_exit` | `bool` | 控制面 | Gateway | Reply (_detect_scenario) |
+| 6 | `route_metadata` | `RouteMetadata` | 控制面 | Manager | manager_router, Recommender, Reply |
+| 7 | `execution_signs` | `ExecutionSigns` | 控制面 | Gateway, Analyst, Manager, Recommender, Planner | Manager, Recommender, Reply |
+| 8 | `trace_history` | `Annotated[List[TraceLog], add]` | 可观测性 | 全部节点 | Manager, Reply |
+| 9 | `needs_exit` | `bool` | 控制面 | Gateway | Reply (_detect_scenario) |
 
 ### 1.2 字段详细说明
 
@@ -81,10 +80,10 @@
 - **写入者**: **Planner** (独占写入 —— 直接存储 `PlannerOutput` 模型)
 - **读取者**: API response only (`chat.py` 返回给前端)
 
-#### user_selections — 用户选择
-- **类型**: `Optional[UserSelections]`
-- **写入者**: **Manager** (直接从 LLM 输出的 `UserSelections` 模型写入)
-- **读取者**: Manager (hard guard: needs_reselect 检查), Planner (选择摘要)
+#### user_selections — 已移除
+
+`user_selections` 不再作为 TravelState 字段存在。用户选择功能将在前端实现（按钮式结构化选择），不再由 Manager 从自然语言中提取。
+同时移除 `ExecutionSigns.is_selection_made` 字段和 `ManagerOutput.user_selections` 字段。
 
 #### route_metadata — 路由指令
 - **类型**: `RouteMetadata`
@@ -93,14 +92,13 @@
 
 #### execution_signs — 跨节点信号面
 - **类型**: `ExecutionSigns`
-- **写入者**: Gateway (`is_safe`), Analyst (`is_core_complete`), Manager (`is_selection_made`), Recommender (`recommended_dimensions`, `is_recommendation_complete`), Planner (`is_plan_complete`)
+- **写入者**: Gateway (`is_safe`), Analyst (`is_core_complete`), Recommender (`recommended_dimensions`, `is_recommendation_complete`), Planner (`is_plan_complete`)
 - **读取者**: Manager (全部字段), Recommender (`recommended_dimensions`), Reply (`is_safe`, `recommended_dimensions`)
 - **字段清单**:
   - `is_safe: bool` — Gateway 写入，默认 True
   - `is_core_complete: bool` — Analyst 写入，默认 False
   - `is_recommendation_complete: bool` — Recommender 写入，默认 False
   - `is_plan_complete: bool` — Planner 写入，默认 False
-  - `is_selection_made: bool` — Manager 写入，默认 False
   - `recommended_dimensions: List[str]` — Recommender 写入，默认 []
 
 #### trace_history — 审计轨迹
@@ -144,7 +142,7 @@ Schema 已按领域拆分为 5 个子模块，位于 `src/agent/state/schema/`�
 |------|------|---------|
 | `GatewayOutput` | Gateway LLM 结构化输出 | Gateway → 自身解析后写入 State |
 | `AnalystOutput` | Analyst LLM 结构化输出 | Analyst → 自身解析后写入 State |
-| `ManagerOutput` | Manager LLM 结构化输出 | Manager → 提取 route_metadata + user_selections |
+| `ManagerOutput` | Manager LLM 结构化输出 | Manager → 提取 route_metadata + focus_dimension |
 | `QueryGeneratorOutput` | QG LLM 结构化输出 | QG → 提取 tasks 写入 loop_state |
 
 ### 2.4 研究循环 (`research.py`)
@@ -161,7 +159,6 @@ Schema 已按领域拆分为 5 个子模块，位于 `src/agent/state/schema/`�
 
 | 模型 | 用途 | 写入者 |
 |------|------|--------|
-| `UserSelections` | 用户从推荐列表中的选择 | Manager (解析), Planner (遵守) |
 | `RecommendationItem` | 单条推荐项 | Recommender |
 | `RecommenderOutput` | Recommender 单维度输出 | Recommender |
 | `Activity` | 单日行程中的活动项 | Planner |
@@ -183,7 +180,6 @@ R=Read, W=Write, X=无权限
 | `research_data` | X | X | R/W | R | R | R |
 | `recommendation_data` | X | X | R | R/W | R | R |
 | `plan_data` | X | X | X | X | W | X |
-| `user_selections` | X | X | R/W | X | R | X |
 | `route_metadata` | X | X | W | R | X | R |
 | `execution_signs` | W | W | R/W | W | W | R |
 | `trace_history` | W | W | W | W | W | W |
@@ -198,7 +194,6 @@ R=Read, W=Write, X=无权限
 | `research_data` | R/W | R/W | R/W | R/W |
 | `recommendation_data` | X | X | X | X |
 | `plan_data` | X | X | X | X |
-| `user_selections` | X | X | X | X |
 | `route_metadata` | X | X | X | X |
 | `execution_signs` | X | X | X | X |
 | `trace_history` | W | W | W | W |
@@ -229,8 +224,8 @@ R=Read, W=Write, X=无权限
 |---|------|--------|------|
 | T1 | `recommendation_data` 类型强化为 `Dict[str, RecommenderOutput]` | 高 | ✅ 已修复 |
 | T2 | `plan_data` 类型强化为 `PlannerOutput` | 中 | ✅ 已修复 |
-| T3 | `user_selections` 类型强化为 `UserSelections` | 中 | ✅ 已修复 |
-| T4 | Manager→Planner 类型来回转换 | 中 | ✅ 随 T3 修复 |
+| T3 | `user_selections` / `UserSelections` | 中 | ✅ 已移除 — 用户选择改由前端结构化按钮实现 |
+| T4 | Manager→Planner 类型来回转换 | 中 | ✅ 随 T3 移除 |
 
 ### 4.2 结构问题
 

@@ -6,7 +6,6 @@
 from .control import RouteMetadata, ExecutionSigns, TraceLog
 from .domain import UserProfile, SearchTask, RetrievalMetadata
 from .delivery import (
-    UserSelections,
     RecommendationItem,
     RecommenderOutput,
     Activity,
@@ -37,7 +36,6 @@ __all__ = [
     "SearchTask",
     "RetrievalMetadata",
     # delivery
-    "UserSelections",
     "RecommendationItem",
     "RecommenderOutput",
     "Activity",

@@ -123,7 +123,6 @@ async def get_travel_app():
                 ('src.agent.state.schema', 'Activity'),
                 ('src.agent.state.schema', 'DayPlan'),
                 ('src.agent.state.schema', 'PlannerOutput'),
-                ('src.agent.state.schema', 'UserSelections'),
             ]
         )
         checkpointer.serde = serializer

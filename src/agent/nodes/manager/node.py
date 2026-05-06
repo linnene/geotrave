@@ -2,15 +2,14 @@
 Module: src.agent.nodes.manager.node
 Responsibility: Acts as the Brain/Router of the Agent.
 Decides the next global stage (Loop, Recommender, Planner, or Reply)
-based on execution signs, research manifests, and user selection context.
+based on execution signs, research manifests, and conversation context.
 """
 
-import json
 import time
 from typing import Any, Dict
 
 from src.agent.state import TravelState, RouteMetadata, ManagerOutput
-from src.agent.state.schema import ExecutionSigns, ResearchLoopInternal, UserSelections
+from src.agent.state.schema import ExecutionSigns, ResearchLoopInternal
 from src.utils.llm_factory import LLMFactory
 from src.utils.prompt import prompt
 from src.utils.logger import get_logger
@@ -53,7 +52,6 @@ async def manager_node(state: TravelState) -> Dict[str, Any]:
     is_core_complete = signs.is_core_complete if signs else False
     is_recommendation_complete = signs.is_recommendation_complete if signs else False
     is_plan_complete = signs.is_plan_complete if signs else False
-    is_selection_made = signs.is_selection_made if signs else False
     recommended_dimensions = getattr(signs, 'recommended_dimensions', []) or [] if signs else []
     research_hashes = research_manifest.research_hashes if research_manifest else {}
     hashes_count = sum(len(v) for v in research_hashes.values())
@@ -65,26 +63,18 @@ async def manager_node(state: TravelState) -> Dict[str, Any]:
     trace_logs = state.get("trace_history", [])
     trace_history_str = format_trace_history(trace_logs, 5)
 
-    user_selections_raw = state.get("user_selections")
-    if user_selections_raw is not None:
-        user_selections_str = user_selections_raw.model_dump_json(indent=2) if isinstance(user_selections_raw, UserSelections) else json.dumps(user_selections_raw, ensure_ascii=False)
-    else:
-        user_selections_str = "无"
-
     # 2. LLM Orchestration
     prompt_str = prompt.manager.format(
         is_safe=is_safe,
         is_core_complete=is_core_complete,
         is_recommendation_complete=is_recommendation_complete,
         is_plan_complete=is_plan_complete,
-        is_selection_made=is_selection_made,
         recommended_dimensions=", ".join(recommended_dimensions) if recommended_dimensions else "无",
         recommendation_summary=rec_summary,
         hashes_count=hashes_count,
         research_history=research_history if research_history else "[]",
         history=history,
         trace_history=trace_history_str,
-        user_selections=user_selections_str,
         format_instructions=parser.get_format_instructions()
     )
 
@@ -98,7 +88,6 @@ async def manager_node(state: TravelState) -> Dict[str, Any]:
 
         next_node = decision.get("next_stage")
         reason = decision.get("rationale", "无具体理由")
-        user_selections = decision.get("user_selections")
         focus_dimension = decision.get("focus_dimension")
 
         logger.info("Manager Decision: -> %s | Reason: %s", next_node.upper(), reason)
@@ -106,7 +95,6 @@ async def manager_node(state: TravelState) -> Dict[str, Any]:
         logger.error("Manager reasoning failed: %s", str(e), exc_info=True)
         next_node = "reply" if not is_core_complete else "research_loop"
         reason = f"Fallback due to error: {str(e)}"
-        user_selections = None
         focus_dimension = None
 
     # 硬守卫: is_core_complete=False 时必须导向 reply
@@ -116,19 +104,6 @@ async def manager_node(state: TravelState) -> Dict[str, Any]:
         )
         reason = f"[硬守卫覆写] is_core_complete 为 False，强制导向 reply。原决策: {next_node}，原理由: {reason}"
         next_node = "reply"
-
-    # 硬守卫: needs_reselect=True 时禁止导向 planner
-    if user_selections_raw:
-        try:
-            sel = user_selections_raw if isinstance(user_selections_raw, UserSelections) else UserSelections(**user_selections_raw)
-            if sel.needs_reselect and next_node == "planner":
-                logger.warning(
-                    "Manager override: needs_reselect=True, blocking planner (was: planner)"
-                )
-                reason = f"[硬守卫覆写] needs_reselect 为 True，禁止导向 planner。原决策: {next_node}"
-                next_node = "recommender"
-        except Exception:
-            pass
 
     # 3. Issue Routing Command
     route = RouteMetadata(
@@ -146,7 +121,6 @@ async def manager_node(state: TravelState) -> Dict[str, Any]:
             "reason": reason,
             "hashes_count": hashes_count,
             "research_history": research_history[-3:],
-            "has_user_selections": user_selections is not None,
             "focus_dimension": focus_dimension,
         }
     )
@@ -155,13 +129,6 @@ async def manager_node(state: TravelState) -> Dict[str, Any]:
         "route_metadata": route,
         "trace_history": [trace],
     }
-
-    # 写入用户选择到 state (直接存 UserSelections 模型)
-    if user_selections is not None:
-        result["user_selections"] = user_selections if isinstance(user_selections, UserSelections) else UserSelections(**user_selections)
-        result["execution_signs"] = (signs or ExecutionSigns()).model_copy(
-            update={"is_selection_made": True}
-        )
 
     # 路由到 research_loop 时重置内部状态
     if next_node == "research_loop" and research_manifest:

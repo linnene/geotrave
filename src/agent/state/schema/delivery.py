@@ -5,34 +5,6 @@ from pydantic import BaseModel, Field
 from typing import Literal
 
 
-class UserSelections(BaseModel):
-    """用户在推荐列表中的选择结果。Manager 从用户消息中提取，Planner 遵守。
-
-    当用户明确说"随便/都行/你定"时，对应字段设为 "agent_choice"，
-    Planner 可自由从推荐中挑选最优项。
-    """
-    chosen_destination: Optional[str] = Field(
-        default=None,
-        description="Picked destination name, or 'agent_choice' when user delegates to agent"
-    )
-    chosen_accommodation: Optional[str] = Field(
-        default=None,
-        description="Picked accommodation name, or 'agent_choice' when user delegates to agent"
-    )
-    chosen_dining: Optional[str] = Field(
-        default=None,
-        description="Picked dining name, or 'agent_choice' when user delegates to agent"
-    )
-    needs_reselect: bool = Field(
-        default=False,
-        description="User rejected current batch and wants re-recommendation"
-    )
-    reselection_feedback: Optional[str] = Field(
-        default=None,
-        description="User's revised requirements when requesting re-recommendation"
-    )
-
-
 class RecommendationItem(BaseModel):
     """单条推荐项 — 前端渲染用。
 

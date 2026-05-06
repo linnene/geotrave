@@ -9,7 +9,6 @@ from pydantic import BaseModel, Field
 from typing import Literal
 
 from .domain import UserProfile, SearchTask
-from .delivery import UserSelections
 
 
 class GatewayOutput(BaseModel):
@@ -53,10 +52,6 @@ class ManagerOutput(BaseModel):
     focus_dimension: Optional[str] = Field(
         default=None,
         description="When user explicitly requests a specific recommendation dimension, set this to guide Recommender (any dimension, e.g. 'attraction', 'shopping', 'food', 'accommodation')"
-    )
-    user_selections: Optional[UserSelections] = Field(
-        default=None,
-        description="Extracted user selections when user responds to recommendation list"
     )
 
 

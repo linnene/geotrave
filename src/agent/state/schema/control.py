@@ -18,7 +18,6 @@ class ExecutionSigns(BaseModel):
     is_core_complete: bool = Field(default=False, description="Analyst: core profile fields sufficient")
     is_recommendation_complete: bool = Field(default=False, description="Recommender: all requested recommendation dimensions covered")
     is_plan_complete: bool = Field(default=False, description="Planner: day-by-day itinerary generated")
-    is_selection_made: bool = Field(default=False, description="Manager: user has made selections from recommendations (or explicitly delegated to agent)")
     recommended_dimensions: List[str] = Field(default_factory=list, description="Dimensions already covered by Recommender, e.g. ['destination', 'accommodation']")
 
 

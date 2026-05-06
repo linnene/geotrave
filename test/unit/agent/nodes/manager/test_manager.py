@@ -7,7 +7,7 @@ Priority: P0 — Central routing brain
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from src.agent.state.schema import ExecutionSigns, ResearchManifest, ResearchLoopInternal, UserSelections
+from src.agent.state.schema import ExecutionSigns, ResearchManifest, ResearchLoopInternal
 
 
 # =============================================================================
@@ -26,14 +26,13 @@ async def test_manager_routes_to_research_loop():
     state = {
         "execution_signs": signs,
         "messages": [],
-                "research_data": manifest,
+        "research_data": manifest,
     }
 
     mock_llm = MagicMock()
     mock_llm.__or__.return_value.ainvoke = AsyncMock(return_value={
         "next_stage": "research_loop",
         "rationale": "需要调研目的地信息",
-        "user_selections": None,
         "focus_dimension": None,
     })
 
@@ -54,14 +53,13 @@ async def test_manager_routes_to_recommender():
     state = {
         "execution_signs": signs,
         "messages": [],
-                "research_data": manifest,
+        "research_data": manifest,
     }
 
     mock_llm = MagicMock()
     mock_llm.__or__.return_value.ainvoke = AsyncMock(return_value={
         "next_stage": "recommender",
         "rationale": "调研充分，开始推荐",
-        "user_selections": None,
         "focus_dimension": "destination",
     })
 
@@ -81,13 +79,12 @@ async def test_manager_hard_guard_core_incomplete():
     state = {
         "execution_signs": signs,
         "messages": [],
-            }
+    }
 
     mock_llm = MagicMock()
     mock_llm.__or__.return_value.ainvoke = AsyncMock(return_value={
         "next_stage": "research_loop",
         "rationale": "LLM 认为可以调研",
-        "user_selections": None,
         "focus_dimension": None,
     })
 
@@ -95,34 +92,6 @@ async def test_manager_hard_guard_core_incomplete():
         result = await manager_node(state)
 
     assert result["route_metadata"].next_node == "reply"
-    assert "硬守卫覆写" in result["route_metadata"].reason
-
-
-@pytest.mark.priority("P0")
-@pytest.mark.asyncio
-async def test_manager_needs_reselect_blocks_planner():
-    """needs_reselect=True → 禁止路由到 planner。"""
-    from src.agent.nodes.manager.node import manager_node
-
-    signs = ExecutionSigns(is_core_complete=True, is_safe=True)
-    state = {
-        "execution_signs": signs,
-        "messages": [],
-                "user_selections": UserSelections(needs_reselect=True, reselection_feedback="太贵了"),
-    }
-
-    mock_llm = MagicMock()
-    mock_llm.__or__.return_value.ainvoke = AsyncMock(return_value={
-        "next_stage": "planner",
-        "rationale": "LLM 试图规划",
-        "user_selections": None,
-        "focus_dimension": None,
-    })
-
-    with patch("src.agent.nodes.manager.node.LLMFactory.get_model", return_value=mock_llm):
-        result = await manager_node(state)
-
-    assert result["route_metadata"].next_node == "recommender"
     assert "硬守卫覆写" in result["route_metadata"].reason
 
 
@@ -136,7 +105,7 @@ async def test_manager_llm_error_fallback():
     state = {
         "execution_signs": signs,
         "messages": [],
-            }
+    }
 
     mock_llm = MagicMock()
     mock_llm.__or__.return_value.ainvoke = AsyncMock(side_effect=Exception("API error"))
@@ -159,14 +128,13 @@ async def test_manager_resets_research_state_on_loop():
     state = {
         "execution_signs": signs,
         "messages": [],
-                "research_data": manifest,
+        "research_data": manifest,
     }
 
     mock_llm = MagicMock()
     mock_llm.__or__.return_value.ainvoke = AsyncMock(return_value={
         "next_stage": "research_loop",
         "rationale": "新一轮调研",
-        "user_selections": None,
         "focus_dimension": None,
     })
 
