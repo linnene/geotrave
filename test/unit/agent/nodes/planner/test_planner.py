@@ -41,8 +41,7 @@ async def test_planner_produces_output():
             "destination": RecommenderOutput(dimension="destination", items=[RecommendationItem(name="东京", features="...", reason="经典目的地", rating=4.5)], strategy="test", tip="..."),
         },
         "messages": [],
-        "user_request": "东京三日游",
-        "execution_signs": ExecutionSigns(is_core_complete=True, is_recommendation_complete=True),
+                "execution_signs": ExecutionSigns(is_core_complete=True, is_recommendation_complete=True),
     }
 
     mock_llm = MagicMock()
@@ -118,8 +117,7 @@ async def test_planner_writes_state():
     state = {
         "research_data": manifest,
         "messages": [],
-        "user_request": "test",
-        "execution_signs": ExecutionSigns(),
+                "execution_signs": ExecutionSigns(),
     }
 
     mock_llm = MagicMock()
@@ -150,8 +148,7 @@ async def test_planner_sets_complete_flag():
     state = {
         "research_data": manifest,
         "messages": [],
-        "user_request": "test",
-        "execution_signs": ExecutionSigns(),
+                "execution_signs": ExecutionSigns(),
     }
 
     mock_llm = MagicMock()
@@ -186,8 +183,7 @@ async def test_planner_llm_error_graceful():
     state = {
         "research_data": manifest,
         "messages": [],
-        "user_request": "test",
-        "execution_signs": ExecutionSigns(),
+                "execution_signs": ExecutionSigns(),
     }
 
     mock_llm = MagicMock()
@@ -216,8 +212,7 @@ async def test_planner_multiple_days():
     state = {
         "research_data": manifest,
         "messages": [],
-        "user_request": "七日游",
-        "execution_signs": ExecutionSigns(),
+                "execution_signs": ExecutionSigns(),
     }
 
     mock_llm = MagicMock()

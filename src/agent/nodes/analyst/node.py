@@ -109,7 +109,6 @@ async def analyst_node(state: TravelState) -> Dict[str, Any]:
 
     return {
         "user_profile": result.updated_profile,
-        "user_request": result.user_request,
         "execution_signs": (state.get("execution_signs") or ExecutionSigns()).model_copy(update={"is_core_complete": is_core_complete}),
         "trace_history": [trace]
     }

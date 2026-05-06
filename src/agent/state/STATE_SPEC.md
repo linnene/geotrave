@@ -13,15 +13,14 @@
 |---|------|------|------|--------|--------|
 | 1 | `messages` | `Annotated[List[BaseMessage], add_messages]` | 对话上下文 | API (HumanMessage), Gateway (sanitized), Reply (AIMessage) | 全部节点 |
 | 2 | `user_profile` | `UserProfile` | 业务数据 | Analyst | Manager, QG, Recommender, Planner, Reply |
-| 3 | `user_request` | `str` | 业务数据 | Analyst | Manager, QG, Recommender, Planner, Reply |
-| 4 | `research_data` | `ResearchManifest` | 调研状态 | Manager (reset), QG, Search, Critic, Hash | Manager, Recommender, Planner, Reply (via research_loader) |
-| 5 | `recommendation_data` | `Optional[Dict[str, RecommenderOutput]]` | 交付数据 | Recommender | Manager, Recommender, Planner, Reply |
-| 6 | `plan_data` | `Optional[PlannerOutput]` | 交付数据 | Planner | API response only |
-| 7 | `user_selections` | `Optional[UserSelections]` | 用户交互 | Manager | Manager, Planner |
-| 8 | `route_metadata` | `RouteMetadata` | 控制面 | Manager | manager_router, Recommender, Reply |
-| 9 | `execution_signs` | `ExecutionSigns` | 控制面 | Gateway, Analyst, Manager, Recommender, Planner | Manager, Recommender, Reply |
-| 10 | `trace_history` | `Annotated[List[TraceLog], add]` | 可观测性 | 全部节点 | Manager, Reply |
-| 11 | `needs_exit` | `bool` | 控制面 | Gateway | Reply (_detect_scenario) |
+| 3 | `research_data` | `ResearchManifest` | 调研状态 | Manager (reset), QG, Search, Critic, Hash | Manager, Recommender, Planner, Reply (via research_loader) |
+| 4 | `recommendation_data` | `Optional[Dict[str, RecommenderOutput]]` | 交付数据 | Recommender | Manager, Recommender, Planner, Reply |
+| 5 | `plan_data` | `Optional[PlannerOutput]` | 交付数据 | Planner | API response only |
+| 6 | `user_selections` | `Optional[UserSelections]` | 用户交互 | Manager | Manager, Planner |
+| 7 | `route_metadata` | `RouteMetadata` | 控制面 | Manager | manager_router, Recommender, Reply |
+| 8 | `execution_signs` | `ExecutionSigns` | 控制面 | Gateway, Analyst, Manager, Recommender, Planner | Manager, Recommender, Reply |
+| 9 | `trace_history` | `Annotated[List[TraceLog], add]` | 可观测性 | 全部节点 | Manager, Reply |
+| 10 | `needs_exit` | `bool` | 控制面 | Gateway | Reply (_detect_scenario) |
 
 ### 1.2 字段详细说明
 
@@ -43,11 +42,12 @@
 - **关键方法**: `check_completeness() -> (is_core_complete, all_missing)`
 - **关键字段**: `all_missing_fields: List[str]` — Analyst 写入，供 Reply 和 QG 读取缺失字段
 
-#### user_request — 核心诉求摘要
-- **类型**: `str`
-- **写入者**: **Analyst** (独占写入)
-- **读取者**: Manager, QueryGenerator, Recommender, Planner, Reply
-- **内容**: 从多轮对话中提取的一句用户核心意图，如 "User wants 小众 spots in Dali in May"
+#### user_request — 已移除
+
+`user_request` 不再作为 TravelState 字段存在。用户意图分析职责已从 Analyst 转移到 QueryGenerator：
+- **QG** 自行从对话历史 (`messages`) 中分析用户当前意图并生成搜索任务
+- **research_history** 现在存储 QG 的 `research_strategy`（而非 Analyst 的 `user_request`），供 Manager 判断调研新鲜度
+- **Manager** 不再做 Python 层面的 `research_matches_current` 比较，改为通过 LLM 结合 research_history + trace_history + 对话上下文综合判断
 
 #### missing_fields — 已移入 UserProfile
 
@@ -68,7 +68,7 @@
 - **结构**:
   - `research_hashes`: `{query: [hash_key, ...]}` — 最小全局暴露，全量 payload 在 PG JSONB
   - `loop_state`: `ResearchLoopInternal` — 子图私有，外部严禁直接读写
-  - `research_history`: `List[str]` — 有序 user_request 列表，用于 Manager 新鲜度检查
+  - `research_history`: `List[str]` — 有序 research_strategy 列表（QG 写入），用于 Manager 新鲜度检查
   - `matched_doc_ids`: `List[str]` — 文档检索匹配的 doc_id 列表
 
 #### recommendation_data — 推荐数据
@@ -180,7 +180,6 @@ R=Read, W=Write, X=无权限
 |------|---------|---------|---------|-------------|---------|-------|
 | `messages` | R/W | R | R | R | R | R/W |
 | `user_profile` | X | R/W | R | R | R | R |
-| `user_request` | X | W | R | R | R | R |
 | `research_data` | X | X | R/W | R | R | R |
 | `recommendation_data` | X | X | R | R/W | R | R |
 | `plan_data` | X | X | X | X | W | X |
@@ -196,7 +195,6 @@ R=Read, W=Write, X=无权限
 |------|-----|--------|--------|------|
 | `messages` | R | X | X | R (session_id fallback) |
 | `user_profile` | R | X | X | X |
-| `user_request` | R | X | X | X |
 | `research_data` | R/W | R/W | R/W | R/W |
 | `recommendation_data` | X | X | X | X |
 | `plan_data` | X | X | X | X |

@@ -28,7 +28,6 @@ async def test_qg_injects_feedback_into_prompt():
     state = {
         "research_data": manifest,
         "messages": [],
-        "user_request": "东京三日游",
     }
 
     mock_llm = MagicMock()
@@ -68,7 +67,6 @@ async def test_qg_injects_passed_queries_into_prompt():
     state = {
         "research_data": manifest,
         "messages": [],
-        "user_request": "东京三日游",
     }
 
     captured_prompt = []
@@ -120,7 +118,6 @@ async def test_qg_preserves_loop_state():
     state = {
         "research_data": manifest,
         "messages": [],
-        "user_request": "第三次调研",
     }
 
     mock_llm = MagicMock()
@@ -157,7 +154,6 @@ async def test_qg_preserves_research_hashes():
     state = {
         "research_data": manifest,
         "messages": [],
-        "user_request": "再查一次",
     }
 
     mock_llm = MagicMock()
@@ -184,14 +180,13 @@ async def test_qg_preserves_research_hashes():
 @pytest.mark.priority("P0")
 @pytest.mark.asyncio
 async def test_qg_appends_research_history():
-    """每次调用在 research_history 末尾追加当前 user_request。"""
+    """每次调用在 research_history 末尾追加当前 research_strategy。"""
     from src.agent.nodes.research.query_generator.node import query_generator_node
 
-    manifest = ResearchManifest(research_history=["第一次查东京", "第二次查大阪"])
+    manifest = ResearchManifest(research_history=["第一次策略", "第二次策略"])
     state = {
         "research_data": manifest,
         "messages": [],
-        "user_request": "第三次查京都",
     }
 
     mock_llm = MagicMock()
@@ -207,7 +202,7 @@ async def test_qg_appends_research_history():
         result = await query_generator_node(state)
 
     new_manifest = result["research_data"]
-    assert new_manifest.research_history == ["第一次查东京", "第二次查大阪", "第三次查京都"]
+    assert new_manifest.research_history == ["第一次策略", "第二次策略", "无需新查询"]
 
 
 # =============================================================================
@@ -223,7 +218,6 @@ async def test_qg_creates_manifest_when_none():
 
     state = {
         "messages": [],
-        "user_request": "大阪一日游",
     }
 
     mock_llm = MagicMock()
@@ -246,7 +240,7 @@ async def test_qg_creates_manifest_when_none():
     new_manifest = result["research_data"]
     assert isinstance(new_manifest, ResearchManifest)
     assert len(new_manifest.loop_state.active_queries) == 1
-    assert new_manifest.research_history == ["大阪一日游"]
+    assert new_manifest.research_history == ["基础景点调研"]
 
 
 # =============================================================================
@@ -264,7 +258,6 @@ async def test_qg_empty_feedback_and_passed_queries():
     state = {
         "research_data": manifest,
         "messages": [],
-        "user_request": "北海道滑雪",
     }
 
     captured_prompt = []
@@ -297,7 +290,6 @@ async def test_qg_llm_error_graceful():
     state = {
         "research_data": ResearchManifest(),
         "messages": [],
-        "user_request": "测试",
     }
 
     with patch(
@@ -325,7 +317,6 @@ async def test_qg_content_list_merge():
     state = {
         "research_data": ResearchManifest(),
         "messages": [],
-        "user_request": "测试",
     }
 
     task_json = json.dumps({

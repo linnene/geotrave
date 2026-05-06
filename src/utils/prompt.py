@@ -79,10 +79,7 @@ _ANALYST_TEMPLATE = """你现在是 GeoTrave 项目的【需求分析专家 (Ana
 ### 核心任务
 1. **结构化提取**：从对话历史中提取目的地、出行天数、预算、人数、偏好等字段。
 2. **状态合并**：将新发现的信息与现有的用户画像 (UserProfile) 进行合并（采用补全或更新策略）。
-3. **诉求总结 (UserRequest)**：基于对话历史，提炼出用户当前的【核心调查意图】。
-   - 场景 A：如果信息不全，UserRequest 应体现用户对某个目的地的初步意向。
-   - 场景 B：如果信息已全，UserRequest 应明确后续检索重点（如："用户想对比两家大研古镇的民宿"或"需要搜索 8 月稻城亚丁的穿衣攻略"）。
-4. **完备性判定**：评估当前收集到的信息是否足以开启"搜索与调研"。通过 `missing_fields` 指明缺失的关键信息。
+3. **完备性判定**：评估当前收集到的信息是否足以开启"搜索与调研"。通过 `missing_fields` 指明缺失的关键信息。
 
 ### 核心字段说明 (UserProfile)
 这些字段是旅行的重点需求，直接影响后续的检索方向，还有最后的计划制定，他们缺一不可：
@@ -124,7 +121,10 @@ _ANALYST_TEMPLATE = """你现在是 GeoTrave 项目的【需求分析专家 (Ana
 # QUERY GENERATOR NODE PROMPT
 # ==============================================================================
 _QUERY_GENERATOR_TEMPLATE = """你现在是 GeoTrave 项目的【研究方案规划专家 (QueryGenerator)】。
-你的任务是根据用户的【核心诉求 (UserRequest)】、已有的【用户画像 (UserProfile)】以及【对话上下文】，制定一个多维度的深度检索方案。
+你的任务是根据【对话历史 (history)】中用户表达的需求和意图、以及【用户画像 (UserProfile)】，制定一个多维度的深度检索方案。
+
+### 意图分析（核心职责）
+你必须自行从对话历史中分析用户当前的旅游意图和核心诉求。结合 UserProfile 中已提取的结构化信息（目的地、天数、预算、偏好等），理解用户真正想要什么，然后据此生成搜索任务。
 
 ### 时间感知
 当前北京时间: {current_time}
@@ -187,9 +187,6 @@ _QUERY_GENERATOR_TEMPLATE = """你现在是 GeoTrave 项目的【研究方案规
 
 【当前用户画像 (UserProfile)】
 {user_profile}
-
-【当前核心诉求 (UserRequest)】
-{user_request}
 
 """
 
@@ -256,7 +253,7 @@ _CRITIC_DECISION_TEMPLATE = """你现在是 GeoTrave 检索循环决策员。
 # REPLY NODE PROMPT
 # ==============================================================================
 _REPLY_GUIDE_TEMPLATE = """你现在是 GeoTrave 项目的【用户对话专家 (Reply/Guide) 】。
-你的任务是根据分析师提取的【需求摘要】和【缺失字段列表】，生成一段充满"人情味"且有针对性的中文回复。
+你的任务是根据用户的最新消息和缺失字段列表，生成一段充满"人情味"且有针对性的中文回复。
 
 ### 时间感知
 当前北京时间: {current_time}
@@ -267,9 +264,8 @@ _REPLY_GUIDE_TEMPLATE = """你现在是 GeoTrave 项目的【用户对话专家 
 
 ### 输入信息
 1. **用户最新输入**: {last_user_message}
-2. **当前核心诉求**: {user_request}
-3. **已收集画像**: {current_profile}
-4. **待补充字段**: {missing_fields}
+2. **已收集画像**: {current_profile}
+3. **待补充字段**: {missing_fields}
 
 ### 任务规则
 1. **强响应性**：首先要对用户刚才说的话做出回应（确认、共情或解答细节），不要直接跳过用户刚表达的信息。
@@ -313,13 +309,12 @@ _REPLY_RECOMMEND_TEMPLATE = """你现在是 GeoTrave 智能旅行助手的【旅
 如果推荐涉及季节性活动或时令美食，需结合当前时间判断是否合适并提醒用户。
 
 ### 输入信息
-1. **用户当前诉求**: {user_request}
-2. **用户画像**: {user_profile}
-3. **本轮推荐维度**: {focus_dimension}
-4. **推荐策略**: {strategy}
-5. **推荐项目**: {recommendation_items}
-6. **用户引导提示**: {tip}
-7. **剩余待推荐维度**: {remaining_dimensions}
+1. **用户画像**: {user_profile}
+2. **本轮推荐维度**: {focus_dimension}
+3. **推荐策略**: {strategy}
+4. **推荐项目**: {recommendation_items}
+5. **用户引导提示**: {tip}
+6. **剩余待推荐维度**: {remaining_dimensions}
 
 ### 任务规则
 1. **热情呈现**：用生动的语言介绍每个推荐项，包括名称、评分（★星级）、亮点和推荐理由。让用户感受到你真心觉得这些选项不错。
@@ -339,9 +334,8 @@ _REPLY_GUIDE_FALLBACK_TEMPLATE = """你现在是 GeoTrave 智能旅行助手的�
 当前北京时间: {current_time}
 
 ### 输入信息
-1. **用户诉求**: {user_request}
-2. **尝试推荐的维度**: {focus_dimension}
-3. **失败原因**: {strategy}
+1. **尝试推荐的维度**: {focus_dimension}
+2. **失败原因**: {strategy}
 
 ### 任务规则
 1. **诚实告知**：用 1-2 句话说明当前维度的推荐暂时无法生成，不要编造任何推荐内容
@@ -368,12 +362,12 @@ _MANAGER_TEMPLATE = """你现在是 GeoTrave 智能旅行助手的【总调度�
 1. **逻辑分流逻辑（Routing Logic）**：
    - **向用户追问**：当 `is_core_complete` 为 False 时，说明需求信息不全，必须导向 `reply` 节点追问缺失字段。
    - **启动或继续研究**：当 `is_core_complete` 为 True 时：
-     - 若 `research_matches_current` 为 False（当前诉求尚未调研），必须导向 `research_loop`，即使 hashes_count > 0
-     - 若 `research_matches_current` 为 True 但调研维度尚未充分覆盖（见规则 2），可以再次路由到 `research_loop` 补充调研
+     - 通过 research_history 和 trace_history 判断当前调研是否匹配用户最新诉求。若 research_history 为空或调研主题与当前对话不符，必须导向 `research_loop`
+     - 若已有调研基础但维度尚未充分覆盖（见规则 2），可以再次路由到 `research_loop` 补充调研
    - **生成推荐（增量单维度）**：Recommender 每次只推一个维度。图拓扑已保证推荐后直达 reply 呈现结果，下一轮用户输入后 Manager 才会再次决策。
      **触发条件**（需同时满足）：
      - `is_core_complete` 为 True
-     - 检索数据有足够信息（`hashes_count > 0` 且 `research_matches_current` 为 True）
+     - 检索数据有足够信息（`hashes_count > 0` 且调研内容匹配当前诉求）
      - 用户明确请求推荐（"推荐一下"、"有什么好的"），或 Manager 判断时机合适（核心画像完成且调研充分）
      - 该维度尚未在 `recommended_dimensions` 中
      **推荐顺序**（建议）：优先推荐用户当前最关注的维度（从对话中判断），不必拘泥于固定顺序
@@ -417,12 +411,10 @@ _MANAGER_TEMPLATE = """你现在是 GeoTrave 智能旅行助手的【总调度�
   (由 Manager 在用户选择推荐项后设置。True 表示已提取用户选择)
 - 已生成的推荐摘要: {recommendation_summary}
   (当前已累积的推荐列表。当 is_recommendation_complete=True 且 is_selection_made=False 时，据此判断用户消息是否为选择/拒绝/重推)
-- 当前调研是否匹配本轮诉求 (research_matches_current): {research_matches_current}
-  (True = research_history 最新条目与当前 user_request 一致，说明本轮已有调研基础)
 - 最近一轮调研结果数: {hashes_count} 条
   (Research Loop 最近一次输出的调研结果数，不等同于全局调研总量)
-- 已完成调研的诉求历史 (research_history): {research_history}
-  (由 QueryGenerator 更新。每轮调研启动时追加当前 user_request)
+- 已完成调研的策略历史 (research_history): {research_history}
+  (由 QueryGenerator 更新。每轮调研启动时追加当前 research_strategy，供 Manager 判断调研新鲜度)
 
 ### 最近流转轨迹 (Trace History)
 {trace_history}
@@ -441,9 +433,6 @@ _MANAGER_TEMPLATE = """你现在是 GeoTrave 智能旅行助手的【总调度�
 ---
 【对话上下文参考】
 {history}
-
-【用户当前核心诉求】
-{user_request}
 """
 
 
@@ -499,9 +488,6 @@ _RECOMMENDER_TEMPLATE = """你现在是 GeoTrave 旅行推荐专家 (Recommender
 ---
 【对话历史】
 {history}
-
-【用户核心诉求】
-{user_request}
 
 【用户画像】
 {user_profile}
@@ -560,9 +546,6 @@ _PLANNER_TEMPLATE = """你现在是 GeoTrave 行程规划专家 (Planner)。
 【对话历史】
 {history}
 
-【用户核心诉求】
-{user_request}
-
 【用户画像】
 {user_profile}
 
@@ -590,7 +573,7 @@ class PromptManager:
     def query_generator(self) -> PromptTemplate:
         return PromptTemplate(
             input_variables=[
-                "current_time", "history", "user_profile", "user_request", "tools_doc",
+                "current_time", "history", "user_profile", "tools_doc",
                 "format_instructions", "missing_fields", "feedback", "passed_queries",
             ],
             template=_QUERY_GENERATOR_TEMPLATE)
@@ -598,7 +581,7 @@ class PromptManager:
     @property
     def reply(self) -> PromptTemplate:
         return PromptTemplate(
-            input_variables=["current_time", "last_user_message", "user_request", "current_profile", "missing_fields"],
+            input_variables=["current_time", "last_user_message", "current_profile", "missing_fields"],
             template=_REPLY_GUIDE_TEMPLATE)
 
     @property
@@ -610,26 +593,26 @@ class PromptManager:
     @property
     def reply_recommend(self) -> PromptTemplate:
         return PromptTemplate(
-            input_variables=["current_time", "user_request", "user_profile", "focus_dimension", "strategy", "recommendation_items", "tip", "remaining_dimensions"],
+            input_variables=["current_time", "user_profile", "focus_dimension", "strategy", "recommendation_items", "tip", "remaining_dimensions"],
             template=_REPLY_RECOMMEND_TEMPLATE)
 
     @property
     def reply_guide_fallback(self) -> PromptTemplate:
         return PromptTemplate(
-            input_variables=["current_time", "user_request", "focus_dimension", "strategy"],
+            input_variables=["current_time", "focus_dimension", "strategy"],
             template=_REPLY_GUIDE_FALLBACK_TEMPLATE)
 
 
     @property
     def recommender(self) -> PromptTemplate:
         return PromptTemplate(
-            input_variables=["current_time", "history", "user_request", "user_profile", "research_summary", "focus_dimension", "format_instructions"],
+            input_variables=["current_time", "history", "user_profile", "research_summary", "focus_dimension", "format_instructions"],
             template=_RECOMMENDER_TEMPLATE)
     
     @property
     def manager(self) -> PromptTemplate:
         return PromptTemplate(
-            input_variables=["is_core_complete", "is_safe", "is_recommendation_complete", "is_plan_complete", "is_selection_made", "recommended_dimensions", "recommendation_summary", "hashes_count", "research_matches_current", "research_history", "history", "user_request", "trace_history", "user_selections", "format_instructions"],
+            input_variables=["is_core_complete", "is_safe", "is_recommendation_complete", "is_plan_complete", "is_selection_made", "recommended_dimensions", "recommendation_summary", "hashes_count", "research_history", "history", "trace_history", "user_selections", "format_instructions"],
             template=_MANAGER_TEMPLATE)
 
     
@@ -655,7 +638,7 @@ class PromptManager:
     @property
     def planner(self) -> PromptTemplate:
         return PromptTemplate(
-            input_variables=["current_time", "history", "user_request", "user_profile", "research_summary", "recommendations", "user_selections", "format_instructions"],
+            input_variables=["current_time", "history", "user_profile", "research_summary", "recommendations", "user_selections", "format_instructions"],
             template=_PLANNER_TEMPLATE)
 
 

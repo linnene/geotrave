@@ -37,10 +37,6 @@ class AnalystOutput(BaseModel):
     missing_fields: List[str] = Field(
         default_factory=list, description="Fields still missing from UserProfile"
     )
-    user_request: str = Field(
-        ...,
-        description="Summarised core intent derived from conversation, e.g. 'User wants小众 spots in Dali in May'"
-    )
     reason: str = Field(..., description="Brief explanation of extraction and merge logic")
 
 

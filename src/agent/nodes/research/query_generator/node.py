@@ -33,12 +33,11 @@ async def query_generator_node(state: TravelState) -> Dict[str, Any]:
     start_time = time.time()
     logger.info("Generating research plan at [QueryGenerator]...")
 
-    # 1. Prepare Context
+    # 1. Prepare Context — QG 自行从对话历史中分析用户意图
     messages = state.get("messages", [])
     history = format_recent_history(messages, HISTORY_LIMIT)
 
     user_profile = state.get("user_profile")
-    user_request = state.get("user_request", "无明确诉求")
 
     # 2. Extract loop_state data (Critic feedback + passed queries)
     research_data = state.get("research_data")
@@ -56,7 +55,6 @@ async def query_generator_node(state: TravelState) -> Dict[str, Any]:
     prompt_str = prompt.query_generator.format(
         current_time=get_beijing_time_now(),
         user_profile=user_profile.model_dump_json(indent=2) if user_profile else "{}",
-        user_request=user_request,
         tools_doc=tools_doc,
         format_instructions=format_instructions,
         history=history,
@@ -76,13 +74,13 @@ async def query_generator_node(state: TravelState) -> Dict[str, Any]:
         result = QueryGeneratorOutput(**parsed_json)
 
         # 5. Update ResearchManifest — 将 tasks 写入 loop_state.active_queries
+        # 将 research_strategy 追加到 research_history，供 Manager 判断调研新鲜度
         old_history = research_data.research_history if research_data else []
-        current_request = state.get("user_request", "")
+        current_strategy = result.research_strategy
 
-        # 去重: 仅在 last entry 不同于 current_request 时追加
         new_history = old_history[:]
-        if not new_history or new_history[-1] != current_request:
-            new_history.append(current_request)
+        if not new_history or new_history[-1] != current_strategy:
+            new_history.append(current_strategy)
 
         if research_data:
             new_research_data = research_data.model_copy(

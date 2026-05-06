@@ -26,8 +26,7 @@ async def test_reply_guide_scenario():
     state = {
         "messages": [HumanMessage(content="我想去旅行")],
         "user_profile": UserProfile(all_missing_fields=["destination", "days"]),
-        "user_request": "模糊旅行意向",
-        "execution_signs": ExecutionSigns(is_safe=True),
+                "execution_signs": ExecutionSigns(is_safe=True),
     }
 
     mock_llm = MagicMock()
@@ -90,8 +89,7 @@ async def test_reply_recommend_scenario():
             ),
         },
         "execution_signs": ExecutionSigns(is_safe=True, recommended_dimensions=["destination"]),
-        "user_request": "东京推荐",
-        "route_metadata": RouteMetadata(next_node="recommender", reason="test"),
+                "route_metadata": RouteMetadata(next_node="recommender", reason="test"),
     }
 
     mock_llm = MagicMock()
@@ -117,8 +115,7 @@ async def test_reply_llm_error_fallback():
     state = {
         "messages": [HumanMessage(content="测试")],
         "user_profile": UserProfile(),
-        "user_request": "测试",
-        "execution_signs": ExecutionSigns(is_safe=True),
+                "execution_signs": ExecutionSigns(is_safe=True),
     }
 
     mock_llm = MagicMock()

@@ -26,8 +26,7 @@ async def test_manager_routes_to_research_loop():
     state = {
         "execution_signs": signs,
         "messages": [],
-        "user_request": "东京三日游",
-        "research_data": manifest,
+                "research_data": manifest,
     }
 
     mock_llm = MagicMock()
@@ -55,8 +54,7 @@ async def test_manager_routes_to_recommender():
     state = {
         "execution_signs": signs,
         "messages": [],
-        "user_request": "东京三日游",
-        "research_data": manifest,
+                "research_data": manifest,
     }
 
     mock_llm = MagicMock()
@@ -83,8 +81,7 @@ async def test_manager_hard_guard_core_incomplete():
     state = {
         "execution_signs": signs,
         "messages": [],
-        "user_request": "模糊请求",
-    }
+            }
 
     mock_llm = MagicMock()
     mock_llm.__or__.return_value.ainvoke = AsyncMock(return_value={
@@ -111,8 +108,7 @@ async def test_manager_needs_reselect_blocks_planner():
     state = {
         "execution_signs": signs,
         "messages": [],
-        "user_request": "换一批",
-        "user_selections": UserSelections(needs_reselect=True, reselection_feedback="太贵了"),
+                "user_selections": UserSelections(needs_reselect=True, reselection_feedback="太贵了"),
     }
 
     mock_llm = MagicMock()
@@ -140,8 +136,7 @@ async def test_manager_llm_error_fallback():
     state = {
         "execution_signs": signs,
         "messages": [],
-        "user_request": "测试",
-    }
+            }
 
     mock_llm = MagicMock()
     mock_llm.__or__.return_value.ainvoke = AsyncMock(side_effect=Exception("API error"))
@@ -164,8 +159,7 @@ async def test_manager_resets_research_state_on_loop():
     state = {
         "execution_signs": signs,
         "messages": [],
-        "user_request": "新一轮",
-        "research_data": manifest,
+                "research_data": manifest,
     }
 
     mock_llm = MagicMock()

@@ -26,8 +26,7 @@ async def test_recommender_single_dimension_output():
     state = {
         "research_data": manifest,
         "messages": [],
-        "user_request": "东京三日游",
-        "execution_signs": ExecutionSigns(recommended_dimensions=[]),
+                "execution_signs": ExecutionSigns(recommended_dimensions=[]),
         "route_metadata": RouteMetadata(next_node="recommender", reason="test", focus_dimension="destination"),
     }
 
@@ -74,8 +73,7 @@ async def test_recommender_second_dimension():
     state = {
         "research_data": manifest,
         "messages": [],
-        "user_request": "东京三日游",
-        "execution_signs": ExecutionSigns(recommended_dimensions=["destination"]),
+                "execution_signs": ExecutionSigns(recommended_dimensions=["destination"]),
         "route_metadata": RouteMetadata(next_node="recommender", reason="test", focus_dimension="accommodation"),
         "recommendation_data": {
             "destination": RecommenderOutput(dimension="destination", items=[RecommendationItem(name="东京", features="...", reason="...", rating=4.5)], strategy="...", tip="..."),
@@ -122,8 +120,7 @@ async def test_recommender_all_dimensions_covered():
     state = {
         "research_data": manifest,
         "messages": [],
-        "user_request": "东京三日游",
-        "execution_signs": ExecutionSigns(
+                "execution_signs": ExecutionSigns(
             recommended_dimensions=["destination", "accommodation", "dining"]
         ),
     }
@@ -148,8 +145,7 @@ async def test_recommender_empty_research_data():
     state = {
         "research_data": None,
         "messages": [],
-        "user_request": "test",
-        "execution_signs": ExecutionSigns(),
+                "execution_signs": ExecutionSigns(),
         "route_metadata": RouteMetadata(next_node="recommender", reason="test", focus_dimension="destination"),
     }
 
@@ -185,8 +181,7 @@ async def test_recommender_llm_error_graceful():
     state = {
         "research_data": manifest,
         "messages": [],
-        "user_request": "test",
-        "execution_signs": ExecutionSigns(),
+                "execution_signs": ExecutionSigns(),
         "route_metadata": RouteMetadata(next_node="recommender", reason="test", focus_dimension="destination"),
     }
 

@@ -30,7 +30,6 @@ class TravelState(TypedDict):
 
     # ── 业务数据 (Analyst 写入) ────────────────────────────
     user_profile: UserProfile
-    user_request: str
 
     # ── 调研状态 (Research Loop 写入, Manager reset) ───────
     research_data: ResearchManifest

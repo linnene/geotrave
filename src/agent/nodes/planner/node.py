@@ -81,7 +81,6 @@ async def planner_node(state: TravelState) -> Dict[str, Any]:
 
     messages = state.get("messages", [])
     user_profile = state.get("user_profile")
-    user_request = state.get("user_request", "")
     research_manifest = state.get("research_data")
 
     history = format_recent_history(messages, HISTORY_LIMIT)
@@ -93,7 +92,6 @@ async def planner_node(state: TravelState) -> Dict[str, Any]:
     prompt_str = prompt.planner.format(
         current_time=get_beijing_time_now(),
         history=history,
-        user_request=user_request,
         user_profile=profile_json,
         research_summary=research_summary,
         recommendations=rec_summary,

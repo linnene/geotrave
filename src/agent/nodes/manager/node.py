@@ -60,7 +60,6 @@ async def manager_node(state: TravelState) -> Dict[str, Any]:
     research_history = research_manifest.research_history if research_manifest else []
 
     history = format_recent_history(messages, HISTORY_LIMIT)
-    user_request = state.get("user_request", "未知诉求")
     rec_summary = _summarise_recommendation_data(state)
 
     trace_logs = state.get("trace_history", [])
@@ -72,12 +71,6 @@ async def manager_node(state: TravelState) -> Dict[str, Any]:
     else:
         user_selections_str = "无"
 
-    research_matches_current = (
-        research_history[-1] == user_request
-        if research_history
-        else False
-    )
-
     # 2. LLM Orchestration
     prompt_str = prompt.manager.format(
         is_safe=is_safe,
@@ -88,10 +81,8 @@ async def manager_node(state: TravelState) -> Dict[str, Any]:
         recommended_dimensions=", ".join(recommended_dimensions) if recommended_dimensions else "无",
         recommendation_summary=rec_summary,
         hashes_count=hashes_count,
-        research_matches_current=research_matches_current,
         research_history=research_history if research_history else "[]",
         history=history,
-        user_request=user_request,
         trace_history=trace_history_str,
         user_selections=user_selections_str,
         format_instructions=parser.get_format_instructions()

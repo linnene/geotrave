@@ -118,7 +118,6 @@ def _get_recommend_context(state: TravelState) -> Dict[str, str]:
     profile_text = profile.model_dump_json(indent=2, ensure_ascii=False) if profile else "暂无画像"
 
     return {
-        "user_request": state.get("user_request", "旅行规划"),
         "user_profile": profile_text,
         "focus_dimension": _label_dim(current_dim or "推荐"),
         "strategy": strategy,
@@ -158,14 +157,12 @@ async def reply_node(state: TravelState) -> Dict[str, Any]:
             logger.warning("Reply — Recommender failed for %s, downgrading to guide", ctx["focus_dimension"])
             prompt_str = prompt.reply_guide_fallback.format(
                 current_time=get_beijing_time_now(),
-                user_request=ctx["user_request"],
                 focus_dimension=ctx["focus_dimension"],
                 strategy=ctx["strategy"],
             )
         else:
             prompt_str = prompt.reply_recommend.format(
                 current_time=get_beijing_time_now(),
-                user_request=ctx["user_request"],
                 user_profile=ctx["user_profile"],
                 focus_dimension=ctx["focus_dimension"],
                 strategy=ctx["strategy"],
@@ -184,7 +181,6 @@ async def reply_node(state: TravelState) -> Dict[str, Any]:
     else:
         current_profile = state.get("user_profile")
         missing_fields = current_profile.all_missing_fields if current_profile else []
-        user_request = state.get("user_request", "")
         messages = state.get("messages", [])
 
         last_user_msg = ""
@@ -197,7 +193,6 @@ async def reply_node(state: TravelState) -> Dict[str, Any]:
         prompt_str = prompt.reply.format(
             current_time=get_beijing_time_now(),
             last_user_message=last_user_msg,
-            user_request=user_request,
             current_profile=profile_json,
             missing_fields=", ".join(missing_fields) if missing_fields else "全量信息已具备，正在深化细节",
         )

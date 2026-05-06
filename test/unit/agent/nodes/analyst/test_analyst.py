@@ -31,7 +31,6 @@ async def test_analyst_normal_extraction():
     mock_result.content = (
         '{'
         '"updated_profile": {"destination": ["东京"], "days": 3}, '
-        '"user_request": "东京三日游", '
         '"reason": "用户已有明确目的地和天数"'
         '}'
     )
@@ -61,7 +60,6 @@ async def test_analyst_missing_fields():
     mock_result.content = (
         '{'
         '"updated_profile": {"destination": [], "days": null}, '
-        '"user_request": "模糊旅游意向", '
         '"reason": "用户未提供目的地和天数"'
         '}'
     )
@@ -91,7 +89,6 @@ async def test_analyst_incremental_merge():
     mock_result.content = (
         '{'
         '"updated_profile": {"destination": ["东京"], "days": 3, "budget_limit": 5000}, '
-        '"user_request": "东京三日游，预算5000", '
         '"reason": "追加预算信息"'
         '}'
     )
@@ -138,7 +135,6 @@ async def test_analyst_empty_state():
     mock_result.content = (
         '{'
         '"updated_profile": {"destination": [], "days": null}, '
-        '"user_request": "", '
         '"reason": "无输入"'
         '}'
     )
@@ -149,29 +145,3 @@ async def test_analyst_empty_state():
 
     assert result["execution_signs"].is_core_complete is False
 
-
-@pytest.mark.priority("P0")
-@pytest.mark.asyncio
-async def test_analyst_user_request_propagated():
-    """提取的 user_request 正确写入 state。"""
-    from src.agent.nodes.analyst.node import analyst_node
-
-    state = {
-        "messages": [HumanMessage(content="京都看红叶三天")],
-    }
-
-    mock_llm = MagicMock()
-    mock_result = MagicMock()
-    mock_result.content = (
-        '{'
-        '"updated_profile": {"destination": ["京都"], "days": 3}, '
-        '"user_request": "京都红叶三日游", '
-        '"reason": "明确的季节性旅游需求"'
-        '}'
-    )
-    mock_llm.bind.return_value.ainvoke = AsyncMock(return_value=mock_result)
-
-    with patch("src.agent.nodes.analyst.node.LLMFactory.get_model", return_value=mock_llm):
-        result = await analyst_node(state)
-
-    assert result["user_request"] == "京都红叶三日游"

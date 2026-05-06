@@ -110,7 +110,7 @@ class ResearchManifest(BaseModel):
 
     外部契约（Manager、Reply、Recommender、Planner 读取）:
         research_hashes  — {query: [hash_key, ...]} 映射
-        research_history — 有序的 user_request 字符串列表
+        research_history — 有序的 research_strategy 字符串列表（由 QG 写入，供 Manager 判断调研新鲜度）
 
     内部契约（仅 Research Loop 子图节点读写）:
         loop_state       — ResearchLoopInternal（详见该类，含 active_queries 等子图私有字段）
@@ -125,7 +125,7 @@ class ResearchManifest(BaseModel):
     )
     research_history: List[str] = Field(
         default_factory=list,
-        description="Ordered list of user_request strings; Manager uses last entry for freshness checks"
+        description="Ordered list of research_strategy strings; QG appends each round, Manager uses for freshness checks"
     )
     matched_doc_ids: List[str] = Field(
         default_factory=list,
