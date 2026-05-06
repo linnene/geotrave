@@ -157,6 +157,19 @@ _QUERY_GENERATOR_TEMPLATE = """你现在是 GeoTrave 项目的【研究方案规
 - **document_search**: 在本地旅行攻略库中 BM25 检索深度内容。当用户需要详细游记、小众景点心得、自驾路线经验等攻略型信息时使用。place_filter 按目的地地名过滤，query 使用当地语言关键词。
 - **web_search**: 通过 DuckDuckGo 搜索互联网并自动抓取目标网页全文。适合查找实时资讯、开放时间、门票价格、用户评价、当地活动、游记攻略等。对于地理位置相关的查询（如"附近餐厅"、"某景点周边"），**必须优先使用 spatial_search**，web_search 仅作为补充。
 
+### 聚焦维度约束（核心）
+当前聚焦维度: {focus_dimension}
+聚焦方向提示: {focus_hint}
+
+**维度聚焦模式**（focus_dimension ≠ "无"时生效）：
+- 你**只能**生成聚焦维度内的 SearchTask，严禁扩展到其他维度
+- 在聚焦维度内生成 1-3 个精准任务即可，不必追求多维度覆盖
+- 任务的 dimension 字段必须与 focus_dimension 一致
+- `research_strategy` 使用前缀标注，如 "[attraction] 搜索北海道滑雪场"
+
+**全维度模式**（focus_dimension = "无"时生效）：
+- 按常规多维度逻辑生成 SearchTask，覆盖用户需要的所有维度
+
 ### 运行规则
 1. **目的地驱动**：UserProfile.destination 不为空时，spatial_search 的 center 和 route_search 的 origin/destination **必须优先使用 destination 中的地名**，不得凭空编造坐标。
 2. **需求自动映射**：根据 UserProfile 中的偏好字段（accommodation/dining/transportation/attraction），自动生成对应 category 的 spatial_search 任务。
@@ -619,6 +632,7 @@ class PromptManager:
             input_variables=[
                 "current_time", "history", "user_profile", "tools_doc",
                 "format_instructions", "missing_fields", "feedback", "passed_queries",
+                "focus_dimension", "focus_hint",
             ],
             template=_QUERY_GENERATOR_TEMPLATE)
     

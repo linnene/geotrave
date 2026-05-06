@@ -25,13 +25,23 @@ def _get_tools_documentation() -> str:
     return json.dumps(TOOL_METADATA, indent=2, ensure_ascii=False)
 
 async def query_generator_node(state: TravelState) -> Dict[str, Any]:
-    """Query Generator Node — 多维调研方案规划。
+    """Query Generator Node — 调研方案规划。
 
     从 UserProfile 和对话历史出发，生成 SearchTask 列表。
+    当 focus_dimension 被设置时（并行模式），仅在指定维度内生成任务。
     支持多轮 Research Loop：接收 Critic 反馈和已通过查询，避免重复生成。
     """
     start_time = time.time()
-    logger.info("Generating research plan at [QueryGenerator]...")
+
+    # 0. 检查并行模式 — focus_dimension 由 Send 扇出时注入
+    focus_dimension = state.get("focus_dimension")
+    hints = state.get("dimension_hints", {})
+    focus_hint = hints.get(focus_dimension, "") if focus_dimension else ""
+
+    if focus_dimension:
+        logger.info("Generating focused research plan for dimension '%s' at [QueryGenerator]...", focus_dimension)
+    else:
+        logger.info("Generating research plan at [QueryGenerator]...")
 
     # 1. Prepare Context — QG 自行从对话历史中分析用户意图
     messages = state.get("messages", [])
@@ -61,6 +71,8 @@ async def query_generator_node(state: TravelState) -> Dict[str, Any]:
         missing_fields=", ".join(user_profile.all_missing_fields) if user_profile and user_profile.all_missing_fields else "无核心缺失",
         feedback=feedback_str,
         passed_queries=passed_queries_str,
+        focus_dimension=focus_dimension or "无（全维度搜索模式）",
+        focus_hint=focus_hint or "无",
     )
 
     # 4. LLM Orchestration
