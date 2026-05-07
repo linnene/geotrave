@@ -64,8 +64,11 @@ async def query_generator_node(state: TravelState) -> Dict[str, Any]:
     tools_doc = _get_tools_documentation()
     format_instructions = _get_format_instructions()
 
+    destination = user_profile.destination or "未指定" if user_profile else "未指定"
+
     prompt_str = prompt.query_generator.format(
         current_time=get_beijing_time_now(),
+        destination=destination,
         user_profile=user_profile.model_dump_json(indent=2) if user_profile else "{}",
         tools_doc=tools_doc,
         format_instructions=format_instructions,

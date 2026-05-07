@@ -167,15 +167,16 @@ _QUERY_GENERATOR_TEMPLATE = """你现在是 GeoTrave 项目的【研究方案规
 - **web_search**: 通过 DuckDuckGo 搜索互联网并自动抓取目标网页全文。适合查找实时资讯、开放时间、门票价格、用户评价、当地活动、游记攻略等。对于地理位置相关的查询（如"附近餐厅"、"某景点周边"），**必须优先使用 spatial_search**，web_search 仅作为补充。
 
 ### 聚焦维度约束（核心）
+**当前目的地: {destination}** — 所有空间搜索必须围绕此目的地，不得偏离
 当前聚焦维度: {focus_dimension}
 聚焦方向提示: {focus_hint}
 
 **维度聚焦模式**（focus_dimension ≠ "无"时生效）：
+- **【最高优先级】地点锁定**：spatial_search 的 center 和 route_search 的 origin/destination **只能**使用 UserProfile.destination 中的地名。**严禁**替换为其他城市、地区或国家。即使你认为某个更具体的城市名"更好搜"，也不得修改目的地。聚焦维度检索范围内只能搜目的地周边的 POI
 - 你**只能**生成聚焦维度内的 SearchTask，严禁扩展到其他维度（收到 Critic 反馈要求更多结果时也不得越界）
 - 在聚焦维度内生成 1-3 个精准任务即可，不必追求多维度覆盖
 - 任务的 dimension 字段必须与 focus_dimension 一致
-- `research_strategy` 使用前缀标注，如 "[attraction] 搜索北海道滑雪场"
-- **地点锁定**：spatial_search 的 center 和 route_search 的 origin/destination **必须**使用 UserProfile.destination 中的地名，禁止自行替换为其他城市或地区
+- `research_strategy` 使用前缀标注，如 "[ski_resort] 搜索北海道二世谷滑雪场"
 
 **全维度模式**（focus_dimension = "无"时生效）：
 - 按常规多维度逻辑生成 SearchTask，覆盖用户需要的所有维度
@@ -236,8 +237,9 @@ _DIMENSION_PLANNER_TEMPLATE = """你现在是 GeoTrave 项目的【研究维度�
 ### 维度规划规则
 1. 用户明确请求某类推荐时（"推荐雪场"、"有什么好的温泉"、"哪里购物好"、"当地有什么节日"），该维度**必须**出现在列表中且 priority 最高，维度名直接对应用户需求
 2. 隐含的刚性需求也需要维度（如"一月份北海道"→ 需要 weather 维度）
-3. 每个维度必须有明确的 `focus` — **这是一个自然语言句子，向 QG 精确传达搜索任务**，例如："搜索二世谷、留寿都等北海道主要滑雪场的雪道难度、缆车票价格、开放时间"而不是泛泛的"滑雪场"
+3. 每个维度必须有明确的 `focus` — **这是一个自然语言句子，向 QG 精确传达搜索任务**。focus **必须**包含 UserProfile.destination 中的目的地地名，例如："搜索二世谷、留寿都等北海道主要滑雪场的雪道难度、缆车票价格、开放时间"而不是泛泛的"滑雪场"
 4. `priority` 评分：5=用户直接请求，4=行程核心依赖，3=重要补充，2=锦上添花，1=可后延
+5. **目的地锁定**：所有维度的 focus 描述中必须明确提及 UserProfile.destination 中的目的地，确保下游 QG 不会偏离到其他城市或地区。你在此处锁定目的地，QG 才能信任并执行
 
 ### 输出格式
 严格遵循以下 JSON Schema 输出，不要包含 Markdown 标记或额外解释。
@@ -611,7 +613,7 @@ class PromptManager:
     def query_generator(self) -> PromptTemplate:
         return PromptTemplate(
             input_variables=[
-                "current_time", "history", "user_profile", "tools_doc",
+                "current_time", "destination", "history", "user_profile", "tools_doc",
                 "format_instructions", "missing_fields", "feedback", "passed_queries",
                 "focus_dimension", "focus_hint",
             ],
