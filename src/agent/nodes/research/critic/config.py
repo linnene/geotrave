@@ -10,7 +10,7 @@ PASS_COUNT_MIN = 3
 MAX_LOOPS = 2
 
 # 聚焦维度模式下最多迭代 N 轮（单维度不需多轮）
-MAX_LOOPS_FOCUSED = 1
+MAX_LOOPS_FOCUSED = 2
 
 # 评分任务需低温度以保证一致性
 CRITIC_TEMPERATURE = 0.3

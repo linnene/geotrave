@@ -24,6 +24,53 @@ def _get_tools_documentation() -> str:
     from ..search.tools import TOOL_METADATA
     return json.dumps(TOOL_METADATA, indent=2, ensure_ascii=False)
 
+PLACEHOLDER_VALUES = {"未指定", "未設定", "unspecified", "none", "null", "", "东京", "東京", "Tokyo"}
+
+
+def _first_destination(user_profile) -> str:
+    """Extract the primary destination name from UserProfile."""
+    if not user_profile or not user_profile.destination:
+        return ""
+    return user_profile.destination[0] or ""
+
+
+def _enforce_destination(tasks, destination: str):
+    """Replace empty/placeholder centers with the actual destination from user profile.
+
+    The LLM occasionally injects placeholder values like "未指定" or a different city
+    as the spatial_search center. This is a code-level safety net.
+    """
+    new_tasks = []
+    for task in tasks:
+        fixed = False
+        params = {**task.parameters}
+        if task.tool_name == "spatial_search":
+            center = (params.get("center") or "").strip()
+            if not center or center.lower() in PLACEHOLDER_VALUES or center in PLACEHOLDER_VALUES:
+                logger.warning(
+                    "QG generated invalid center=%r, replacing with destination=%r",
+                    center, destination,
+                )
+                params["center"] = destination
+                fixed = True
+        elif task.tool_name == "route_search":
+            origin = (params.get("origin") or "").strip()
+            dest = (params.get("destination") or "").strip()
+            if not origin or origin.lower() in PLACEHOLDER_VALUES or origin in PLACEHOLDER_VALUES:
+                logger.warning("QG generated invalid route origin=%r, replacing with destination=%r", origin, destination)
+                params["origin"] = destination
+                fixed = True
+            if not dest or dest.lower() in PLACEHOLDER_VALUES or dest in PLACEHOLDER_VALUES:
+                logger.warning("QG generated invalid route dest=%r, replacing with destination=%r", dest, destination)
+                params["destination"] = destination
+                fixed = True
+        if fixed:
+            new_tasks.append(task.model_copy(update={"parameters": params}))
+        else:
+            new_tasks.append(task)
+    return new_tasks
+
+
 async def query_generator_node(state: TravelState) -> Dict[str, Any]:
     """Query Generator Node — 调研方案规划。
 
@@ -64,11 +111,8 @@ async def query_generator_node(state: TravelState) -> Dict[str, Any]:
     tools_doc = _get_tools_documentation()
     format_instructions = _get_format_instructions()
 
-    destination = user_profile.destination or "未指定" if user_profile else "未指定"
-
     prompt_str = prompt.query_generator.format(
         current_time=get_beijing_time_now(),
-        destination=destination,
         user_profile=user_profile.model_dump_json(indent=2) if user_profile else "{}",
         tools_doc=tools_doc,
         format_instructions=format_instructions,
@@ -90,7 +134,14 @@ async def query_generator_node(state: TravelState) -> Dict[str, Any]:
         parsed_json = json.loads(content)
         result = QueryGeneratorOutput(**parsed_json)
 
-        # 5. Update ResearchManifest — 将 tasks 写入 loop_state.active_queries
+        # 5.5. Code-level destination enforcement — 防止 LLM 注入未指定/空 center
+        destination = _first_destination(user_profile)
+        if destination:
+            validated_tasks = _enforce_destination(result.tasks, destination)
+            if validated_tasks is not result.tasks:
+                result = result.model_copy(update={"tasks": validated_tasks})
+
+        # 6. Update ResearchManifest — 将 tasks 写入 loop_state.active_queries
         # 将 research_strategy 追加到 research_history，供 Manager 判断调研新鲜度
         old_history = research_data.research_history if research_data else []
         current_strategy = result.research_strategy

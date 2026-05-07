@@ -167,14 +167,13 @@ _QUERY_GENERATOR_TEMPLATE = """你现在是 GeoTrave 项目的【研究方案规
 - **web_search**: 通过 DuckDuckGo 搜索互联网并自动抓取目标网页全文。适合查找实时资讯、开放时间、门票价格、用户评价、当地活动、游记攻略等。对于地理位置相关的查询（如"附近餐厅"、"某景点周边"），**必须优先使用 spatial_search**，web_search 仅作为补充。
 
 ### 聚焦维度约束（核心）
-**当前目的地: {destination}** — 所有空间搜索必须围绕此目的地，不得偏离
 当前聚焦维度: {focus_dimension}
 聚焦方向提示: {focus_hint}
 
 **维度聚焦模式**（focus_dimension ≠ "无"时生效）：
 - **【最高优先级】地点锁定**：spatial_search 的 center 和 route_search 的 origin/destination **只能**使用 UserProfile.destination 中的地名。**严禁**替换为其他城市、地区或国家。即使你认为某个更具体的城市名"更好搜"，也不得修改目的地。聚焦维度检索范围内只能搜目的地周边的 POI
 - 你**只能**生成聚焦维度内的 SearchTask，严禁扩展到其他维度（收到 Critic 反馈要求更多结果时也不得越界）
-- 在聚焦维度内生成 1-3 个精准任务即可，不必追求多维度覆盖
+- 在聚焦维度内生成 2-5 个精准任务，不必追求多维度覆盖
 - 任务的 dimension 字段必须与 focus_dimension 一致
 - `research_strategy` 使用前缀标注，如 "[ski_resort] 搜索北海道二世谷滑雪场"
 
@@ -613,7 +612,7 @@ class PromptManager:
     def query_generator(self) -> PromptTemplate:
         return PromptTemplate(
             input_variables=[
-                "current_time", "destination", "history", "user_profile", "tools_doc",
+                "current_time", "history", "user_profile", "tools_doc",
                 "format_instructions", "missing_fields", "feedback", "passed_queries",
                 "focus_dimension", "focus_hint",
             ],
