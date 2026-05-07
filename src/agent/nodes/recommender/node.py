@@ -71,9 +71,10 @@ async def recommender_node(state: TravelState) -> Dict[str, Any]:
     )
 
     llm = LLMFactory.get_model("Recommender", temperature=TEMPERATURE, max_tokens=MAX_TOKENS)
+    bound_llm = llm.bind(response_format={"type": "json_object"})
 
     try:
-        chain = llm | parser
+        chain = bound_llm | parser
         raw = await chain.ainvoke(prompt_str)
         if raw is None:
             raise ValueError("LLM returned empty or unparseable response")
