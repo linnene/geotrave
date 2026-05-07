@@ -151,12 +151,14 @@ _QUERY_GENERATOR_TEMPLATE = """你现在是 GeoTrave 项目的【研究方案规
   - 景点/公园/博物馆/寺庙/神社 → category="attraction"
   - 车站/机场/地铁/港口 → category="transport"
 
-**聚焦维度下 category 自动对应**（spatial_search 的 category 必须匹配 focus_dimension）：
-- focus_dimension="attraction" → category 仅用 "attraction"
-- focus_dimension="accommodation" → category 仅用 "hotel"
-- focus_dimension="dining" → category 仅用 "restaurant"
-- focus_dimension="transportation" → category 仅用 "transport"
-- 其他维度（weather/general/policy）不生成 spatial_search
+**聚焦维度下工具选择**（根据 focus_dimension 和 focus_hint 自行判断）：
+- spatial_search 的 category 参数可选值: "attraction", "hotel", "restaurant", "transport"
+- 你需要根据维度名称和 focus_hint 推断最合适的 tool 和 category，例如：
+  - 维度涉及地点/POI 检索 → spatial_search，根据语义选最匹配的 category
+  - 维度涉及实时信息、攻略、评价 → web_search 或 document_search
+  - 维度涉及天气 → weather_search
+  - 维度涉及两地交通 → route_search
+- **不要因为维度名不在预设列表中就跳过 spatial_search** — 只要该维度涉及地理位置上的实体，就应该使用 spatial_search
 
 ### 工具使用指南
 - **spatial_search**: 查询地点附近 POI。center 优先取 UserProfile.destination 或 Flex 中的地名，radius_m 按场景推断（步行 500-1000m，市内 2000-5000m，广域 10000m+）。
@@ -226,19 +228,15 @@ _DIMENSION_PLANNER_TEMPLATE = """你现在是 GeoTrave 项目的【研究维度�
 3. **按需规划**：已有调研覆盖的维度不再规划；已覆盖的判断依据见下方【已有调研历史】
 4. **聚焦而非发散**：每个维度只聚焦一个具体方向，避免"大而全"
 
-### 可用维度
-- `attraction`: 景点、活动、体验项目（滑雪、温泉、赏花等）
-- `accommodation`: 住宿（酒店、民宿、温泉旅馆等）
-- `dining`: 餐饮（餐厅、美食、居酒屋等）
-- `transportation`: 交通（机场到市区、城际交通、冬季路况等）
-- `weather`: 天气（出行期间的天气、季节特点等）
-- `general`: 通用攻略（游记、注意事项、签证政策等）
-- `policy`: 签证、出入境政策
+### 维度命名规则
+- **自由命名**：根据用户需求的具体方向自行命名维度，使用小写英文 + 下划线（如 `ski_resort`、`hot_spring`、`local_festival`、`shopping`、`outdoor_gear`、`nightlife`、`cultural_sites`）
+- **越具体越好**：避免泛化的 `attraction`，优先使用 `ski_resort`、`whale_watching` 等精准命名。命名的唯一目的是让下游检索节点一看名字就知道搜什么
+- 你可以在任何方向上创建维度，不受任何预设列表限制
 
 ### 维度规划规则
-1. 用户明确请求某类推荐时（"推荐雪场"、"有什么好的温泉"、"住哪里"），该维度**必须**出现在列表中且 priority 最高
+1. 用户明确请求某类推荐时（"推荐雪场"、"有什么好的温泉"、"哪里购物好"、"当地有什么节日"），该维度**必须**出现在列表中且 priority 最高，维度名直接对应用户需求
 2. 隐含的刚性需求也需要维度（如"一月份北海道"→ 需要 weather 维度）
-3. 每个维度必须有明确的 `focus` — 写清具体搜索方向，而不是泛泛描述
+3. 每个维度必须有明确的 `focus` — **这是一个自然语言句子，向 QG 精确传达搜索任务**，例如："搜索二世谷、留寿都等北海道主要滑雪场的雪道难度、缆车票价格、开放时间"而不是泛泛的"滑雪场"
 4. `priority` 评分：5=用户直接请求，4=行程核心依赖，3=重要补充，2=锦上添花，1=可后延
 
 ### 输出格式

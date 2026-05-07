@@ -2,7 +2,6 @@
 
 from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
-from typing import Literal
 
 
 class UserProfile(BaseModel):
@@ -72,10 +71,9 @@ class SearchTask(BaseModel):
         ...,
         description="Target tool: spatial_search / route_search"
     )
-    dimension: Literal[
-        "transportation", "accommodation", "dining", "attraction",
-        "general", "weather", "policy"
-    ] = Field(..., description="Research dimension this task addresses")
+    dimension: str = Field(
+        ..., description="Research dimension this task addresses — freely named to match the focus dimension (e.g. ski_resort, shopping, weather, dining)"
+    )
     parameters: Dict[str, Any] = Field(
         default_factory=dict,
         description="Tool-specific arguments."
