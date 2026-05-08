@@ -20,14 +20,14 @@ from src.utils import logger
 
 
 @asynccontextmanager
-async def lifespan(app: fastapi.FastAPI):
+async def lifespan(app: fastapi.FastAPI): 
     """
     Manages the startup and shutdown lifecycle of the FastAPI application.
     Each init step is independently guarded — one failure does not block others.
     """
     # Fix ProactorEventLoop issue for Playwright on Windows
     if sys.platform == "win32":
-        asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+        asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())  # type: ignore[attr-defined]
         logger.info("[GeoTrave] Applied WindowsProactorEventLoopPolicy for async subprocess support")
 
     logger.info("======================================================")

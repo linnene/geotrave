@@ -20,6 +20,9 @@ uv run python script/run_api_tests.py --no-server --base-url http://localhost:80
 
 # 输出 JSON 报告
 uv run python script/run_api_tests.py --json --output report.json
+
+# 启动实际对话
+uv run python script/run_api_tests.py --collection TEST
 ```
 
 脚本内部通过 `script/newman_runner.py` 封装 Newman CLI，自动处理：
