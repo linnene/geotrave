@@ -144,12 +144,15 @@ async def query_generator_node(state: TravelState) -> Dict[str, Any]:
     )
 
     # 4. LLM Orchestration
+    logger.info("%s[QG PROMPT] ========== BEGIN ==========\n%s\n[QG PROMPT] ========== END ==========", dim_tag, prompt_str)
+
     llm = LLMFactory.get_model("QueryGenerator", temperature=TEMPERATURE, max_tokens=MAX_TOKENS)
     bound_llm = llm.bind(response_format={"type": "json_object"})
 
     try:
         raw_result = await bound_llm.ainvoke(prompt_str)
         content = extract_content_str(raw_result)
+        logger.info("%s[QG OUTPUT] %s", dim_tag, content[:500])
         parsed_json = json.loads(content)
         result = QueryGeneratorOutput(**parsed_json)
 
