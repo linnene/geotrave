@@ -116,7 +116,7 @@ async def gateway_node(state: TravelState) -> Dict[str, Any]:
 #========================================================
 
     return {
-        "execution_signs": (state.get("execution_signs") or ExecutionSigns()).model_copy(update={"is_safe": is_safe}),
+        "execution_signs": ExecutionSigns.ensure(state.get("execution_signs")).model_copy(update={"is_safe": is_safe}),
         "trace_history": [trace],
         "needs_exit": not is_safe,
         "messages": response_msg

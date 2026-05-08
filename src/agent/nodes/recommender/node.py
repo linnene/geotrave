@@ -46,7 +46,7 @@ async def recommender_node(state: TravelState) -> Dict[str, Any]:
     if not focus_dim:
         logger.warning("Recommender called without focus_dimension hint from Manager")
         return {
-            "execution_signs": (signs or ExecutionSigns()).model_copy(
+            "execution_signs": ExecutionSigns.ensure(signs).model_copy(
                 update={"is_recommendation_complete": True}
             ),
         }
@@ -120,7 +120,7 @@ async def recommender_node(state: TravelState) -> Dict[str, Any]:
 
     return {
         "recommendation_data": existing_recs,
-        "execution_signs": (signs or ExecutionSigns()).model_copy(
+        "execution_signs": ExecutionSigns.ensure(signs).model_copy(
             update={"recommended_dimensions": new_dimensions}
         ),
         "trace_history": [trace],

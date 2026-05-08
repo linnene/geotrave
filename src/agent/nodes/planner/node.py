@@ -102,7 +102,7 @@ async def planner_node(state: TravelState) -> Dict[str, Any]:
 
     return {
         "plan_data": plan,
-        "execution_signs": (state.get("execution_signs") or ExecutionSigns()).model_copy(
+        "execution_signs": ExecutionSigns.ensure(state.get("execution_signs")).model_copy(
             update={"is_plan_complete": not plan_failed}
         ),
         "trace_history": [trace],

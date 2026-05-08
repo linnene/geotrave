@@ -20,6 +20,19 @@ class ExecutionSigns(BaseModel):
     is_plan_complete: bool = Field(default=False, description="Planner: day-by-day itinerary generated")
     recommended_dimensions: List[str] = Field(default_factory=list, description="Dimensions already covered by Recommender, e.g. ['destination', 'accommodation']")
 
+    @classmethod
+    def ensure(cls, value):
+        """将 None/dict/ExecutionSigns 统一转为 ExecutionSigns 实例。
+
+        Checkpoint 恢复时 Pydantic 模型可能被反序列化为 dict，
+        此方法确保调用方始终拿到模型实例。
+        """
+        if value is None:
+            return cls()
+        if isinstance(value, dict):
+            return cls(**value)
+        return value
+
 
 class TraceLog(BaseModel):
     """单节点执行审计记录（可观测性）。"""

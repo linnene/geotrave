@@ -75,7 +75,7 @@ async def analyst_node(state: TravelState) -> Dict[str, Any]:
         logger.error("Analyst execution failed: %s", str(e), exc_info=True)
         # Fallback: preserve existing profile, mark core as incomplete
         return {
-            "execution_signs": (state.get("execution_signs") or ExecutionSigns()).model_copy(
+            "execution_signs": ExecutionSigns.ensure(state.get("execution_signs")).model_copy(
                 update={"is_core_complete": False}
             ),
             "trace_history": [build_trace(
@@ -109,6 +109,6 @@ async def analyst_node(state: TravelState) -> Dict[str, Any]:
 
     return {
         "user_profile": result.updated_profile,
-        "execution_signs": (state.get("execution_signs") or ExecutionSigns()).model_copy(update={"is_core_complete": is_core_complete}),
+        "execution_signs": ExecutionSigns.ensure(state.get("execution_signs")).model_copy(update={"is_core_complete": is_core_complete}),
         "trace_history": [trace]
     }
