@@ -3,7 +3,7 @@
 from pathlib import Path
 from datetime import datetime
 
-_PROMPT_LOG_PATH = Path(__file__).resolve().parents.parents.parents.parents.parent / "logs" / "prompt_debug.log"
+_PROMPT_LOG_PATH = Path(__file__).resolve().parents[4] / "logs" / "prompt_debug.log"
 
 
 def log_prompt(node_name: str, prompt_text: str, extra_tag: str = "") -> None:
