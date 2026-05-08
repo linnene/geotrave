@@ -263,7 +263,8 @@ async def fetch_weather(
 
     forecast: List[Dict[str, Any]] = []
     for i in range(len(dates)):
-        code = int(weather_codes[i]) if i < len(weather_codes) else -1
+        raw_code = weather_codes[i] if i < len(weather_codes) else None
+        code = int(raw_code) if raw_code is not None else -1
         forecast.append(
             {
                 "date": dates[i] if i < len(dates) else "",
