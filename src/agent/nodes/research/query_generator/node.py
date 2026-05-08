@@ -8,6 +8,7 @@ from src.utils.llm_factory import LLMFactory
 from src.utils.prompt import prompt
 from src.utils.logger import get_logger
 from src.agent.nodes.utils import build_trace, extract_content_str, format_recent_history, get_beijing_time_now
+from src.agent.nodes.utils.prompt_debug import log_prompt
 from .config import TEMPERATURE, HISTORY_LIMIT, MAX_TOKENS
 
 logger = get_logger("QueryGeneratorNode")
@@ -143,16 +144,15 @@ async def query_generator_node(state: TravelState) -> Dict[str, Any]:
         focus_hint=focus_hint or "无",
     )
 
-    # 4. LLM Orchestration
-    logger.info("%s[QG PROMPT] ========== BEGIN ==========\n%s\n[QG PROMPT] ========== END ==========", dim_tag, prompt_str)
+    log_prompt("QueryGenerator", prompt_str, focus_dimension or "full")
 
+    # 4. LLM Orchestration
     llm = LLMFactory.get_model("QueryGenerator", temperature=TEMPERATURE, max_tokens=MAX_TOKENS)
     bound_llm = llm.bind(response_format={"type": "json_object"})
 
     try:
         raw_result = await bound_llm.ainvoke(prompt_str)
         content = extract_content_str(raw_result)
-        logger.info("%s[QG OUTPUT] %s", dim_tag, content[:500])
         parsed_json = json.loads(content)
         result = QueryGeneratorOutput(**parsed_json)
 

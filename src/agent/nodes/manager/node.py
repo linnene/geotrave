@@ -14,6 +14,7 @@ from src.utils.llm_factory import LLMFactory
 from src.utils.prompt import prompt
 from src.utils.logger import get_logger
 from src.agent.nodes.utils import build_trace, format_recent_history, format_trace_history
+from src.agent.nodes.utils.prompt_debug import log_prompt
 from .config import TEMPERATURE, MAX_TOKENS, HISTORY_LIMIT, NODE_HISTORY_LIMIT
 
 from langchain_core.output_parsers import JsonOutputParser
@@ -82,6 +83,8 @@ async def manager_node(state: TravelState) -> Dict[str, Any]:
         missing_fields=", ".join(missing_fields) if missing_fields else "无",
         format_instructions=parser.get_format_instructions()
     )
+
+    log_prompt("Manager", prompt_str)
 
     llm = LLMFactory.get_model("Manager", temperature=TEMPERATURE, max_tokens=MAX_TOKENS)
 
