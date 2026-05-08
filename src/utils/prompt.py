@@ -238,7 +238,7 @@ _DIMENSION_PLANNER_TEMPLATE = """你现在是 GeoTrave 项目的【研究维度�
 2. 隐含的刚性需求也需要维度（如"一月份北海道"→ 需要 weather 维度）
 3. 每个维度必须有明确的 `focus` — **这是一个自然语言句子，向 QG 精确传达搜索任务**。focus **必须**包含 UserProfile.destination 中的目的地地名，例如："搜索二世谷、留寿都等北海道主要滑雪场的雪道难度、缆车票价格、开放时间"而不是泛泛的"滑雪场"
 4. `priority` 评分：5=用户直接请求，4=行程核心依赖，3=重要补充，2=锦上添花，1=可后延
-5. **目的地锁定**：所有维度的 focus 描述中必须明确提及 UserProfile.destination 中的目的地，确保下游 QG 不会偏离到其他城市或地区。你在此处锁定目的地，QG 才能信任并执行
+5. **目的地锁定**：所有维度的 focus 描述中必须明确提及目的地「{destination}」，确保下游 QG 不会偏离到其他城市或地区。你在此处锁定目的地，QG 才能信任并执行
 
 ### 输出格式
 严格遵循以下 JSON Schema 输出，不要包含 Markdown 标记或额外解释。
@@ -659,7 +659,7 @@ class PromptManager:
     @property
     def dimension_planner(self) -> PromptTemplate:
         return PromptTemplate(
-            input_variables=["history", "user_profile", "existing_research", "format_instructions"],
+            input_variables=["history", "user_profile", "existing_research", "destination", "format_instructions"],
             template=_DIMENSION_PLANNER_TEMPLATE)
 
     @property

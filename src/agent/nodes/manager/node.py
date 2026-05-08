@@ -55,7 +55,8 @@ async def manager_node(state: TravelState) -> Dict[str, Any]:
     recommended_dimensions = getattr(signs, 'recommended_dimensions', []) or [] if signs else []
     research_hashes = research_manifest.research_hashes if research_manifest else {}
     hashes_count = sum(len(v) for v in research_hashes.values())
-    research_history = research_manifest.research_history if research_manifest else []
+    research_history_full = research_manifest.research_history if research_manifest else []
+    research_history = research_history_full[-10:]  # 只保留最近 10 条，防止污染 Manager 判断
 
     history = format_recent_history(messages, HISTORY_LIMIT)
     rec_summary = _summarise_recommendation_data(state)

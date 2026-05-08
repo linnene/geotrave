@@ -24,7 +24,8 @@ def _get_tools_documentation() -> str:
     from ..search.tools import TOOL_METADATA
     return json.dumps(TOOL_METADATA, indent=2, ensure_ascii=False)
 
-PLACEHOLDER_VALUES = {"未指定", "未設定", "unspecified", "none", "null", "", "东京", "東京", "Tokyo"}
+PLACEHOLDER_VALUES = {"未指定", "未設定", "unspecified", "none", "null", ""}
+BLOCKED_CITIES = {"东京", "東京", "Tokyo", "大阪", "Osaka", "大阪市", "京都", "Kyoto", "名古屋", "Nagoya", "福岡", "Fukuoka"}
 
 
 def _first_destination(user_profile) -> str:
@@ -34,36 +35,47 @@ def _first_destination(user_profile) -> str:
     return user_profile.destination[0] or ""
 
 
-def _enforce_destination(tasks, destination: str):
-    """Replace empty/placeholder centers with the actual destination from user profile.
+def _is_foreign_city(value: str, destination: str) -> bool:
+    """Check if a value is a known foreign city that doesn't match the user's destination."""
+    if not value or not destination:
+        return False
+    v = value.strip()
+    if v.lower() in BLOCKED_CITIES or v in BLOCKED_CITIES:
+        return v != destination and destination not in v
+    return False
 
-    The LLM occasionally injects placeholder values like "未指定" or a different city
-    as the spatial_search center. This is a code-level safety net.
+
+def _validated_param(params: dict, key: str, destination: str, task_name: str) -> bool:
+    """If params[key] is empty or a blocked city, replace it with destination. Returns True if fixed."""
+    value = (params.get(key) or "").strip()
+    if not value or _is_foreign_city(value, destination) or value.lower() in PLACEHOLDER_VALUES or value in PLACEHOLDER_VALUES:
+        logger.warning("QG generated invalid %s %s=%r, replacing with destination=%r", task_name, key, value, destination)
+        params[key] = destination
+        return True
+    return False
+
+
+def _enforce_destination(tasks, destination: str):
+    """Replace empty/placeholder/foreign-city centers with the actual destination.
+
+    The LLM occasionally injects placeholder values like "未指定", or picks a completely
+    unrelated city (e.g. Tokyo instead of Sapporo). This is a code-level safety net that
+    covers all location-bearing tool parameters.
     """
     new_tasks = []
     for task in tasks:
         fixed = False
         params = {**task.parameters}
         if task.tool_name == "spatial_search":
-            center = (params.get("center") or "").strip()
-            if not center or center.lower() in PLACEHOLDER_VALUES or center in PLACEHOLDER_VALUES:
-                logger.warning(
-                    "QG generated invalid center=%r, replacing with destination=%r",
-                    center, destination,
-                )
-                params["center"] = destination
-                fixed = True
+            fixed = _validated_param(params, "center", destination, "spatial_search")
         elif task.tool_name == "route_search":
-            origin = (params.get("origin") or "").strip()
-            dest = (params.get("destination") or "").strip()
-            if not origin or origin.lower() in PLACEHOLDER_VALUES or origin in PLACEHOLDER_VALUES:
-                logger.warning("QG generated invalid route origin=%r, replacing with destination=%r", origin, destination)
-                params["origin"] = destination
-                fixed = True
-            if not dest or dest.lower() in PLACEHOLDER_VALUES or dest in PLACEHOLDER_VALUES:
-                logger.warning("QG generated invalid route dest=%r, replacing with destination=%r", dest, destination)
-                params["destination"] = destination
-                fixed = True
+            for key in ("origin", "destination"):
+                if _validated_param(params, key, destination, "route_search"):
+                    fixed = True
+        elif task.tool_name == "weather_search":
+            fixed = _validated_param(params, "location", destination, "weather_search")
+        elif task.tool_name == "document_search":
+            fixed = _validated_param(params, "place_filter", destination, "document_search")
         if fixed:
             new_tasks.append(task.model_copy(update={"parameters": params}))
         else:
@@ -85,6 +97,13 @@ async def query_generator_node(state: TravelState) -> Dict[str, Any]:
     hints = state.get("dimension_hints", {})
     focus_hint = hints.get(focus_dimension, "") if focus_dimension else ""
 
+    # Code-level destination injection — 防止 LLM 在 focus_hint 中丢失目的地
+    user_dest = _first_destination(user_profile)
+    if user_dest and focus_hint:
+        focus_hint = f"[目的地={user_dest}] {focus_hint}"
+    elif user_dest:
+        focus_hint = f"目的地: {user_dest}"
+
     dim_tag = f"[{focus_dimension}] " if focus_dimension else ""
     dim_ctx = {"dimension": focus_dimension} if focus_dimension else {}
     if focus_dimension:
@@ -105,7 +124,7 @@ async def query_generator_node(state: TravelState) -> Dict[str, Any]:
     passed_queries = loop_state.passed_queries if loop_state else []
 
     feedback_str = feedback if feedback else "无（首轮调研）"
-    passed_queries_str = "\n".join(f"- {q}" for q in passed_queries) if passed_queries else "无（首轮调研）"
+    passed_queries_str = "\n".join(f"- {q}" for q in passed_queries[-10:]) if passed_queries else "无（首轮调研）"
 
     # 3. Dynamic Injection
     tools_doc = _get_tools_documentation()
@@ -149,6 +168,7 @@ async def query_generator_node(state: TravelState) -> Dict[str, Any]:
         new_history = old_history[:]
         if not new_history or new_history[-1] != current_strategy:
             new_history.append(current_strategy)
+        new_history = new_history[-10:]  # cap to last 10 entries
 
         if research_data:
             new_research_data = research_data.model_copy(

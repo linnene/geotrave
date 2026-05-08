@@ -36,12 +36,17 @@ async def dimension_planner_node(state: TravelState) -> Dict[str, Any]:
     existing_history = research_data.research_history if research_data else []
     existing_str = "\n".join(f"- {h}" for h in existing_history[-5:]) if existing_history else "无"
 
+    # 提取目的地，直接注入提示词防止维度漂移
+    dest_list = (user_profile.destination or []) if user_profile else []
+    destination_context = dest_list[0] if dest_list else "未指定"
+
     format_instructions = _get_format_instructions()
 
     prompt_str = prompt.dimension_planner.format(
         history=history,
         user_profile=profile_json,
         existing_research=existing_str,
+        destination=destination_context,
         format_instructions=format_instructions,
     )
 
