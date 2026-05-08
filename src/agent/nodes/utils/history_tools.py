@@ -25,7 +25,7 @@ def format_recent_history(messages: List[BaseMessage], history_limit: int = 5) -
     if not messages:
         return "无对话历史"
         
-    relevant_messages = messages[-(history_limit + 1):-1]
+    relevant_messages = messages[-history_limit:]
     
     chat_history = []
     for m in relevant_messages:
