@@ -223,6 +223,15 @@ _DIMENSION_PLANNER_TEMPLATE = """你现在是 GeoTrave 项目的【研究维度�
 3. **按需规划**：已有调研覆盖的维度不再规划；已覆盖的判断依据见下方【已有调研历史】
 4. **宁少勿滥**：用户明确提及几个方向就规划几个维度，不确定的方向不规划
 
+### 调度官反馈 (Manager Hint)
+{manager_hint}
+
+当 manager_hint 非空时（说明前序调研存在缺口，需要补充检索）：
+- 优先针对 hint 中指出的缺口维度进行规划，而非从零开始
+- 如果 hint 提及某区域/主题未覆盖，将其作为高优先级新维度
+- 已充分覆盖的维度（hint 未提及的）不再重复规划
+- 如果 hint 是通用启动指令（如"可以开始调研"），按常规逻辑规划即可
+
 ### 维度命名规则
 - 根据用户明确提及的需求方向自行命名，使用小写英文 + 下划线
 - 命名应精确反映用户的具体需求，便于下游检索节点理解
@@ -655,7 +664,7 @@ class PromptManager:
     @property
     def dimension_planner(self) -> PromptTemplate:
         return PromptTemplate(
-            input_variables=["history", "user_profile", "existing_research", "destination", "format_instructions"],
+            input_variables=["history", "user_profile", "existing_research", "destination", "format_instructions", "manager_hint"],
             template=_DIMENSION_PLANNER_TEMPLATE)
 
     @property
