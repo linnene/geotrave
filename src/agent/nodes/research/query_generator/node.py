@@ -97,6 +97,8 @@ async def query_generator_node(state: TravelState) -> Dict[str, Any]:
     hints = state.get("dimension_hints", {})
     focus_hint = hints.get(focus_dimension, "") if focus_dimension else ""
 
+    user_profile = state.get("user_profile")
+
     # Code-level destination injection — 防止 LLM 在 focus_hint 中丢失目的地
     user_dest = _first_destination(user_profile)
     if user_dest and focus_hint:
@@ -114,8 +116,6 @@ async def query_generator_node(state: TravelState) -> Dict[str, Any]:
     # 1. Prepare Context — QG 自行从对话历史中分析用户意图
     messages = state.get("messages", [])
     history = format_recent_history(messages, HISTORY_LIMIT)
-
-    user_profile = state.get("user_profile")
 
     # 2. Extract loop_state data (Critic feedback + passed queries)
     research_data = state.get("research_data")
