@@ -7,7 +7,6 @@ from src.utils.llm_factory import LLMFactory
 from src.utils.prompt import prompt
 from src.utils.logger import get_logger
 from src.agent.nodes.utils import build_trace, extract_content_str, format_recent_history
-from src.agent.nodes.utils.prompt_debug import log_prompt
 from .config import TEMPERATURE, HISTORY_LIMIT, MAX_TOKENS
 
 logger = get_logger("DimensionPlannerNode")
@@ -27,7 +26,6 @@ async def dimension_planner_node(state: TravelState) -> Dict[str, Any]:
     logger.info("Planning research dimensions at [DimensionPlanner]...")
 
     messages = state.get("messages", [])
-    logger.info("DimensionPlanner: messages=%d", len(messages))
     history = format_recent_history(messages, HISTORY_LIMIT)
 
     user_profile = state.get("user_profile")
@@ -56,8 +54,6 @@ async def dimension_planner_node(state: TravelState) -> Dict[str, Any]:
         format_instructions=format_instructions,
         manager_hint=manager_hint,
     )
-
-    log_prompt("DimensionPlanner", prompt_str)
 
     llm = LLMFactory.get_model("DimensionPlanner", temperature=TEMPERATURE, max_tokens=MAX_TOKENS)
     bound_llm = llm.bind(response_format={"type": "json_object"})

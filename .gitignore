@@ -31,6 +31,7 @@ database/checkpointer/
 # Test outputs
 .pytest_cache/
 postman/output/
+logs/
 
 # IDEs
 .vscode/

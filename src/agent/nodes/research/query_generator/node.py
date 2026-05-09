@@ -8,7 +8,6 @@ from src.utils.llm_factory import LLMFactory
 from src.utils.prompt import prompt
 from src.utils.logger import get_logger
 from src.agent.nodes.utils import build_trace, extract_content_str, format_recent_history, get_beijing_time_now
-from src.agent.nodes.utils.prompt_debug import log_prompt
 from .config import TEMPERATURE, HISTORY_LIMIT, MAX_TOKENS
 
 logger = get_logger("QueryGeneratorNode")
@@ -116,10 +115,7 @@ async def query_generator_node(state: TravelState) -> Dict[str, Any]:
 
     # 1. Prepare Context — QG 自行从对话历史中分析用户意图
     messages = state.get("messages", [])
-    logger.info("%sQG: messages=%d, focus_dim=%s, hints_keys=%s",
-                dim_tag, len(messages), focus_dimension, list(state.get("dimension_hints", {}).keys()))
     history = format_recent_history(messages, HISTORY_LIMIT)
-    logger.info("%sQG history[:200]: %s", dim_tag, history[:200])
 
     # 2. Extract loop_state data (Critic feedback + passed queries)
     research_data = state.get("research_data")
@@ -146,8 +142,6 @@ async def query_generator_node(state: TravelState) -> Dict[str, Any]:
         focus_dimension=focus_dimension or "无（全维度搜索模式）",
         focus_hint=focus_hint or "无",
     )
-
-    log_prompt("QueryGenerator", prompt_str, focus_dimension or "full")
 
     # 4. LLM Orchestration
     llm = LLMFactory.get_model("QueryGenerator", temperature=TEMPERATURE, max_tokens=MAX_TOKENS)
