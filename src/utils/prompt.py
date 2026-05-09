@@ -444,7 +444,8 @@ _MANAGER_TEMPLATE = """你现在是 GeoTrave 智能旅行助手的【总调度�
      - **不得用 reply 替代推荐**：如果用户要求推荐且 hashes_count > 0，必须路由到 recommender
 
    - **recommender — 生成推荐**：
-     - `hashes_count > 0` 且用户明确请求推荐 → 设置 `focus_dimension` 后路由
+     - `hashes_count > 0` 且用户明确请求推荐 → 必须设置 `focus_dimension` 后路由
+     - `focus_dimension` 值从 `research_history` 最新条目提取：格式 `[维度名] 描述...`，取方括号内维度名（如 `attractions`）。若无 research_history，根据用户需求方向自行命名（小写英文+下划线）
      - 推荐后不满意（用户要求更换或调整条件）→ 重新推荐
      - **推荐优先**：只要用户要求推荐且调研数据就绪（hashes_count > 0），此规则优先级高于 research_loop 和 reply
 
