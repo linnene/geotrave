@@ -27,6 +27,7 @@ async def dimension_planner_node(state: TravelState) -> Dict[str, Any]:
     logger.info("Planning research dimensions at [DimensionPlanner]...")
 
     messages = state.get("messages", [])
+    logger.info("DimensionPlanner: messages=%d", len(messages))
     history = format_recent_history(messages, HISTORY_LIMIT)
 
     user_profile = state.get("user_profile")

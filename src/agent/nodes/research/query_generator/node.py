@@ -116,7 +116,10 @@ async def query_generator_node(state: TravelState) -> Dict[str, Any]:
 
     # 1. Prepare Context — QG 自行从对话历史中分析用户意图
     messages = state.get("messages", [])
+    logger.info("%sQG: messages=%d, focus_dim=%s, hints_keys=%s",
+                dim_tag, len(messages), focus_dimension, list(state.get("dimension_hints", {}).keys()))
     history = format_recent_history(messages, HISTORY_LIMIT)
+    logger.info("%sQG history[:200]: %s", dim_tag, history[:200])
 
     # 2. Extract loop_state data (Critic feedback + passed queries)
     research_data = state.get("research_data")

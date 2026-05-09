@@ -60,6 +60,7 @@ async def manager_node(state: TravelState) -> Dict[str, Any]:
     research_history = research_history_full[-10:]  # 只保留最近 10 条，防止污染 Manager 判断
 
     history = format_recent_history(messages, HISTORY_LIMIT)
+    logger.info("Manager: messages=%d", len(messages))
     rec_summary = _summarise_recommendation_data(state)
 
     trace_logs = state.get("trace_history", [])
