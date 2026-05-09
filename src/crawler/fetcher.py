@@ -93,6 +93,7 @@ class ContentFetcher:
             user_data_dir=_user_data_dir,
             use_persistent_context=_use_persistent,
             enable_stealth=True,
+            verbose=False,
             viewport_width=1920,
             viewport_height=1080,
             headers=_headers,
