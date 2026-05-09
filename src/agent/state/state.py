@@ -63,7 +63,7 @@ class TravelState(TypedDict):
 
     # ── 维度控制 (DimensionPlanner 写入, Send 扇出消费) ────
     planned_dimensions: List[str]
-    dimension_hints: Dict[str, str]
+    dimension_hints: Annotated[Dict[str, str], lambda left, right: {**left, **right}]
     focus_dimension: Annotated[Optional[str], lambda left, right: right if right is not None else left]
 
     # ── 交付数据 ──────────────────────────────────────────
