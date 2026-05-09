@@ -99,8 +99,14 @@ async def get_travel_app():
             dims = state.get("planned_dimensions", [])
             if not dims:
                 return "research_merge"
+            dim_hints = state.get("dimension_hints", {})
+            parent_messages = state.get("messages", [])
             return [
-                Send("research_loop", {"focus_dimension": dim})
+                Send("research_loop", {
+                    "focus_dimension": dim,
+                    "dimension_hints": {dim: dim_hints.get(dim, "")},
+                    "messages": parent_messages[-3:] if parent_messages else [],
+                })
                 for dim in dims
             ]
 
