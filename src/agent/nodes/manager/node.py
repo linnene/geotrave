@@ -84,13 +84,18 @@ async def manager_node(state: TravelState) -> Dict[str, Any]:
 
     # 3. Hard guards (code-enforced, overrides LLM)
 
-    # Guard: is_core_complete=False blocks recommender/planner
-    if not is_core_complete and next_node in ("recommender", "planner"):
-        logger.warning(
-            "Manager override: is_core_complete=False, blocking %s", next_node
-        )
-        reason = f"[硬守卫] is_core_complete=False，阻止 {next_node}"
-        next_node = "reply"
+    # Guard: is_core_complete=False blocks planner (needs full info), warns for recommender
+    if not is_core_complete:
+        if next_node == "planner":
+            logger.warning(
+                "Manager override: is_core_complete=False, blocking planner"
+            )
+            reason = f"[硬守卫] is_core_complete=False，阻止 planner（需完整画像）"
+            next_node = "reply"
+        elif next_node == "recommender":
+            logger.warning(
+                "Manager: is_core_complete=False but allowing recommender (partial data is fine)"
+            )
 
     # Guard: research_rounds hard limit (max 2)
     if next_node == "research_loop":
