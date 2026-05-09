@@ -118,7 +118,7 @@ async def gateway_node(state: TravelState) -> Dict[str, Any]:
     # Only include messages key if we actually need to change them —
     # overwriting with [] would erase conversation history for all downstream nodes
     result_state = {
-        "execution_signs": ExecutionSigns.ensure(state.get("execution_signs")).model_copy(update={"is_safe": is_safe}),
+        "execution_signs": ExecutionSigns.ensure(state.get("execution_signs")).model_copy(update={"is_safe": is_safe, "research_rounds": 0}),
         "trace_history": [trace],
         "needs_exit": not is_safe,
     }

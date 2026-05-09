@@ -19,6 +19,7 @@ class ExecutionSigns(BaseModel):
     is_recommendation_complete: bool = Field(default=False, description="Recommender: all requested recommendation dimensions covered")
     is_plan_complete: bool = Field(default=False, description="Planner: day-by-day itinerary generated")
     recommended_dimensions: List[str] = Field(default_factory=list, description="Dimensions already covered by Recommender, e.g. ['destination', 'accommodation']")
+    research_rounds: int = Field(default=0, description="Manager 本轮对话已调度 research_loop 的次数，Gateway 在新消息时归零")
 
     @classmethod
     def ensure(cls, value):

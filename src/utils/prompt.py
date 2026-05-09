@@ -420,69 +420,43 @@ _REPLY_GUIDE_FALLBACK_TEMPLATE = """你现在是 GeoTrave 智能旅行助手的�
 # MANAGER NODE PROMPT
 # ==============================================================================
 
-_MANAGER_TEMPLATE = """你现在是 GeoTrave 智能旅行助手的【总调度官 (Manager)】。
-你的职责是基于当前的状态信号，决定下一步路由到哪个节点。
+_MANAGER_TEMPLATE = """你是行程调度官。根据当前状态和用户最新消息，决定下一步路由。
 
-（Analyst 已由图拓扑保证在每轮用户输入后最先执行。维度规划由 DimensionPlanner 负责，Manager 不再参与。）
+## 路由决策规则（严格按优先级执行，数字越小优先级越高）
 
-### 核心流转原则（必须遵守）
+0. **硬上限兜底**：
+   research_rounds >= 2 时，禁止再进入 research_loop。
+   有调研数据 → recommender；无调研数据 → reply。
 
-1. **路由决策逻辑**：
+1. **用户明确要求搜索** → research_loop
+   （用户最新消息含"搜索""查找""帮我找""查一下""搜""有什么""哪些"等词时触发）
 
-   **核心原则：用户意图优先。** 不要死等画像完整才行动。
+2. **首轮引导调研** → research_loop
+   （research_rounds=0 且 hashes_count=0 时允许一次，为用户自动收集信息）
 
-   - **research_loop — 启动调研**：
-     - 用户明确要求搜索或查找某类信息 → 立即路由
-     - `is_core_complete` 为 True 且 `research_history` 为空或不匹配当前诉求 → 需要调研
-     - `is_core_complete` 为 False 但用户有明确搜索意图 → 边搜边问
-     - **注意**：当 hashes_count > 0 且用户要求的是推荐而非搜索时，应路由到 recommender 而非此处
+3. **有调研数据** → recommender
+   （hashes_count > 0 即进入推荐。不要管 missing_fields 是否为空，
+   不要管是否所有维度都覆盖。有数据就能推荐。）
 
-   - **reply — 追问或回应**：
-     - `is_core_complete` 为 False 且用户没有明确搜索意图 → 追问核心缺失字段
-     - 用户反馈满意、对话进入闲聊、或任务完成时 → 自然回应
-     - 连续多轮 research_loop 无进展 → 请求用户干预
-     - **不得用 reply 替代推荐**：如果用户要求推荐且 hashes_count > 0，必须路由到 recommender
+4. **其他情况** → reply
 
-   - **recommender — 生成推荐**：
-     - `hashes_count > 0` 且用户明确请求推荐 → 必须设置 `focus_dimension` 后路由
-     - `focus_dimension` 值从 `research_history` 最新条目提取：格式 `[维度名] 描述...`，取方括号内维度名（如 `attractions`）。若无 research_history，根据用户需求方向自行命名（小写英文+下划线）
-     - 推荐后不满意（用户要求更换或调整条件）→ 重新推荐
-     - **推荐优先**：只要用户要求推荐且调研数据就绪（hashes_count > 0），此规则优先级高于 research_loop 和 reply
+## 严禁行为
+- 禁止把 missing_fields 当作进入 research_loop 的理由
+- 禁止反复进入 research_loop 来"完善信息"或"补充缺口"
+- 禁止在 hashes_count > 0 后再次进入 research_loop（除非用户明确说"再搜"）
 
-   - **planner — 生成行程**：推荐覆盖充分、用户满意后 → 路由
+## 当前状态
+- 调研轮次: {research_rounds} / 2（硬上限，达到后禁止再调研）
+- 调研结果数: {hashes_count}
+- 已推荐维度: {recommended_dimensions}
+- 核心信息完整: {is_core_complete}
+- 缺失字段: {missing_fields}
+- 调研历史: {research_history}
 
-   - 注意：你**不需要**判断具体应该搜索哪些维度——这是 DimensionPlanner 的职责。你只需判断"是否应该开始/继续调研"。
-
-2. **死循环防御**：
-   - 观察 `trace_history`。如果同一节点连续 3 次以上执行且状态未变化，果断切换到 `reply`
-
-### 当前状态信号
-- 核心信息完整度 (is_core_complete): {is_core_complete}
-  (False 表示目的地、日期或人数等基础信息不足)
-- 画像当前缺失字段 (missing_fields): {missing_fields}
-  (仅核心字段缺失时才是调研阻碍；软偏好缺失不阻断)
-- 推荐是否完成 (is_recommendation_complete): {is_recommendation_complete}
-- 已完成推荐的维度 (recommended_dimensions): {recommended_dimensions}
-- 行程是否完成 (is_plan_complete): {is_plan_complete}
-- 已生成的推荐摘要: {recommendation_summary}
-- 最近一轮调研结果数: {hashes_count} 条
-- 调研策略历史 (research_history): {research_history}
-
-### 最近流转轨迹 (Trace History)
-{trace_history}
-
-### 候选阶段
-- `research_loop`: 启动调研（由 DimensionPlanner 自动解耦维度并并行执行）
-- `reply`: 回复用户
-- `recommender`: 基于调研结果推荐
-- `planner`: 生成完整行程
-
-### 输出要求
-严格遵循 JSON 格式输出决策理由（rationale）和下一步规划（next_stage）。
+## 输出
 {format_instructions}
 
----
-【对话上下文参考】
+## 对话
 {history}
 """
 
@@ -658,7 +632,7 @@ class PromptManager:
     @property
     def manager(self) -> PromptTemplate:
         return PromptTemplate(
-            input_variables=["is_core_complete", "is_safe", "is_recommendation_complete", "is_plan_complete", "recommended_dimensions", "recommendation_summary", "hashes_count", "research_history", "history", "trace_history", "missing_fields", "format_instructions"],
+            input_variables=["research_rounds", "hashes_count", "recommended_dimensions", "is_core_complete", "missing_fields", "research_history", "history", "format_instructions"],
             template=_MANAGER_TEMPLATE)
 
     
