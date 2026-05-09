@@ -106,6 +106,15 @@ async def manager_node(state: TravelState) -> Dict[str, Any]:
     else:
         new_rounds = research_rounds
 
+    # Guard: hashes>0 after research → push toward recommender, not reply
+    if research_rounds >= 1 and hashes_count > 0 and next_node == "reply":
+        logger.warning(
+            "Manager: overriding reply → recommender (research done, hashes=%d, rounds=%d)",
+            hashes_count, research_rounds,
+        )
+        next_node = "recommender"
+        reason = f"[硬守卫] 调研已完成且有数据，从 reply 转为 recommender。原理由: {reason}"
+
     # 4. Issue Routing Command
     route = RouteMetadata(
         next_node=next_node,
