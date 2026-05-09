@@ -23,7 +23,7 @@ class RecommenderOutput(BaseModel):
         ..., description="本轮推荐维度（自由维度，如 'destination' / 'accommodation' / 'dining' / 'shopping' / 'attraction' 等）"
     )
     items: List[RecommendationItem] = Field(
-        default_factory=list, description="该维度的推荐列表（1-3 项）"
+        default_factory=list, description="该维度的推荐列表（8-9 项）"
     )
     strategy: str = Field(default="", description="推荐策略简述")
     tip: str = Field(default="", description="引导用户下一步的提示，如'选定目的地后我帮您挑住宿'")
