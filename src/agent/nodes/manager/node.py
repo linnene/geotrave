@@ -9,12 +9,12 @@ import time
 from typing import Any, Dict
 
 from src.agent.state import TravelState, RouteMetadata, ManagerOutput
-from src.agent.state.schema import ExecutionSigns, ResearchLoopInternal
+from src.agent.state.schema import ResearchLoopInternal
 from src.utils.llm_factory import LLMFactory
 from src.utils.prompt import prompt
 from src.utils.logger import get_logger
 from src.agent.nodes.utils import build_trace, format_recent_history, format_trace_history
-from .config import TEMPERATURE, MAX_TOKENS, HISTORY_LIMIT, NODE_HISTORY_LIMIT
+from .config import TEMPERATURE, MAX_TOKENS, HISTORY_LIMIT
 
 from langchain_core.output_parsers import JsonOutputParser
 

@@ -9,7 +9,10 @@ from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
 from langgraph.types import Send
 from src.database.checkpointer import SqliteCheckpointer
+from src.utils.logger import get_logger
 import src.agent.state.state as state_mod
+
+_router_logger = get_logger("GraphRouter")
 
 # Factory function to get or create the app
 # Use a dictionary to store loop-specific app instances to avoid "Lock bound to different loop" errors
@@ -98,7 +101,9 @@ async def get_travel_app():
         def dimension_fanout(state: state_mod.TravelState):
             dims = state.get("planned_dimensions", [])
             if not dims:
+                _router_logger.info("DimensionFanout: no dimensions → research_merge directly")
                 return "research_merge"
+            _router_logger.info("DimensionFanout: fanning out %d parallel branches: %s", len(dims), dims)
             dim_hints = state.get("dimension_hints", {})
             parent_messages = state.get("messages", [])
             return [
@@ -121,9 +126,13 @@ async def get_travel_app():
 
         # Research Loop exit routing: 并行模式时先汇聚到 research_merge
         def research_exit_router(state: state_mod.TravelState) -> str:
-            if state.get("focus_dimension"):
-                return "research_merge"
-            return "manager"
+            focus = state.get("focus_dimension")
+            target = "research_merge" if focus else "manager"
+            _router_logger.info(
+                "ResearchExit: branch [%s] completed → routing to %s",
+                focus or "none", target,
+            )
+            return target
 
         workflow.add_conditional_edges(
             "research_loop",
