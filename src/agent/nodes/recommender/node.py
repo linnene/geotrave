@@ -24,10 +24,17 @@ logger = get_logger("RecommenderNode")
 parser = JsonOutputParser(pydantic_object=RecommenderOutput)
 
 
-def _resolve_dimension(focus_hint: str | None) -> str | None:
-    """返回本轮推荐维度。直接使用 Manager 传入的 focus_dimension hint。"""
+def _resolve_dimension(focus_hint: str | None, research_history: list | None = None) -> str | None:
+    """返回本轮推荐维度。优先用 Manager 的 focus_dimension hint，
+    缺失时从 research_history 最新条目推断维度。"""
     if focus_hint:
         return focus_hint
+    if research_history:
+        last = research_history[-1]
+        if last.startswith("["):
+            end = last.find("]")
+            if end > 1:
+                return last[1:end]
     return None
 
 
@@ -41,7 +48,11 @@ async def recommender_node(state: TravelState) -> Dict[str, Any]:
     route_meta = state.get("route_metadata")
     focus_hint = getattr(route_meta, 'focus_dimension', None) if route_meta else None
 
-    focus_dim = _resolve_dimension(focus_hint)
+    # 兜底：从 research_history 推断最近调研的维度
+    research_manifest = state.get("research_data")
+    research_history = research_manifest.research_history if research_manifest else []
+
+    focus_dim = _resolve_dimension(focus_hint, research_history)
 
     if not focus_dim:
         logger.warning("Recommender called without focus_dimension hint from Manager")
@@ -55,7 +66,6 @@ async def recommender_node(state: TravelState) -> Dict[str, Any]:
 
     messages = state.get("messages", [])
     user_profile = state.get("user_profile")
-    research_manifest = state.get("research_data")
 
     history = format_recent_history(messages, HISTORY_LIMIT)
     research_summary = await fetch_research_content(research_manifest)
