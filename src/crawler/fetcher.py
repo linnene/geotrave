@@ -33,9 +33,11 @@ class ContentFetcher:
             "Sec-Fetch-Dest": "document",
         }
 
-        # ── Platform detection ──────────────────────────────────────
+        # ── Suppress Node.js deprecation warnings (url.parse etc.) ──
         import os as _os
+        _os.environ.setdefault("NODE_NO_WARNINGS", "1")
 
+        # ── Platform detection ──────────────────────────────────────
         _system = sys.platform  # "win32" | "darwin" | "linux"
         _is_docker = _os.path.exists("/.dockerenv") or (
             "docker" in (_os.environ.get("container", "") or "").lower()
