@@ -19,7 +19,15 @@ async def research_merge_node(state: TravelState) -> Dict[str, Any]:
     research_data = state.get("research_data")
     hashes_count = sum(len(v) for v in research_data.research_hashes) if research_data else 0
 
+    # Diagnostic: verify execution_signs survived the Send + subgraph round-trip
+    signs = state.get("execution_signs")
+    _s_rounds = signs.research_rounds if signs else "None"
+    _s_type = type(signs).__name__ if signs is not None else "None"
     dims = state.get("planned_dimensions", [])
+    logger.info(
+        "ResearchMerge DIAG: signs_type=%s research_rounds=%s total_hashes=%d dims=%s",
+        _s_type, _s_rounds, hashes_count, dims,
+    )
     logger.info(
         "ResearchMerge — aggregating %d dimensions, total hashes=%d",
         len(dims), hashes_count
