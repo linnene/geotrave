@@ -4,7 +4,7 @@ Responsibility: Search node constants — browser pool, crawl concurrency, and t
 """
 
 # Browser pool — each instance owns its own Chromium process
-POOL_SIZE = 5
+POOL_SIZE = 8
 
 # Maximum concurrent crawl tasks
 MAX_CRAWL_CONCURRENCY = 4
