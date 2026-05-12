@@ -38,6 +38,15 @@ async def manager_node(state: TravelState) -> Dict[str, Any]:
     research_manifest = state.get("research_data")
     messages = state.get("messages", [])
 
+    # Diagnostic: log raw state to trace research_rounds / hashes through checkpoint
+    _signs_type = type(signs).__name__ if signs is not None else "None"
+    _signs_raw = signs.model_dump() if hasattr(signs, 'model_dump') else str(signs)
+    _hashes_raw = research_manifest.research_hashes if research_manifest else None
+    logger.info(
+        "Manager DIAG: signs_type=%s signs=%s research_hashes=%s",
+        _signs_type, _signs_raw, _hashes_raw,
+    )
+
     is_core_complete = signs.is_core_complete if signs else False
     recommended_dimensions = getattr(signs, 'recommended_dimensions', []) or [] if signs else []
     research_rounds = signs.research_rounds if signs else 0
@@ -97,9 +106,9 @@ async def manager_node(state: TravelState) -> Dict[str, Any]:
                 "Manager: is_core_complete=False but allowing recommender (partial data is fine)"
             )
 
-    # Guard: research_rounds hard limit (max 2)
+    # Guard: research_rounds hard limit (max 1)
     if next_node == "research_loop":
-        if research_rounds >= 2:
+        if research_rounds >= 1:
             if hashes_count > 0:
                 next_node = "recommender"
                 reason = f"[硬守卫] research_rounds={research_rounds} 已达上限，强制转为 recommender"
@@ -110,15 +119,6 @@ async def manager_node(state: TravelState) -> Dict[str, Any]:
         new_rounds = research_rounds + 1
     else:
         new_rounds = research_rounds
-
-    # Guard: hashes>0 after research → push toward recommender, not reply
-    if research_rounds >= 1 and hashes_count > 0 and next_node == "reply":
-        logger.warning(
-            "Manager: overriding reply → recommender (research done, hashes=%d, rounds=%d)",
-            hashes_count, research_rounds,
-        )
-        next_node = "recommender"
-        reason = f"[硬守卫] 调研已完成且有数据，从 reply 转为 recommender。原理由: {reason}"
 
     # 4. Issue Routing Command
     route = RouteMetadata(

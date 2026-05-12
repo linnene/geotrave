@@ -64,8 +64,9 @@ async def dimension_planner_node(state: TravelState) -> Dict[str, Any]:
         parsed = json.loads(content)
         result = DimensionPlannerOutput(**parsed)
 
-        # 按 priority 降序排列
+        # 按 priority 降序排列，硬上限最多 3 个维度
         sorted_dims = sorted(result.dimensions, key=lambda d: d.priority, reverse=True)
+        sorted_dims = sorted_dims[:3]
         dim_names = [d.name for d in sorted_dims]
         dim_hints = {d.name: d.focus for d in sorted_dims}
 

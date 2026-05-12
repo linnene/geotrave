@@ -222,6 +222,7 @@ _DIMENSION_PLANNER_TEMPLATE = """你现在是 GeoTrave 项目的【研究维度�
 2. **维度解耦**：将需求拆分为互不依赖的独立维度，维度之间尽量减少重叠
 3. **按需规划**：已有调研覆盖的维度不再规划；已覆盖的判断依据见下方【已有调研历史】
 4. **宁少勿滥**：用户明确提及几个方向就规划几个维度，不确定的方向不规划
+5. **硬上限**：最多规划 3 个维度。如果可规划的维度超过 3 个，只保留 priority 最高的 3 个
 
 ### 调度官反馈 (Manager Hint)
 {manager_hint}
@@ -425,34 +426,36 @@ _MANAGER_TEMPLATE = """你是行程调度官。根据当前状态和用户最新
 ## 路由决策规则（严格按优先级执行，数字越小优先级越高）
 
 0. **硬上限兜底**：
-   research_rounds >= 2 时，禁止再进入 research_loop。
+   research_rounds >= 1 时，禁止再进入 research_loop。
    有调研数据 → recommender；无调研数据 → reply。
 
-1. **用户最新消息要求搜索** → research_loop
+1. **用户最新消息明确要求搜索/查找** → research_loop
    仅当用户明确说"搜索""查找""帮我找""查一下""再搜"时触发。
    "有什么""哪些""推荐吗""怎么样"不是搜索请求，不要在 hashes>0 时为此进入 research_loop。
 
 2. **首轮自动引导** → research_loop
    （research_rounds=0 且 hashes_count=0 时自动一次，帮助用户收集初始信息）
 
-3. **有调研数据 → 必须路由到 recommender（最高频路径）**
-   hashes_count > 0 说明调研已完成。此时不管用户有没有说"推荐"两个字，
-   不管 missing_fields 是否为空，不管是否所有维度都覆盖，一律进入 recommender。
-   用户问"有什么好玩的""推荐一下""怎么样""哪个好""帮我看看"都是推荐请求。
-   用户只是说"嗯""好的""继续"也是推荐请求。
-   总之：有调研数据 + 用户没要求搜索 → recommender，不用犹豫。
+3. **用户消息含推荐/选择意图** → recommender
+   用户说"推荐""有什么好的""帮我选""哪个好""建议""给我几个选项""介绍一下"
+   等需要具体推荐内容时，路由到 recommender。
+   hashes_count > 0 是前提（无数据无法推荐），但不是充分条件——
+   必须用户消息本身带有推荐意图。
 
-4. **纯对话** → reply
-   仅限：用户表示感谢"谢谢"、确认信息"知道了"、闲聊"你好"、或任务已完成。
+4. **其他一切情况** → reply
+   包括：用户问可行性（"能...吗""够不够""可以...吗"）、
+   要求规划（"规划""安排行程""路线"）、
+   确认信息（"嗯""好的""知道了"）、闲聊（"谢谢""你好"）、
+   或 hashes_count=0 且无搜索意图。
 
 ## 严禁行为
 - 禁止把 missing_fields 当作进入 research_loop 的理由
 - 禁止在 hashes_count > 0 后进入 research_loop（除非用户明确说"再搜""再查"）
-- 禁止在 hashes_count > 0 后进入 reply（除非用户明确表示满意或闲聊结束）
-- 调研完成后推荐是默认行为，不要等用户说"推荐"才推荐
+- 禁止用户没有推荐/选择意图时强行进入 recommender（用户问可行性/规划 ≠ 推荐请求）
+- 禁止一次规划超过 3 个调研维度（由 DimensionPlanner 硬上限保障）
 
 ## 当前状态
-- 调研轮次: {research_rounds} / 2（硬上限，达到后禁止再调研）
+- 调研轮次: {research_rounds} / 1（硬上限，达到后禁止再调研）
 - 调研结果数: {hashes_count}
 - 已推荐维度: {recommended_dimensions}
 - 核心信息完整: {is_core_complete}
@@ -461,6 +464,12 @@ _MANAGER_TEMPLATE = """你是行程调度官。根据当前状态和用户最新
 
 ## 输出
 {format_instructions}
+
+**focus_dimension 必填规则**：
+- 路由到 recommender 时必须设置 focus_dimension。
+- 从 research_history 最新条目的方括号内提取维度名（如 `[hotels] 搜索...` → `hotels`）。
+- 若 research_history 为空或无法解析，则从用户最新消息推断最相关的维度英文名。
+- 路由到非 recommender 时 focus_dimension 留 null。
 
 ## 对话
 {history}
