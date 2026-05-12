@@ -68,7 +68,25 @@ async def recommender_node(state: TravelState) -> Dict[str, Any]:
     user_profile = state.get("user_profile")
 
     history = format_recent_history(messages, HISTORY_LIMIT)
+
+    # Data provenance: verify research data is actually loaded from KV DB
+    _hashes = research_manifest.research_hashes if research_manifest else {}
+    _total_hash_keys = sum(len(v) for v in _hashes.values())
+    _hash_groups = len(_hashes)
+    logger.info(
+        "Recommender PROVENANCE: hash_groups=%d total_hash_keys=%d",
+        _hash_groups, _total_hash_keys,
+    )
+
     research_summary = await fetch_research_content(research_manifest)
+
+    # Log the actual research payload size injected into the prompt
+    _summary_len = len(research_summary)
+    _is_fallback = research_summary.startswith("[降级摘要")
+    logger.info(
+        "Recommender PROVENANCE: research_summary_len=%d is_fallback=%s preview=%s",
+        _summary_len, _is_fallback, research_summary[:200],
+    )
     profile_json = user_profile.model_dump_json(indent=2, ensure_ascii=False) if user_profile else "{}"
 
     prompt_str = prompt.recommender.format(
@@ -89,8 +107,19 @@ async def recommender_node(state: TravelState) -> Dict[str, Any]:
         if raw is None:
             raise ValueError("LLM returned empty or unparseable response")
         rec = RecommenderOutput(**raw)
+
+        # Data integrity check: warn if many items generated from thin research data
+        _item_count = len(rec.items)
+        if _item_count >= 5 and _summary_len < 500:
+            logger.warning(
+                "Recommender INTEGRITY: %d items generated from only %d chars of research data — "
+                "high risk of hallucination",
+                _item_count, _summary_len,
+            )
+
         logger.info(
-            f"Recommender done — dimension={rec.dimension}, {len(rec.items)} items"
+            f"Recommender done — dimension={rec.dimension}, {_item_count} items "
+            f"(research_data={_summary_len} chars, hash_keys={_total_hash_keys})"
         )
         for idx, item in enumerate(rec.items, 1):
             logger.info(
