@@ -6,6 +6,7 @@ Parent Module: src.agent.nodes.search
 Dependencies: src.agent.state, src.agent.state.schema, src.agent.nodes.search.tools
 """
 
+import asyncio
 import json
 import time
 from datetime import datetime, timezone
@@ -66,92 +67,112 @@ def _generate_summary(payload: Dict[str, Any]) -> str:
     return raw[:500]
 
 
-async def _execute_tasks(
-    tasks: List[SearchTask],
+async def _execute_one_task(
+    idx: int,
+    task: SearchTask,
 ) -> Dict[str, ResearchResult]:
-    """执行全部 SearchTask，将结果包裹为 ResearchResult envelope。
+    """执行单个 SearchTask，返回 {key: ResearchResult} 映射。
 
-    对于 web_search：每个独立搜索结果（URL）拆分为单独的 ResearchResult，
-    键为 {query_text}#{idx}，使得 Critic 可逐条评分、Hash 可逐条存储。
-    其他工具保持原有的一 task 一 result 行为。
-
-    Returns:
-        {query_text or query_text#idx: ResearchResult} 映射。
+    web_search 的每个独立 URL 结果拆分为独立 key（{query}#{idx}），
+    其他工具保持一 task 一 result。
     """
     results: Dict[str, ResearchResult] = {}
+    query_text = json.dumps(task.parameters, ensure_ascii=False)
 
-    for idx, task in enumerate(tasks):
-        query_text = json.dumps(task.parameters, ensure_ascii=False)
-        handler = tools.TOOL_DISPATCH.get(task.tool_name)
-        if handler is None:
-            logger.error(f"Unsupported tool '{task.tool_name}' in task {idx}.")
+    handler = tools.TOOL_DISPATCH.get(task.tool_name)
+    if handler is None:
+        logger.error(f"Unsupported tool '{task.tool_name}' in task {idx}.")
+        results[query_text] = ResearchResult(
+            tool_name=task.tool_name,
+            query=query_text,
+            content_type="json",
+            content={"error": f"Unknown tool: {task.tool_name}"},
+            content_summary=f"错误: 未知工具 {task.tool_name}",
+            dimension=task.dimension,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+        return results
+
+    try:
+        raw = await handler(task)
+
+        if task.tool_name == "web_search":
+            result_items = raw.payload.get("results", [])
+            if result_items:
+                for ri, item in enumerate(result_items):
+                    item_key = f"{query_text}#{ri}"
+                    results[item_key] = ResearchResult(
+                        tool_name=task.tool_name,
+                        query=item_key,
+                        content_type="json",
+                        content=item,
+                        content_summary=_generate_summary(item),
+                        dimension=task.dimension,
+                        timestamp=datetime.now(timezone.utc).isoformat(),
+                    )
+            else:
+                results[query_text] = ResearchResult(
+                    tool_name=task.tool_name,
+                    query=query_text,
+                    content_type="json",
+                    content={"query": raw.payload.get("query", ""), "total": 0, "results": []},
+                    content_summary=f"web_search: 无结果 (query={raw.payload.get('query', '?')})",
+                    dimension=task.dimension,
+                    timestamp=datetime.now(timezone.utc).isoformat(),
+                )
+        else:
             results[query_text] = ResearchResult(
                 tool_name=task.tool_name,
                 query=query_text,
                 content_type="json",
-                content={"error": f"Unknown tool: {task.tool_name}"},
-                content_summary=f"错误: 未知工具 {task.tool_name}",
+                content=raw.payload,
+                content_summary=_generate_summary(raw.payload),
                 dimension=task.dimension,
                 timestamp=datetime.now(timezone.utc).isoformat(),
             )
-            continue
-        try:
-            raw = await handler(task)
-
-            # web_search：每个独立结果拆分为单独的 ResearchResult
-            if task.tool_name == "web_search":
-                result_items = raw.payload.get("results", [])
-                if result_items:
-                    for ri, item in enumerate(result_items):
-                        item_key = f"{query_text}#{ri}"
-                        results[item_key] = ResearchResult(
-                            tool_name=task.tool_name,
-                            query=item_key,
-                            content_type="json",
-                            content=item,
-                            content_summary=_generate_summary(item),
-                            dimension=task.dimension,
-                timestamp=datetime.now(timezone.utc).isoformat(),
-                        )
-                else:
-                    # 无结果也保留一条空 envelope，供 Critic 识别
-                    results[query_text] = ResearchResult(
-                        tool_name=task.tool_name,
-                        query=query_text,
-                        content_type="json",
-                        content={"query": raw.payload.get("query", ""), "total": 0, "results": []},
-                        content_summary=f"web_search: 无结果 (query={raw.payload.get('query', '?')})",
-                        dimension=task.dimension,
-                timestamp=datetime.now(timezone.utc).isoformat(),
-                    )
-            else:
-                envelope = ResearchResult(
-                    tool_name=task.tool_name,
-                    query=query_text,
-                    content_type="json",
-                    content=raw.payload,
-                    content_summary=_generate_summary(raw.payload),
-                    dimension=task.dimension,
-                timestamp=datetime.now(timezone.utc).isoformat(),
-                )
-                results[query_text] = envelope
-        except Exception as e:
-            logger.error(
-                f"Failed to execute tool '{task.tool_name}' for task {idx}: {e}",
-                exc_info=True,
-            )
-            error_env = ResearchResult(
-                tool_name=task.tool_name,
-                query=query_text,
-                content_type="json",
-                content={"error": str(e)},
-                content_summary=f"执行失败: {str(e)[:500]}",
-                dimension=task.dimension,
-                timestamp=datetime.now(timezone.utc).isoformat(),
-            )
-            results[query_text] = error_env
+    except Exception as e:
+        logger.error(
+            f"Failed to execute tool '{task.tool_name}' for task {idx}: {e}",
+            exc_info=True,
+        )
+        results[query_text] = ResearchResult(
+            tool_name=task.tool_name,
+            query=query_text,
+            content_type="json",
+            content={"error": str(e)},
+            content_summary=f"执行失败: {str(e)[:500]}",
+            dimension=task.dimension,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
 
     return results
+
+
+async def _execute_tasks(
+    tasks: List[SearchTask],
+) -> Dict[str, ResearchResult]:
+    """并发执行全部 SearchTask。
+
+    所有 task 通过 asyncio.gather 并发调度，一个 task 的失败不影响其他。
+    web_search 的每个独立 URL 结果拆分为 {query}#{idx} key。
+    """
+    if not tasks:
+        return {}
+
+    gathered = await asyncio.gather(
+        *[_execute_one_task(i, t) for i, t in enumerate(tasks)],
+        return_exceptions=True,
+    )
+
+    merged: Dict[str, ResearchResult] = {}
+    for item in gathered:
+        if isinstance(item, Exception):
+            logger.error("_execute_one_task crashed: %s", item)
+            continue
+        if isinstance(item, dict):
+            merged.update(item)
+
+    return merged
 
 
 def _is_error_result(rr: ResearchResult) -> bool:
