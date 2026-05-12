@@ -108,7 +108,21 @@ async def crawl_urls(
     pool = await _get_pool()
 
     async def _crawl_one(url: str) -> Dict[str, Any]:
-        crawler = await pool.get()
+        # 从池中获取浏览器，10 秒超时防止死锁。
+        # 当多个 crawl 同时被取消且所有实例都在替换中时，池可能暂时为空。
+        # 此时创建临时一次性实例兜底，不依赖池恢复。
+        pooled = True
+        try:
+            crawler = await asyncio.wait_for(pool.get(), timeout=10.0)
+        except asyncio.TimeoutError:
+            logger.warning(
+                "Browser pool exhausted (size=%d) — creating temporary instance for %s",
+                _POOL_SIZE, url,
+            )
+            crawler = WebCrawler(timeout=20)
+            await asyncio.wait_for(crawler.start_browser(), timeout=20.0)
+            pooled = False
+
         cancelled = False
         try:
             result = await crawler.crawl(url)
@@ -121,42 +135,49 @@ async def crawl_urls(
                 "error_message": result.error_message,
             }
         except asyncio.CancelledError:
-            # Python 3.12+: CancelledError 继承 BaseException，
-            # except Exception 不捕获。取消时 CDP 导航已中断，
-            # 浏览器处于脏状态 — 关闭并替换，绝不能原样回池。
             cancelled = True
             logger.warning(
                 "Crawl cancelled for %s — replacing browser instance", url
             )
-            
-            async def _replace_instance():
+            if pooled:
+                # 池实例被取消（CDP 导航中断，浏览器处于脏状态）。
+                # 后台关闭旧实例并创建新实例放回池中，
+                # 不阻塞取消信号的传播。
+                async def _replace_instance():
+                    try:
+                        await asyncio.wait_for(crawler.close_browser(), timeout=5.0)
+                    except Exception:
+                        pass
+                    try:
+                        new_inst = WebCrawler(timeout=20)
+                        await asyncio.wait_for(new_inst.start_browser(), timeout=20.0)
+                        await pool.put(new_inst)
+                        for i, c in enumerate(_pool_instances):
+                            if c is crawler:
+                                _pool_instances[i] = new_inst
+                                break
+                        else:
+                            _pool_instances.append(new_inst)
+                    except Exception as e:
+                        logger.error("Failed to replace cancelled crawler: %s", e)
+
                 try:
-                    # 避免旧浏览器断开时卡死，加上5秒超时
-                    await asyncio.wait_for(crawler.close_browser(), timeout=5.0)
+                    asyncio.create_task(_replace_instance())
                 except Exception:
                     pass
+            else:
+                # 临时实例被取消，直接关闭（后台，不阻塞取消传播）
+                async def _close_temp():
+                    try:
+                        await asyncio.wait_for(crawler.close_browser(), timeout=5.0)
+                    except Exception:
+                        pass
                 try:
-                    new_inst = WebCrawler(timeout=20)
-                    # 避免新浏览器启动卡死，加上20秒超时
-                    await asyncio.wait_for(new_inst.start_browser(), timeout=20.0)
-                    await pool.put(new_inst)
-                    # Track new instance for close_crawler() cleanup
-                    for i, c in enumerate(_pool_instances):
-                        if c is crawler:
-                            _pool_instances[i] = new_inst
-                            break
-                    else:
-                        _pool_instances.append(new_inst)
-                except Exception as e:
-                    logger.error("Failed to replace cancelled crawler: %s", e)
+                    asyncio.create_task(_close_temp())
+                except Exception:
+                    pass
 
-            # 把替换工作放到后台，防止阻塞正在等待当前 task 取消的父协程
-            try:
-                asyncio.create_task(_replace_instance())
-            except Exception:
-                pass
-
-            raise  # 让外层 crawl_urls 应用 timeout_fallback
+            raise
         except Exception as exc:
             logger.warning("Crawl failed for %s: %s", url, exc)
             return {
@@ -169,7 +190,19 @@ async def crawl_urls(
             }
         finally:
             if not cancelled:
-                await pool.put(crawler)
+                if pooled:
+                    await pool.put(crawler)
+                else:
+                    # 临时实例用完即弃，后台关闭
+                    async def _close_temp():
+                        try:
+                            await asyncio.wait_for(crawler.close_browser(), timeout=5.0)
+                        except Exception:
+                            pass
+                    try:
+                        asyncio.create_task(_close_temp())
+                    except Exception:
+                        pass
 
     tasks = [_crawl_one(url) for url in urls]
     done, pending = await asyncio.wait(
