@@ -57,6 +57,14 @@ async def lifespan(app: fastapi.FastAPI):
     except Exception as e:
         logger.critical("[GeoTrave] BM25 document index load failed: %s", e)
 
+    # 预热浏览器池 (避免 Send 并行扇出时 lazy init 死锁)
+    try:
+        from src.agent.nodes.research.search.web_search import start_crawler
+        await start_crawler()
+        logger.info("[GeoTrave] Browser pool warmed up")
+    except Exception as e:
+        logger.critical("[GeoTrave] Browser pool warm-up failed: %s", e)
+
     yield
 
     # 关闭 Crawler 浏览器实例

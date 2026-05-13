@@ -68,6 +68,13 @@ async def fetch_research_content(
     for hk, payload in records.items():
         if count >= MAX_CONTENT_ITEMS:
             break
+        # 归一化：asyncpg 对 JSONB 列偶尔返回字符串而非 dict
+        if isinstance(payload, str):
+            try:
+                payload = json.loads(payload)
+            except json.JSONDecodeError:
+                logger.warning("Skipping non-JSON string payload for hash=%s", hk[:16])
+                continue
         # 维度过滤：仅保留与目标维度匹配的记录
         if dimension:
             payload_dim = payload.get("_dimension", "general")

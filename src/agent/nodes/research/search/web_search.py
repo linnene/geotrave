@@ -35,7 +35,12 @@ _pool_instances: List[WebCrawler] = []
 
 
 async def _get_pool() -> asyncio.Queue[WebCrawler]:
-    """Lazily initialise and return the browser pool."""
+    """Lazily initialise and return the browser pool.
+
+    Guarded by start_crawler() eager init at app startup, so the lock is
+    almost never contended.  The timeout is a safety net against edge cases
+    where start_crawler() was skipped or its Chromium process hung.
+    """
     global _pool, _pool_instances
     if _pool is None:
         async with _pool_lock:
@@ -43,11 +48,21 @@ async def _get_pool() -> asyncio.Queue[WebCrawler]:
                 _pool = asyncio.Queue(maxsize=_POOL_SIZE)
                 for i in range(_POOL_SIZE):
                     c = WebCrawler(timeout=20)
-                    await c.start_browser()
+                    await asyncio.wait_for(c.start_browser(), timeout=25.0)
                     _pool.put_nowait(c)
                     _pool_instances.append(c)
                 logger.info("Browser pool initialized: %d instances", _POOL_SIZE)
     return _pool
+
+
+async def start_crawler() -> None:
+    """Eagerly initialize the browser pool at app startup.
+
+    Must be called before any Send fan-out triggers concurrent pool access,
+    otherwise the lazy _pool_lock inside _get_pool() will serialize — and
+    potentially deadlock — parallel research_loop branches.
+    """
+    await _get_pool()
 
 
 async def close_crawler() -> None:

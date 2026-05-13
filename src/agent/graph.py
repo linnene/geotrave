@@ -133,7 +133,7 @@ async def get_travel_app():
                 focus or "none", target,
             )
             return target
-
+    
         workflow.add_conditional_edges(
             "research_loop",
             research_exit_router,
