@@ -225,7 +225,7 @@ def test_should_continue_loop_not_enough_passed():
     from src.agent.nodes.research.critic.node import should_continue_loop
 
     continue_loop, reason = should_continue_loop(
-        total_passed_count=1, llm_continue_loop=False, loop_iter=1
+        total_passed_count=0, llm_continue_loop=False, loop_iter=1
     )
 
     assert continue_loop is True
@@ -420,8 +420,8 @@ async def test_critic_node_full_pipeline():
     # passed_queries 已记录
     assert "东京酒店推荐" in new_loop.passed_queries
 
-    # total_passed=1 < ACCUMULATED_MIN(3), LLM 说停但代码覆盖为继续
-    assert new_loop.continue_loop is True
+    # total_passed=1 >= ACCUMULATED_MIN(1), LLM 说停就停了
+    assert new_loop.continue_loop is False
 
     # loop_iteration 已递增
     assert new_loop.loop_iteration == 1
@@ -531,5 +531,5 @@ async def test_critic_node_accumulates_all_passed():
     assert "历史查询" in queries
     assert "新查询" in queries
 
-    # total_passed=2 < ACCUMULATED_MIN(3), 代码覆盖为继续
-    assert result["research_data"].loop_state.continue_loop is True
+    # total_passed=2 >= ACCUMULATED_MIN(1), LLM 决定退出就退出
+    assert result["research_data"].loop_state.continue_loop is False

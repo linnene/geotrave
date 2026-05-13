@@ -442,6 +442,13 @@ _MANAGER_TEMPLATE = """你是行程调度官。根据当前状态和用户最新
    hashes_count > 0 是前提（无数据无法推荐），但不是充分条件——
    必须用户消息本身带有推荐意图。
 
+   **路由前强制检查焦点维度覆盖**: 查看 research_history，
+   确认即将推荐的 focus_dimension 是否有对应条目（以 `[dimension_name]` 开头）。
+   若从未调研过该维度（research_history 中无对应条目），且 research_rounds < 1，
+   则禁止直接进入 recommender——必须先路由到 research_loop 补全该维度数据。
+   示例: 要推荐 food，但 research_history 中只有 [hotels]、[transport]，
+   则 research_rounds < 1 时必须先去 research_loop 搜 food。
+
 4. **其他一切情况** → reply
    包括：用户问可行性（"能...吗""够不够""可以...吗"）、
    要求规划（"规划""安排行程""路线"）、
@@ -452,6 +459,7 @@ _MANAGER_TEMPLATE = """你是行程调度官。根据当前状态和用户最新
 - 禁止把 missing_fields 当作进入 research_loop 的理由
 - 禁止在 hashes_count > 0 后进入 research_loop（除非用户明确说"再搜""再查"）
 - 禁止用户没有推荐/选择意图时强行进入 recommender（用户问可行性/规划 ≠ 推荐请求）
+- 禁止在 focus_dimension 从未被调研时直接路由到 recommender（research_history 中无该维度条目 → 先 search）
 - 禁止一次规划超过 3 个调研维度（由 DimensionPlanner 硬上限保障）
 
 ## 当前状态

@@ -21,9 +21,34 @@ async def dimension_planner_node(state: TravelState) -> Dict[str, Any]:
 
     从对话历史和用户画像中独立分析需要检索的维度，
     输出 planned_dimensions 和 dimension_hints 供 Send 扇出使用。
+
+    当 Manager 已在 state 中预设 focus_dimension 时（覆盖度不足主动补全场景），
+    直接使用该维度，跳过 LLM 分析。
     """
     start_time = time.time()
     logger.info("Planning research dimensions at [DimensionPlanner]...")
+
+    # Manager 预设维度：覆盖度不足时主动补全，跳过 LLM 分析
+    pre_set_dim = state.get("focus_dimension")
+    if pre_set_dim:
+        logger.info(
+            "DimensionPlanner → using Manager pre-set dimension: %s", pre_set_dim
+        )
+        return {
+            "planned_dimensions": [pre_set_dim],
+            "dimension_hints": {pre_set_dim: f"{pre_set_dim}相关信息"},
+            "trace_history": [
+                build_trace(
+                    "dimension_planner",
+                    "SUCCESS",
+                    latency_ms=int((time.time() - start_time) * 1000),
+                    detail={
+                        "dimensions": [pre_set_dim],
+                        "rationale": "Manager pre-set dimension (coverage gap fill)",
+                    },
+                )
+            ],
+        }
 
     messages = state.get("messages", [])
     history = format_recent_history(messages, HISTORY_LIMIT)

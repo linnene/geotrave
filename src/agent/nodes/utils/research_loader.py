@@ -20,11 +20,19 @@ MAX_CONTENT_ITEMS = 20          # Number of top results included in prompt
 MAX_CONTENT_LENGTH_PER_ITEM = 800  # Characters per result entry
 
 
-async def fetch_research_content(manifest: Optional[ResearchManifest]) -> str:
+async def fetch_research_content(
+    manifest: Optional[ResearchManifest],
+    dimension: Optional[str] = None,
+) -> str:
     """从 Retrieval DB 拉取真实检索内容，格式化为可注入 prompt 的文本。
 
     当 manifest 为 None 或无 research_hashes 时返回空占位字符串。
     DB 不可用时 fallback 到 CriticResult rationale（降级摘要）。
+
+    Args:
+        manifest: 研究清单，含 research_hashes 映射。
+        dimension: 可选维度过滤。传入时仅返回 _dimension 匹配的记录，
+                  避免无关维度数据干扰推荐/规划。
     """
     if manifest is None:
         return "暂无研究数据"
@@ -55,19 +63,34 @@ async def fetch_research_content(manifest: Optional[ResearchManifest]) -> str:
 
     # 格式化为 prompt 可用文本
     lines: List[str] = []
+    skipped_dim = 0
     count = 0
     for hk, payload in records.items():
         if count >= MAX_CONTENT_ITEMS:
             break
+        # 维度过滤：仅保留与目标维度匹配的记录
+        if dimension:
+            payload_dim = payload.get("_dimension", "general")
+            if payload_dim != dimension:
+                skipped_dim += 1
+                continue
         entry = _format_entry(hk, payload)
         if entry:
             lines.append(entry)
             count += 1
 
     if not lines:
+        if skipped_dim:
+            logger.info(
+                "ResearchLoader: all %d records filtered out by dimension='%s'",
+                skipped_dim, dimension,
+            )
         return _fallback_rationale(manifest)
 
-    logger.info("ResearchLoader: loaded %d research entries for prompt", count)
+    logger.info(
+        "ResearchLoader: loaded %d entries for prompt (dimension=%s, skipped=%d)",
+        count, dimension or "all", skipped_dim,
+    )
     return "\n\n".join(lines)
 
 

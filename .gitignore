@@ -43,3 +43,6 @@ docs/*.md
 
 script/start_claude.ps1
 script/cc-hook.ps1
+.mcp.json
+
+.playwright-mcp/

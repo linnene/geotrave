@@ -78,7 +78,7 @@ async def recommender_node(state: TravelState) -> Dict[str, Any]:
         _hash_groups, _total_hash_keys,
     )
 
-    research_summary = await fetch_research_content(research_manifest)
+    research_summary = await fetch_research_content(research_manifest, dimension=focus_dim)
 
     # Log the actual research payload size injected into the prompt
     _summary_len = len(research_summary)

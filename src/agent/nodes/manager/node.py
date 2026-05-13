@@ -106,6 +106,28 @@ async def manager_node(state: TravelState) -> Dict[str, Any]:
                 "Manager: is_core_complete=False but allowing recommender (partial data is fine)"
             )
 
+    # Guard: recommender 前检查 focus_dimension 在 research_history 中的覆盖度
+    # 若从未调研过该维度，且还有调研额度，先路由到 research_loop 补全数据
+    if next_node == "recommender" and focus_dimension and research_rounds < 1:
+        researched_dims = set()
+        for entry in research_history_full:
+            if entry.startswith("[") and "]" in entry:
+                end = entry.index("]")
+                if end > 1:
+                    researched_dims.add(entry[1:end])
+        if focus_dimension not in researched_dims:
+            logger.warning(
+                "Manager override: focus_dimension='%s' not in researched_dims=%s, "
+                "routing to research_loop first to fill gap",
+                focus_dimension, list(researched_dims),
+            )
+            next_node = "research_loop"
+            reason = (
+                f"[硬守卫] 维度 '{focus_dimension}' 从未被调研"
+                f"（已调研: {', '.join(sorted(researched_dims)) or '无'}），"
+                f"先执行 search 补全数据再推荐"
+            )
+
     # Guard: research_rounds hard limit (max 1)
     if next_node == "research_loop":
         if research_rounds >= 1:
@@ -149,12 +171,16 @@ async def manager_node(state: TravelState) -> Dict[str, Any]:
         "trace_history": [trace],
     }
 
-    # 路由到 research_loop 时重置子图内部状态
-    if next_node == "research_loop" and research_manifest:
-        existing = result.get("research_data")
-        if existing is None:
-            result["research_data"] = research_manifest.model_copy(
-                update={"loop_state": ResearchLoopInternal()}
-            )
+    # 路由到 research_loop 时重置子图内部状态，并传递 focus_dimension 给 DimensionPlanner
+    if next_node == "research_loop":
+        if research_manifest:
+            existing = result.get("research_data")
+            if existing is None:
+                result["research_data"] = research_manifest.model_copy(
+                    update={"loop_state": ResearchLoopInternal()}
+                )
+        # 若 Manager 已指定目标维度，直接注入 state 供 DimensionPlanner 短接
+        if focus_dimension:
+            result["focus_dimension"] = focus_dimension
 
     return result

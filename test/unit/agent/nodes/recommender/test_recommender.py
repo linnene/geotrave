@@ -11,6 +11,20 @@ from src.agent.state import ExecutionSigns, ResearchManifest, RouteMetadata
 from src.agent.state.schema import CriticResult, ResearchLoopInternal, RecommenderOutput, RecommendationItem
 
 
+def _mock_llm_chain(return_value=None, side_effect=None):
+    """Build a mock chain that covers: get_model() → .bind() → .__or__() → .ainvoke()."""
+    mock_chain = AsyncMock()
+    if side_effect:
+        mock_chain.ainvoke.side_effect = side_effect
+    else:
+        mock_chain.ainvoke.return_value = return_value or {}
+    mock_bound = MagicMock()
+    mock_bound.__or__.return_value = mock_chain
+    mock_llm = MagicMock()
+    mock_llm.bind.return_value = mock_bound
+    return mock_llm
+
+
 # =============================================================================
 # P0 — recommender_node single-dimension pipeline
 # =============================================================================
@@ -26,25 +40,25 @@ async def test_recommender_single_dimension_output():
     state = {
         "research_data": manifest,
         "messages": [],
-                "execution_signs": ExecutionSigns(recommended_dimensions=[]),
+        "execution_signs": ExecutionSigns(recommended_dimensions=[]),
         "route_metadata": RouteMetadata(next_node="recommender", reason="test", focus_dimension="destination"),
     }
 
-    mock_llm = MagicMock()
-    mock_chain = AsyncMock()
-    mock_chain.ainvoke.return_value = {
+    mock_llm = _mock_llm_chain(return_value={
         "dimension": "destination",
         "items": [
             {"name": "东京", "features": "国际化大都市", "reason": "经典目的地", "rating": 4.5},
         ],
         "strategy": "推荐东京作为首选目的地",
         "tip": "选定目的地后我帮您挑住宿",
-    }
-    mock_llm.__or__.return_value = mock_chain
+    })
 
     with patch(
         "src.agent.nodes.recommender.node.LLMFactory.get_model",
         return_value=mock_llm,
+    ), patch(
+        "src.agent.nodes.recommender.node.fetch_research_content",
+        new=AsyncMock(return_value="[研究数据] 东京旅游信息..."),
     ):
         result = await recommender_node(state)
 
@@ -73,28 +87,28 @@ async def test_recommender_second_dimension():
     state = {
         "research_data": manifest,
         "messages": [],
-                "execution_signs": ExecutionSigns(recommended_dimensions=["destination"]),
+        "execution_signs": ExecutionSigns(recommended_dimensions=["destination"]),
         "route_metadata": RouteMetadata(next_node="recommender", reason="test", focus_dimension="accommodation"),
         "recommendation_data": {
             "destination": RecommenderOutput(dimension="destination", items=[RecommendationItem(name="东京", features="...", reason="...", rating=4.5)], strategy="...", tip="..."),
         },
     }
 
-    mock_llm = MagicMock()
-    mock_chain = AsyncMock()
-    mock_chain.ainvoke.return_value = {
+    mock_llm = _mock_llm_chain(return_value={
         "dimension": "accommodation",
         "items": [
             {"name": "浅草民宿", "features": "交通便利", "reason": "靠近浅草寺", "rating": 4.0},
         ],
         "strategy": "优先推荐浅草周边住宿",
         "tip": "有中意的住宿吗？下一步帮您规划行程",
-    }
-    mock_llm.__or__.return_value = mock_chain
+    })
 
     with patch(
         "src.agent.nodes.recommender.node.LLMFactory.get_model",
         return_value=mock_llm,
+    ), patch(
+        "src.agent.nodes.recommender.node.fetch_research_content",
+        new=AsyncMock(return_value="[研究数据] 住宿信息..."),
     ):
         result = await recommender_node(state)
 
@@ -120,7 +134,7 @@ async def test_recommender_all_dimensions_covered():
     state = {
         "research_data": manifest,
         "messages": [],
-                "execution_signs": ExecutionSigns(
+        "execution_signs": ExecutionSigns(
             recommended_dimensions=["destination", "accommodation", "dining"]
         ),
     }
@@ -145,23 +159,23 @@ async def test_recommender_empty_research_data():
     state = {
         "research_data": None,
         "messages": [],
-                "execution_signs": ExecutionSigns(),
+        "execution_signs": ExecutionSigns(),
         "route_metadata": RouteMetadata(next_node="recommender", reason="test", focus_dimension="destination"),
     }
 
-    mock_llm = MagicMock()
-    mock_chain = AsyncMock()
-    mock_chain.ainvoke.return_value = {
+    mock_llm = _mock_llm_chain(return_value={
         "dimension": "destination",
         "items": [],
         "strategy": "研究数据为空，无法推荐",
         "tip": "请先完善研究数据",
-    }
-    mock_llm.__or__.return_value = mock_chain
+    })
 
     with patch(
         "src.agent.nodes.recommender.node.LLMFactory.get_model",
         return_value=mock_llm,
+    ), patch(
+        "src.agent.nodes.recommender.node.fetch_research_content",
+        new=AsyncMock(return_value="暂无研究数据"),
     ):
         result = await recommender_node(state)
 
@@ -181,18 +195,18 @@ async def test_recommender_llm_error_graceful():
     state = {
         "research_data": manifest,
         "messages": [],
-                "execution_signs": ExecutionSigns(),
+        "execution_signs": ExecutionSigns(),
         "route_metadata": RouteMetadata(next_node="recommender", reason="test", focus_dimension="destination"),
     }
 
-    mock_llm = MagicMock()
-    mock_chain = AsyncMock()
-    mock_chain.ainvoke.side_effect = Exception("LLM connection timeout")
-    mock_llm.__or__.return_value = mock_chain
+    mock_llm = _mock_llm_chain(side_effect=Exception("LLM connection timeout"))
 
     with patch(
         "src.agent.nodes.recommender.node.LLMFactory.get_model",
         return_value=mock_llm,
+    ), patch(
+        "src.agent.nodes.recommender.node.fetch_research_content",
+        new=AsyncMock(return_value="[研究数据] 东京旅游信息..."),
     ):
         result = await recommender_node(state)
 

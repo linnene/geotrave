@@ -67,6 +67,8 @@ async def persist_results(
         if raw is not None:
             raw_content = raw.get("content") if isinstance(raw, dict) else getattr(raw, "content", None)
             payload["_research_content"] = raw_content
+            dim = raw.get("dimension", "general") if isinstance(raw, dict) else getattr(raw, "dimension", "general")
+            payload["_dimension"] = dim
         hk = generate_hash_key(r.query, payload)
         
         # 对于 web_search，去除后面的 #idx，统一归属到原始 query 里，因为
