@@ -101,7 +101,7 @@ database/postgis/
 └── osm_data/                     # OSM .pbf 文件 (gitignored)
 
 test/
-├── unit/                         # 单元测试 (166 tests, 89 P0)
+├── unit/                         # 单元测试 (191 tests, 112 P0)
 ├── integration/                  # 集成测试 (需 PostGIS)
 └── TEST_MANIFEST.md              # 测试覆盖矩阵
 ```
@@ -111,7 +111,7 @@ test/
 | 文档 | 内容 |
 |---|---|
 | [docs/PLAN.md](docs/PLAN.md) | 开发计划与完成状态 |
-| [test/TEST_MANIFEST.md](test/TEST_MANIFEST.md) | 测试覆盖矩阵 (166 tests) |
+| [test/TEST_MANIFEST.md](test/TEST_MANIFEST.md) | 测试覆盖矩阵 (191 tests) |
 | [src/database/postgis/Spatial_DB_Spec.md](src/database/postgis/Spatial_DB_Spec.md) | PostGIS 空间数据库规格 |
 | [docs/local/stash/project_goal.md](docs/local/stash/project_goal.md) | 项目最终目标 |
 | [docs/local/stash/development_plan.md](docs/local/stash/development_plan.md) | 原始分阶段开发计划 |

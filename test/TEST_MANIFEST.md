@@ -17,6 +17,8 @@
 | `src/agent/nodes/query_generator/node.py` | `test/unit/agent/nodes/query_generator/test_query_generator.py` | 6 | 3 | 0 | 9 |
 | `src/agent/nodes/research/critic.py` | `test/unit/agent/nodes/research/test_critic.py` | 10 | 7 | 2 | 19 |
 | `src/agent/nodes/research/hash.py` | `test/unit/agent/nodes/research/test_hash.py` | 8 | 5 | 1 | 14 |
+| `src/agent/nodes/research/dimension_planner/node.py` | `test/unit/agent/nodes/research/test_dimension_planner.py` | 6 | 2 | 0 | 8 |
+| `src/agent/nodes/research/merge/node.py` | `test/unit/agent/nodes/research/test_research_merge.py` | 4 | 2 | 0 | 6 |
 | `src/agent/nodes/recommender/node.py` | `test/unit/agent/nodes/recommender/test_recommender.py` | 3 | 2 | 0 | 5 |
 | `src/agent/nodes/planner/node.py` | `test/unit/agent/nodes/planner/test_planner.py` | 3 | 2 | 0 | 5 |
 | `src/agent/nodes/gateway/node.py` | `test/unit/agent/nodes/gateway/test_gateway.py` | 6 | 0 | 0 | 6 |
@@ -25,7 +27,7 @@
 | `src/agent/nodes/reply/node.py` | `test/unit/agent/nodes/reply/test_reply.py` | 4 | 0 | 0 | 4 |
 | `src/agent/state/schema.py` | `test/unit/agent/test_user_selections.py` | 7 | 2 | 0 | 9 |
 | `src/agent/nodes/search/tools.py` | `test/integration/test_spatial_tools.py` | 4 | 0 | 0 | 4 |
-| **Total** | | **111** | **63** | **14** | **188** |
+| **Total** | | **112** | **65** | **14** | **191** |
 
 ## P0 — Blocker Items
 

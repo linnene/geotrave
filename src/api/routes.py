@@ -12,4 +12,7 @@ router = APIRouter()
 router.include_router(chat_router, prefix="/chat", tags=["Agent Chat"])
 
 
+@router.get("/health")
+async def health_check():
+    return {"status": "ok"}
 

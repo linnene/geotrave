@@ -17,7 +17,7 @@ async def research_merge_node(state: TravelState) -> Dict[str, Any]:
     start_time = time.time()
 
     research_data = state.get("research_data")
-    hashes_count = sum(len(v) for v in research_data.research_hashes) if research_data else 0
+    hashes_count = sum(len(v) for v in research_data.research_hashes.values()) if research_data else 0
 
     # Diagnostic: verify execution_signs survived the Send + subgraph round-trip
     signs = state.get("execution_signs")

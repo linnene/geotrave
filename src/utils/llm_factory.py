@@ -37,6 +37,10 @@ from src.utils.config import (
     MANAGER_MODEL_BASE_URL,
     MANAGER_MODEL_ID,
 
+    DIMENSION_PLANNER_MODEL_API_KEY,
+    DIMENSION_PLANNER_MODEL_BASE_URL,
+    DIMENSION_PLANNER_MODEL_ID,
+
     REPLY_MODEL_API_KEY,
     REPLY_MODEL_BASE_URL,
     REPLY_MODEL_ID,
@@ -93,6 +97,10 @@ class LLMFactory:
             config["api_key"] = CRITIC_MODEL_API_KEY
             config["base_url"] = CRITIC_MODEL_BASE_URL
             config["model"] = CRITIC_MODEL_ID
+        elif node_name == "DimensionPlanner":
+            config["api_key"] = DIMENSION_PLANNER_MODEL_API_KEY
+            config["base_url"] = DIMENSION_PLANNER_MODEL_BASE_URL
+            config["model"] = DIMENSION_PLANNER_MODEL_ID
 
         return ChatOpenAI(
             api_key=SecretStr(config["api_key"]) if config["api_key"] else None,
