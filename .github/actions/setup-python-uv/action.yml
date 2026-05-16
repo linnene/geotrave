@@ -1,0 +1,18 @@
+name: Setup Python and uv
+description: Install uv, Python, and GeoTrave dependencies.
+
+runs:
+  using: composite
+  steps:
+    - name: Install uv
+      uses: astral-sh/setup-uv@v5
+      with:
+        enable-cache: true
+
+    - name: Set up Python
+      shell: bash
+      run: uv python install
+
+    - name: Install dependencies
+      shell: bash
+      run: uv sync --frozen

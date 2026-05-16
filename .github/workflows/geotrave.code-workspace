@@ -1,0 +1,17 @@
+{
+	"folders": [
+		{
+			"path": "../.."
+		}
+	],
+	"settings": {
+		"github-actions.workflows.pinned.workflows": [
+			".github/workflows/cd.yml",
+			".github/workflows/ci-core-agent.yml",
+			".github/workflows/ci-research-search.yml",
+			".github/workflows/ci-delivery.yml",
+			".github/workflows/ci-database-spatial.yml",
+			".github/workflows/ci-api-newman.yml"
+		]
+	}
+}

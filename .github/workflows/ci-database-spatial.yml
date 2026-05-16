@@ -1,0 +1,31 @@
+name: CI - Database and Spatial
+
+on:
+  push:
+    branches: ["master", "dev"]
+  pull_request:
+    branches: ["master", "dev"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  database-spatial:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python and uv
+        uses: ./.github/actions/setup-python-uv
+
+      - name: Run database and spatial tests
+        env:
+          POSTGIS_DSN: ${{ secrets.POSTGIS_DSN }}
+        run: >
+          uv run pytest
+          test/unit/database
+          test/integration
+          -v --asyncio-mode=strict

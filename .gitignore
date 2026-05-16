@@ -18,6 +18,8 @@ ENV/
 
 # Claude Code local settings
 .claude/
+.agents/
+.codex/
 .clauderules
 CLAUDE.md
 Hand_Switch.md

@@ -1,5 +1,21 @@
 # Postman / Newman API 集成测试
 
+## CI Workflow
+
+Newman API checks are now managed by the dedicated GitHub Actions workflow
+`.github/workflows/ci-api-newman.yml`. The workflow runs on pushes and pull
+requests targeting `master` or `dev`, and can also be started manually with
+`workflow_dispatch`.
+
+The command executed in CI is:
+
+```bash
+uv run python script/run_api_tests.py --timeout 120
+```
+
+The previous all-in-one test workflow was split into feature-scoped CI clusters,
+so Newman failures can be re-run independently from unit test failures.
+
 ## 文件说明
 
 | 文件 | 用途 |
@@ -61,9 +77,12 @@ npx newman run postman/GeoTrave-API-Tests.json \
 
 ## CI 集成
 
-GitHub Actions（`.github/workflows/Agent-node-test.yml`）在 pytest 之后运行：
+GitHub Actions（`.github/workflows/ci-api-newman.yml`）独立运行 Newman API 测试：
 
 ```yaml
+- name: Setup Python and uv
+  uses: ./.github/actions/setup-python-uv
+
 - name: Setup Node.js
   uses: actions/setup-node@v4
   with:

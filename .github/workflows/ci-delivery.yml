@@ -1,0 +1,35 @@
+name: CI - Delivery
+
+on:
+  push:
+    branches: ["master", "dev"]
+  pull_request:
+    branches: ["master", "dev"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  delivery:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python and uv
+        uses: ./.github/actions/setup-python-uv
+
+      - name: Run delivery tests
+        env:
+          GLOBAL_MODEL_API_KEY: ${{ secrets.GLOBAL_MODEL_API_KEY }}
+          GLOBAL_MODEL_BASE_URL: ${{ secrets.GLOBAL_MODEL_BASE_URL }}
+          GLOBAL_MODEL_ID: ${{ secrets.GLOBAL_MODEL_ID }}
+          EMBEDDING_MODEL: ${{ secrets.EMBEDDING_MODEL }}
+          EMBEDDING_MODEL_API_KEY: ${{ secrets.EMBEDDING_MODEL_API_KEY }}
+        run: >
+          uv run pytest
+          test/unit/agent/nodes/recommender
+          test/unit/agent/nodes/planner
+          -v --asyncio-mode=strict

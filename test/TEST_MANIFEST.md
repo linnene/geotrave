@@ -1,5 +1,23 @@
 # TEST_MANIFEST — GeoTrave Test Coverage Matrix
 
+## CI Test Clusters
+
+The test suite is split across feature-scoped GitHub Actions workflows. Each
+workflow runs independently on pushes and pull requests targeting `master` or
+`dev`, and each can be re-run separately from the GitHub Actions UI.
+
+| Workflow | Responsibility | Test Paths |
+|---|---|---|
+| `CI - Core Agent` | Gateway, analyst, manager, reply, graph compilation, and API schema checks | `test/unit/agent/nodes/gateway`, `test/unit/agent/nodes/analyst`, `test/unit/agent/nodes/manager`, `test/unit/agent/nodes/reply`, `test/unit/test_graph_compilation.py`, `test/unit/test_api_schemas.py` |
+| `CI - Research and Search` | Research loop, query generation, search tools, crawler error handling, document search, weather, and research loader | `test/unit/agent/nodes/research`, `test/unit/agent/nodes/query_generator`, `test/unit/agent/nodes/search`, `test/unit/agent/nodes/utils` |
+| `CI - Delivery` | Recommendation and itinerary delivery nodes | `test/unit/agent/nodes/recommender`, `test/unit/agent/nodes/planner` |
+| `CI - Database and Spatial` | PostGIS configuration, connection pool, retrieval DB, and live spatial integration tests when `POSTGIS_DSN` is configured | `test/unit/database`, `test/integration` |
+| `CI - API Newman` | FastAPI runtime and Postman/Newman API scenarios | `script/run_api_tests.py --timeout 120` |
+
+`POSTGIS_DSN` is optional in CI. When it is absent, integration tests under
+`test/integration` use their existing skip guard and the database workflow still
+validates the unit-level database layer.
+
 ## Coverage Dimension Matrix
 
 | Module | Test File | P0 | P1 | P2 | Total |
