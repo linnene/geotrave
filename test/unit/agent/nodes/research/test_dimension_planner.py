@@ -21,6 +21,7 @@ async def test_dimension_planner_normal_split():
     """LLM returns valid dimensions → planned_dimensions + dimension_hints written."""
     from src.agent.nodes.research.dimension_planner.node import dimension_planner_node
 
+
     state = {
         "messages": [],
         "user_profile": None,
