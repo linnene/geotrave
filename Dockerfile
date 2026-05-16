@@ -55,6 +55,6 @@ COPY . .
 # Ensure data directories exist
 RUN mkdir -p database/checkpointer data/chrome_profile
 
-EXPOSE 8000 8501
+EXPOSE 8000
 
-CMD ["sh", "-c", "uvicorn src.main:app --host 0.0.0.0 --port 8000 & streamlit run test/test_ui.py --server.port 8501 --server.address 0.0.0.0 & wait"]
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
