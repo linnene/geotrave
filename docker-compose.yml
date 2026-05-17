@@ -4,6 +4,7 @@ services:
     container_name: geotrave
     environment:
       POSTGIS_DSN: postgresql://geotrave:${DB_PASSWORD:-geotrave_dev}@geotrave-db:5432/geotrave
+      CRAWLER_BLOCKED_DOMAINS: ${CRAWLER_BLOCKED_DOMAINS:-}
     volumes:
       - checkpoints:/app/database/checkpointer
       - chrome_profile:/app/data/chrome_profile

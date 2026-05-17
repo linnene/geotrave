@@ -24,15 +24,11 @@ WORKDIR /app
 COPY --from=builder /app/.venv /app/.venv
 ENV PATH="/app/.venv/bin:$PATH"
 
-# Clean up to reduce image size
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install Google Chrome (managed browser) for better CDP stability &
+# Install system deps + Google Chrome (managed browser) for better CDP stability &
 # lower anti-bot detection than Playwright's bundled Chromium.
-RUN apt-get update && apt-get install -y --no-install-recommends wget gnupg && \
-    wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | \
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates wget gnupg \
+    && wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | \
         gpg --dearmor -o /usr/share/keyrings/google-chrome.gpg && \
     echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] \
         http://dl.google.com/linux/chrome/deb/ stable main" \
@@ -45,9 +41,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends wget gnupg && \
 # Playwright system deps (still needed by Crawl4AI for CDP communication)
 RUN playwright install-deps chromium && \
     playwright install chromium && \
-    rm -rf /var/lib/apt/lists/* && \
-    rm -rf /root/.cache/ms-playwright/firefox-* && \
-    rm -rf /root/.cache/ms-playwright/webkit-*
+    rm -rf /var/lib/apt/lists/*
 
 # Copy project source
 COPY . .
