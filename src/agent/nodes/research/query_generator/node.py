@@ -7,14 +7,11 @@ from src.agent.state.schema import ResearchLoopInternal
 from src.utils.llm_factory import LLMFactory
 from src.utils.prompt import prompt
 from src.utils.logger import get_logger
-from src.agent.nodes.utils import build_trace, extract_content_str, format_recent_history, get_beijing_time_now
+from src.agent.nodes.utils import build_trace, extract_content_str, format_json_schema, format_recent_history, get_beijing_time_now
 from .config import TEMPERATURE, HISTORY_LIMIT, MAX_TOKENS
 
 logger = get_logger("QueryGeneratorNode")
 
-def _get_format_instructions() -> str:
-    """Extracts and formats the JSON schema from QueryGeneratorOutput for LLM guidance."""
-    return json.dumps(QueryGeneratorOutput.model_json_schema(), indent=2, ensure_ascii=False)
 
 def _get_tools_documentation() -> str:
     """
@@ -128,7 +125,7 @@ async def query_generator_node(state: TravelState) -> Dict[str, Any]:
 
     # 3. Dynamic Injection
     tools_doc = _get_tools_documentation()
-    format_instructions = _get_format_instructions()
+    format_instructions = format_json_schema(QueryGeneratorOutput)
 
     prompt_str = prompt.query_generator.format(
         current_time=get_beijing_time_now(),

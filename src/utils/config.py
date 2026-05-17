@@ -64,6 +64,6 @@ REPLY_MODEL_BASE_URL = os.getenv("REPLY_MODEL_BASE_URL", GLOBAL_MODEL_BASE_URL)
 REPLY_MODEL_ID = os.getenv("REPLY_MODEL_ID", GLOBAL_MODEL_ID)
 
 # 日志配置
-LOG_LEVEL = os.getenv("LOG_LEVEL", "DEBUG")
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 LOG_NO_COLOR = os.getenv("LOG_NO_COLOR", "0") in ("1", "true", "True")
 LOG_FILE = os.getenv("LOG_FILE", "")

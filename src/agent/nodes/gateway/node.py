@@ -15,15 +15,10 @@ from src.agent.state import ExecutionSigns, TravelState, GatewayOutput
 from src.utils.llm_factory import LLMFactory
 from src.utils.prompt import prompt
 from src.utils.logger import get_logger
-from src.agent.nodes.utils import build_trace, extract_content_str, extract_token_usage, format_recent_history
+from src.agent.nodes.utils import build_trace, extract_content_str, extract_token_usage, format_json_schema, format_recent_history
 from .config import TEMPERATURE, HISTORY_LIMIT, MAX_TOKENS
 
 logger = get_logger("GatewayNode")
-
-
-def _get_format_instructions() -> str:
-    """Extracts and formats the JSON schema from GatewayOutput for LLM guidance."""
-    return json.dumps(GatewayOutput.model_json_schema(), indent=2, ensure_ascii=False)
 
 
 async def gateway_node(state: TravelState) -> Dict[str, Any]:
@@ -51,7 +46,7 @@ async def gateway_node(state: TravelState) -> Dict[str, Any]:
     prompt_str = prompt.gateway.format(
         history=history if history else "无对话历史",
         user_input=last_user_msg,
-        format_instructions=_get_format_instructions()
+        format_instructions=format_json_schema(GatewayOutput),
     )
     
     llm = LLMFactory.get_model("Gateway", temperature=TEMPERATURE, max_tokens=MAX_TOKENS)
@@ -60,6 +55,8 @@ async def gateway_node(state: TravelState) -> Dict[str, Any]:
     bound_llm = llm.bind(response_format={"type": "json_object"})
 
 #========================================================
+
+    raw_result = None
 
     try:
         # 3. LLM Reasoning
@@ -86,8 +83,8 @@ async def gateway_node(state: TravelState) -> Dict[str, Any]:
     is_safe = is_valid
 
     try:
-        token_usage = extract_token_usage(raw_result)
-    except UnboundLocalError:
+        token_usage = extract_token_usage(raw_result) if raw_result is not None else None
+    except Exception:
         token_usage = None
 
 

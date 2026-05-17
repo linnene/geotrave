@@ -1,6 +1,14 @@
 """Shared utilities for extracting content and token usage from LLM responses."""
 
-from typing import Any, Dict, Optional
+import json
+from typing import Any, Dict, Optional, Type
+
+from pydantic import BaseModel
+
+
+def format_json_schema(model_cls: Type[BaseModel]) -> str:
+    """Return JSON Schema string for a Pydantic model, for LLM format instructions."""
+    return json.dumps(model_cls.model_json_schema(), indent=2, ensure_ascii=False)
 
 
 def extract_content_str(raw_result: Any) -> str:

@@ -392,8 +392,6 @@ async def execute_document_search(task: SearchTask) -> RetrievalMetadata:
 )
 async def execute_web_search(task: SearchTask) -> RetrievalMetadata:
     """Execute DDG search then crawl top-3 URLs for full content."""
-    import time as _time
-
     from .web_search import search_and_crawl
 
     params = task.parameters
@@ -408,7 +406,7 @@ async def execute_web_search(task: SearchTask) -> RetrievalMetadata:
     payload = await search_and_crawl(query, max_results)
 
     return RetrievalMetadata(
-        hash_key=f"web_{query}_{int(_time.time() * 1000)}",
+        hash_key=f"web_{query}_{int(time.time() * 1000)}",
         source=f"web_search(query={query})",
         relevance_score=1.0,
         payload=payload,
@@ -431,8 +429,6 @@ async def execute_web_search(task: SearchTask) -> RetrievalMetadata:
     },
 )
 async def execute_weather_search(task: SearchTask) -> RetrievalMetadata:
-    import time as _time
-
     from .weather import fetch_weather
 
     params = task.parameters
@@ -450,7 +446,7 @@ async def execute_weather_search(task: SearchTask) -> RetrievalMetadata:
     payload = await fetch_weather(location, days)
 
     return RetrievalMetadata(
-        hash_key=f"weather_{location}_{days}_{int(_time.time() * 1000)}",
+        hash_key=f"weather_{location}_{days}_{int(time.time() * 1000)}",
         source=f"weather_search(location={location}, days={days})",
         relevance_score=1.0,
         payload=payload,

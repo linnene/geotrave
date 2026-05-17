@@ -5,6 +5,7 @@ Dependencies: httpx (standard HTTP client)
 """
 
 import asyncio
+import re
 from typing import Any, Dict, List, Optional
 
 import httpx
@@ -206,8 +207,6 @@ async def fetch_weather(
     lat: Optional[float] = None
     lon: Optional[float] = None
     place_name: str = location
-
-    import re
 
     coord_match = re.match(
         r"^\s*([+-]?\d+\.?\d*)\s*[,，]\s*([+-]?\d+\.?\d*)\s*$", location

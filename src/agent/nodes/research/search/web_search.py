@@ -161,8 +161,8 @@ async def crawl_urls(
                 async def _replace_instance():
                     try:
                         await asyncio.wait_for(crawler.close_browser(), timeout=5.0)
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.warning("Failed to close stale browser in _replace_instance: %s", e)
                     try:
                         new_inst = WebCrawler(timeout=20)
                         await asyncio.wait_for(new_inst.start_browser(), timeout=20.0)
@@ -178,19 +178,19 @@ async def crawl_urls(
 
                 try:
                     asyncio.create_task(_replace_instance())
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.warning("Failed to schedule _replace_instance: %s", e)
             else:
                 # 临时实例被取消，直接关闭（后台，不阻塞取消传播）
                 async def _close_temp():
                     try:
                         await asyncio.wait_for(crawler.close_browser(), timeout=5.0)
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.warning("Failed to close temp crawler: %s", e)
                 try:
                     asyncio.create_task(_close_temp())
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.warning("Failed to schedule _close_temp: %s", e)
 
             raise
         except Exception as exc:
@@ -212,12 +212,12 @@ async def crawl_urls(
                     async def _close_temp():
                         try:
                             await asyncio.wait_for(crawler.close_browser(), timeout=5.0)
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            logger.warning("Failed to close temp crawler: %s", e)
                     try:
                         asyncio.create_task(_close_temp())
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.warning("Failed to schedule _close_temp: %s", e)
 
     tasks = [_crawl_one(url) for url in urls]
     done, pending = await asyncio.wait(
@@ -229,8 +229,8 @@ async def crawl_urls(
     for t in done:
         try:
             results.append(await t)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("Crawl task failed: %s", e)
     for t in pending:
         t.cancel()
         try:

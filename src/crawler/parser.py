@@ -1,6 +1,10 @@
+import logging
 import trafilatura
 from typing import Optional, Tuple
+
 from readability import Document
+
+logger = logging.getLogger(__name__)
 
 class ContentParser:
     """Handles the extraction and cleaning of content from raw HTML."""
@@ -25,7 +29,8 @@ class ContentParser:
             # Feed readablity output back to trafilatura for cleaner markdown
             cleaned = trafilatura.extract(summary, output_format='markdown')
             return title, cleaned
-        except Exception:
+        except Exception as e:
+            logger.warning("Readability extraction failed: %s", e)
             return None, None
 
     def process_extraction(self, html: str) -> Tuple[Optional[str], Optional[str]]:

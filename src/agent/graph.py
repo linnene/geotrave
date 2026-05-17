@@ -5,6 +5,8 @@ Parent Module: src.agent
 Dependencies: langgraph, src.agent.state, src.agent.nodes
 """
 
+import asyncio
+
 from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
 from langgraph.types import Send
@@ -23,7 +25,6 @@ async def get_travel_app():
     Async factory to initialize the graph with an async checkpointer.
     """
     global _apps
-    import asyncio
     current_loop = asyncio.get_running_loop()
     
     # Check for closed loops in cache

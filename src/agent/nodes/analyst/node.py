@@ -14,15 +14,10 @@ from src.agent.state import TravelState, AnalystOutput, ExecutionSigns
 from src.utils.llm_factory import LLMFactory
 from src.utils.prompt import prompt
 from src.utils.logger import get_logger
-from src.agent.nodes.utils import build_trace, extract_content_str, extract_token_usage, format_recent_history, get_beijing_time_now
+from src.agent.nodes.utils import build_trace, extract_content_str, extract_token_usage, format_json_schema, format_recent_history, get_beijing_time_now
 from .config import TEMPERATURE, HISTORY_LIMIT, MAX_TOKENS
 
 logger = get_logger("AnalystNode")
-
-
-def _get_format_instructions() -> str:
-    """Extracts and formats the JSON schema from AnalystOutput for LLM guidance."""
-    return json.dumps(AnalystOutput.model_json_schema(), indent=2, ensure_ascii=False)
 
 
 async def analyst_node(state: TravelState) -> Dict[str, Any]:
@@ -49,7 +44,7 @@ async def analyst_node(state: TravelState) -> Dict[str, Any]:
         current_profile=current_profile_json,
         history=history,
         user_input=last_user_msg,
-        format_instructions=_get_format_instructions()
+        format_instructions=format_json_schema(AnalystOutput),
     )
 
     llm = LLMFactory.get_model("Analyst", temperature=TEMPERATURE, max_tokens=MAX_TOKENS)

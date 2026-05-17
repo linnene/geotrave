@@ -39,14 +39,14 @@ async def lifespan(app: fastapi.FastAPI):
         await get_pool()
         logger.info("[GeoTrave] PostGIS connection pool initialized")
     except Exception as e:
-        logger.critical("[GeoTrave] PostGIS pool init failed: %s", e)
+        logger.critical("[GeoTrave] PostGIS pool init failed: %s", e, exc_info=True)
 
     # 初始化 Retrieval DB 表 (Research Loop 结果缓存)
     try:
         await init_retrieval_db()
         logger.info("[GeoTrave] Retrieval DB table initialized")
     except Exception as e:
-        logger.critical("[GeoTrave] Retrieval DB init failed: %s", e)
+        logger.critical("[GeoTrave] Retrieval DB init failed: %s", e, exc_info=True)
 
     # 构建 BM25 文档索引 (从 PostgreSQL 加载系统文档)
     try:
@@ -55,7 +55,7 @@ async def lifespan(app: fastapi.FastAPI):
         doc_mgr = await get_document_manager(pool)
         logger.info(f"[GeoTrave] BM25 document index loaded ({doc_mgr.doc_count()} documents)")
     except Exception as e:
-        logger.critical("[GeoTrave] BM25 document index load failed: %s", e)
+        logger.critical("[GeoTrave] BM25 document index load failed: %s", e, exc_info=True)
 
     # 预热浏览器池 (避免 Send 并行扇出时 lazy init 死锁)
     try:
@@ -63,7 +63,7 @@ async def lifespan(app: fastapi.FastAPI):
         await start_crawler()
         logger.info("[GeoTrave] Browser pool warmed up")
     except Exception as e:
-        logger.critical("[GeoTrave] Browser pool warm-up failed: %s", e)
+        logger.critical("[GeoTrave] Browser pool warm-up failed: %s", e, exc_info=True)
 
     yield
 
@@ -73,14 +73,14 @@ async def lifespan(app: fastapi.FastAPI):
         await close_crawler()
         logger.info("[GeoTrave] WebSearch crawler browser closed")
     except Exception as e:
-        logger.error("[GeoTrave] Crawler close failed: %s", e)
+        logger.error("[GeoTrave] Crawler close failed: %s", e, exc_info=True)
 
     # 关闭 PostGIS 连接池
     try:
         await close_pool()
         logger.info("[GeoTrave] PostGIS connection pool closed")
     except Exception as e:
-        logger.error("[GeoTrave] Pool close failed: %s", e)
+        logger.error("[GeoTrave] Pool close failed: %s", e, exc_info=True)
 
     logger.info("[GeoTrave] API Server shutting down...")
 

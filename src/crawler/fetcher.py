@@ -1,4 +1,5 @@
 import httpx
+import os
 import sys
 from typing import Optional
 from crawl4ai import AsyncWebCrawler, BrowserConfig, CrawlerRunConfig, CacheMode
@@ -34,13 +35,12 @@ class ContentFetcher:
         }
 
         # ── Suppress Node.js deprecation warnings (url.parse etc.) ──
-        import os as _os
-        _os.environ.setdefault("NODE_NO_WARNINGS", "1")
+        os.environ.setdefault("NODE_NO_WARNINGS", "1")
 
         # ── Platform detection ──────────────────────────────────────
         _system = sys.platform  # "win32" | "darwin" | "linux"
-        _is_docker = _os.path.exists("/.dockerenv") or (
-            "docker" in (_os.environ.get("container", "") or "").lower()
+        _is_docker = os.path.exists("/.dockerenv") or (
+            "docker" in (os.environ.get("container", "") or "").lower()
         )
 
         # ── Browser selection ───────────────────────────────────────
@@ -50,9 +50,9 @@ class ContentFetcher:
         _channel = "chrome"
         if _system == "linux":
             _has_chrome = (
-                _os.path.exists("/usr/bin/google-chrome-stable")
-                or _os.path.exists("/usr/bin/google-chrome")
-                or _os.path.exists("/usr/bin/chromium-browser")
+                os.path.exists("/usr/bin/google-chrome-stable")
+                or os.path.exists("/usr/bin/google-chrome")
+                or os.path.exists("/usr/bin/chromium-browser")
             )
             if not _has_chrome:
                 _managed = False
@@ -85,7 +85,7 @@ class ContentFetcher:
         if _is_docker:
             _user_data_dir = "/app/data/chrome_profile"
             _use_persistent = True
-            _os.makedirs(_user_data_dir, exist_ok=True)
+            os.makedirs(_user_data_dir, exist_ok=True)
 
         self._browser_config = BrowserConfig(
             headless=True,

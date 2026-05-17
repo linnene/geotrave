@@ -6,14 +6,10 @@ from src.agent.state import TravelState, DimensionPlannerOutput
 from src.utils.llm_factory import LLMFactory
 from src.utils.prompt import prompt
 from src.utils.logger import get_logger
-from src.agent.nodes.utils import build_trace, extract_content_str, format_recent_history
+from src.agent.nodes.utils import build_trace, extract_content_str, format_json_schema, format_recent_history
 from .config import TEMPERATURE, HISTORY_LIMIT, MAX_TOKENS
 
 logger = get_logger("DimensionPlannerNode")
-
-
-def _get_format_instructions() -> str:
-    return json.dumps(DimensionPlannerOutput.model_json_schema(), indent=2, ensure_ascii=False)
 
 
 async def dimension_planner_node(state: TravelState) -> Dict[str, Any]:
@@ -65,7 +61,7 @@ async def dimension_planner_node(state: TravelState) -> Dict[str, Any]:
     dest_list = (user_profile.destination or []) if user_profile else []
     destination_context = dest_list[0] if dest_list else "未指定"
 
-    format_instructions = _get_format_instructions()
+    format_instructions = format_json_schema(DimensionPlannerOutput)
 
     # 读取 Manager 的缺口分析，使 DimensionPlanner 了解为何被重新调度
     route_meta = state.get("route_metadata")
