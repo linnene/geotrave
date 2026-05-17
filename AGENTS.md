@@ -62,7 +62,7 @@ Key state fields:
 ```bash
 uv sync                                    # Install dependencies
 uv run python -m src.main                  # Start dev server (port 8000)
-uv run pytest test/ -v --asyncio-mode=strict  # All tests (191 tests)
+uv run pytest test/ -v --asyncio-mode=strict  # All tests (214 tests)
 uv run streamlit run test/test_ui.py       # Debug UI
 ```
 
@@ -77,10 +77,10 @@ uv run streamlit run test/test_ui.py       # Debug UI
 
 ## Test Structure
 
-- `test/unit/` — mirrors `src/` directory structure exactly
+- `test/unit/` — mirrors `src/` directory structure
 - `test/integration/` — requires PostGIS
 - Tests use priority markers: `@pytest.mark.priority("P0"/"P1"/"P2")`
-- 191 tests total: 112 P0, 65 P1, 14 P2
+- 214 tests total: 126 P0, 70 P1, 14 P2 (4 unmarked)
 
 ## Critical Files
 

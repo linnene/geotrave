@@ -43,9 +43,10 @@ validates the unit-level database layer.
 | `src/agent/nodes/analyst/node.py` | `test/unit/agent/nodes/analyst/test_analyst.py` | 6 | 0 | 0 | 6 |
 | `src/agent/nodes/manager/node.py` | `test/unit/agent/nodes/manager/test_manager.py` | 6 | 0 | 0 | 6 |
 | `src/agent/nodes/reply/node.py` | `test/unit/agent/nodes/reply/test_reply.py` | 4 | 0 | 0 | 4 |
-| `src/agent/state/schema.py` | `test/unit/agent/test_user_selections.py` | 7 | 2 | 0 | 9 |
+| `src/agent/graph.py` | `test/unit/test_graph_compilation.py` | 9 | 2 | 0 | 11 |
+| `src/agent/nodes/utils/research_loader.py` | `test/unit/agent/nodes/utils/test_research_loader.py` | 5 | 3 | 0 | 8 |
 | `src/agent/nodes/search/tools.py` | `test/integration/test_spatial_tools.py` | 4 | 0 | 0 | 4 |
-| **Total** | | **112** | **65** | **14** | **191** |
+| **Total** | | **126** | **70** | **14** | **214** |
 
 ## P0 — Blocker Items
 

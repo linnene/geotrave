@@ -50,7 +50,6 @@ exposes only the `{query: [hash_key, ...]}` mapping to the parent graph.
 |---|---|---|
 | `history` | `TravelState.messages` | Recent N conversation turns |
 | `user_profile` | `TravelState.user_profile` | Structured requirement profile |
-| `user_request` | `TravelState.user_request` | Current core intent |
 | `feedback` | `loop_state.feedback` | Critic's improvement suggestion (None in first round) |
 | `passed_queries` | `loop_state.passed_queries` | Already-passed queries for dedup |
 | `tools_doc` | `TOOL_METADATA` | Available tool list and parameter specs |
