@@ -57,6 +57,14 @@ async def lifespan(app: fastapi.FastAPI):
     except Exception as e:
         logger.critical("[GeoTrave] BM25 document index load failed: %s", e, exc_info=True)
 
+    # 初始化 Session 元数据存储
+    try:
+        from src.database.session_store import SqliteSessionStore
+        await SqliteSessionStore.get_instance()
+        logger.info("[GeoTrave] Session metadata store initialized")
+    except Exception as e:
+        logger.critical("[GeoTrave] Session store init failed: %s", e, exc_info=True)
+
     # 预热浏览器池 (避免 Send 并行扇出时 lazy init 死锁)
     try:
         from src.agent.nodes.research.search.web_search import start_crawler

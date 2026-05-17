@@ -43,6 +43,9 @@ PLANNER_MODEL_ID = os.getenv("PLANNER_MODEL_ID", GLOBAL_MODEL_ID)
 # Checkpoint 数据库配置 (Sqlite)
 CHECKPOINT_DB_PATH = os.getenv("CHECKPOINT_DB_PATH", "database/checkpointer/checkpoints.sqlite")
 
+# Session 元数据存储配置 (Sqlite, 可替换为 PostgreSQL)
+SESSION_DB_PATH = os.getenv("SESSION_DB_PATH", "database/session_store/sessions.sqlite")
+
 RECOMMENDER_MODEL_API_KEY = os.getenv("RECOMMENDER_MODEL_API_KEY", GLOBAL_MODEL_API_KEY)
 RECOMMENDER_MODEL_BASE_URL = os.getenv("RECOMMENDER_MODEL_BASE_URL", GLOBAL_MODEL_BASE_URL)
 RECOMMENDER_MODEL_ID = os.getenv("RECOMMENDER_MODEL_ID", GLOBAL_MODEL_ID)
