@@ -60,31 +60,6 @@ async def test_init_retrieval_db_executes_ddl():
 
 @pytest.mark.priority("P0")
 @pytest.mark.asyncio
-async def test_store_result_insert():
-    """验证 payload 被 JSON 序列化后按 hash_key upsert 写入。"""
-    mock_conn = AsyncMock()
-
-    with _patch_get_pool(mock_conn):
-        from src.database.retrieval_db import store_result
-        await store_result("abc123", "sess-1", {"name": "札幌温泉", "score": 95})
-
-    mock_conn.execute.assert_awaited_once()
-    args = mock_conn.execute.call_args
-    sql: str = args[0][0]
-    params = args[0][1:]
-
-    assert "INSERT INTO retrieval_results" in sql
-    assert "ON CONFLICT (hash_key)" in sql
-    assert "$3::jsonb" in sql
-    assert params[0] == "abc123"
-    assert params[1] == "sess-1"
-    # asyncpg 不会自动序列化 dict→JSONB，必须 json.dumps + ::jsonb cast
-    import json
-    assert params[2] == json.dumps({"name": "札幌温泉", "score": 95}, ensure_ascii=False)
-
-
-@pytest.mark.priority("P0")
-@pytest.mark.asyncio
 async def test_get_results_returns_payloads():
     """验证按 hash_key 数组批量查询并返回 {hash_key: payload} 映射。"""
     mock_conn = AsyncMock()
@@ -150,24 +125,6 @@ async def test_batch_store_results():
 
 @pytest.mark.priority("P1")
 @pytest.mark.asyncio
-async def test_cleanup_session():
-    """验证按 session_id 删除所有关联行。"""
-    mock_conn = AsyncMock()
-
-    with _patch_get_pool(mock_conn):
-        from src.database.retrieval_db import cleanup_session
-        await cleanup_session("sess-cleanup")
-
-    mock_conn.execute.assert_awaited_once()
-    sql = mock_conn.execute.call_args[0][0]
-    params = mock_conn.execute.call_args[0][1:]
-    assert "DELETE FROM retrieval_results" in sql
-    assert "session_id = $1" in sql
-    assert params[0] == "sess-cleanup"
-
-
-@pytest.mark.priority("P1")
-@pytest.mark.asyncio
 async def test_get_results_empty_list_short_circuits():
     """验证空列表输入直接返回 {}，不访问数据库。"""
     mock_conn = AsyncMock()
@@ -200,19 +157,3 @@ async def test_get_results_partial_match():
     assert result == {"h1": {"z": 99}}
     assert "h_missing" not in result
 
-
-@pytest.mark.priority("P2")
-@pytest.mark.asyncio
-async def test_store_result_overwrite():
-    """验证同一 hash_key 再次写入会覆盖旧 payload（upsert 语义）。"""
-    mock_conn = AsyncMock()
-
-    with _patch_get_pool(mock_conn):
-        from src.database.retrieval_db import store_result
-        await store_result("dup_key", "sess", {"v": 1})
-        await store_result("dup_key", "sess", {"v": 2})
-
-    assert mock_conn.execute.await_count == 2
-    # 两次调用使用相同的 hash_key
-    for call in mock_conn.execute.call_args_list:
-        assert call[0][1] == "dup_key"

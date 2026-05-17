@@ -37,7 +37,6 @@ from .config import (
     MAX_LOOPS_FOCUSED,
     MAX_TOKENS,
     MIN_SCORE_THRESHOLD,
-    PASS_COUNT_MIN,
 )
 
 logger = get_logger("CriticNode")

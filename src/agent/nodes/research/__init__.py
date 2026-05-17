@@ -3,10 +3,6 @@ from .hash.node import hash_node
 from .query_generator.node import query_generator_node
 from .search.node import search_node
 from .subgraph import research_loop_subgraph
-from .critic.config import (
-    PASS_COUNT_MIN,
-    MAX_LOOPS,
-)
 
 __All__ = [
     "critic_node",
@@ -14,6 +10,4 @@ __All__ = [
     "query_generator_node",
     "search_node",
     "research_loop_subgraph",
-    "PASS_COUNT_MIN",
-    "MAX_LOOPS",
 ]

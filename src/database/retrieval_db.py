@@ -34,22 +34,6 @@ async def init_retrieval_db() -> None:
         await conn.execute(_INIT_DDL)
 
 
-async def store_result(hash_key: str, session_id: str, payload: Dict[str, Any]) -> None:
-    """写入单条检索结果（按 hash_key  upsert）。
-
-    asyncpg 不会自动将 Python dict 序列化为 JSONB——必须先用 json.dumps
-    转为字符串，再通过 $3::jsonb 强制 PostgreSQL 解析为 JSONB 对象。
-    仅 json.dumps 而不加 ::jsonb 会导致存储为 JSON 字符串而非对象。"""
-    pool = await get_pool()
-    async with pool.acquire() as conn:
-        await conn.execute(
-            f"INSERT INTO {_RETRIEVAL_TABLE} (hash_key, session_id, payload) "
-            "VALUES ($1, $2, $3::jsonb) "
-            "ON CONFLICT (hash_key) DO UPDATE SET payload = $3::jsonb",
-            hash_key, session_id, json.dumps(payload, ensure_ascii=False),
-        )
-
-
 async def batch_store_results(
     results: List[Dict[str, Any]], session_id: str
 ) -> None:
@@ -83,12 +67,3 @@ async def get_results(hash_keys: List[str]) -> Dict[str, Dict[str, Any]]:
             hash_keys,
         )
     return {row["hash_key"]: row["payload"] for row in rows}
-
-
-async def cleanup_session(session_id: str) -> None:
-    """删除指定会话的所有检索结果。"""
-    pool = await get_pool()
-    async with pool.acquire() as conn:
-        await conn.execute(
-            f"DELETE FROM {_RETRIEVAL_TABLE} WHERE session_id = $1", session_id
-        )

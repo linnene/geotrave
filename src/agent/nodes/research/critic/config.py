@@ -3,9 +3,6 @@ Module: src.agent.nodes.research.config
 Responsibility: Critic node constants — quality thresholds and loop control parameters.
 """
 
-# 混合退出阈值: 单轮至少通过 N 条结果才允许 LLM 决定退出
-PASS_COUNT_MIN = 3
-
 # 硬上限: 无论 LLM 如何决策，最多迭代 N 轮后强制退出
 MAX_LOOPS = 2
 

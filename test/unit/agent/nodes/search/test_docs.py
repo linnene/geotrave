@@ -120,7 +120,6 @@ async def test_build_index_empty():
 
     await mgr.build_index(mock_pool)
 
-    assert not mgr.is_loaded
     assert mgr.doc_count() == 0
 
 
@@ -173,7 +172,6 @@ async def test_build_index_with_docs():
 
     await mgr.build_index(mock_pool)
 
-    assert mgr.is_loaded
     assert mgr.doc_count() == 4
 
 
@@ -376,47 +374,6 @@ async def test_search_score_threshold():
 
     results = mgr.search("函数式编程 微服务 架构设计")
     assert len(results) == 0
-
-
-# =============================================================================
-# P0 — DocumentManager.ingest
-# =============================================================================
-
-
-@pytest.mark.priority("P0")
-@pytest.mark.asyncio
-async def test_ingest():
-    """ingest 写入 PostgreSQL + 增量更新内存索引。"""
-    from src.agent.nodes.research.search.docs.manager import DocumentManager
-
-    mgr = DocumentManager()
-    # 先构建含 1 篇文档的索引
-    doc_row = {
-        "hash_key": "doc_init",
-        "payload": {
-            "title": "初始文档",
-            "place_name": "测试",
-            "content": "这是一篇初始文档内容包含测试字符。",
-            "source": "",
-        },
-    }
-    mock_pool = _mock_pool_with_rows([doc_row])
-    await mgr.build_index(mock_pool)
-    assert mgr.doc_count() == 1
-
-    with patch(
-        "src.database.retrieval_db.store_result",
-        new=AsyncMock(),
-    ) as mock_store:
-        doc_id = await mgr.ingest(
-            content="箱根温泉是关东地区最受欢迎的温泉胜地。",
-            metadata={"title": "箱根温泉指南", "place_name": "箱根", "source": "test"},
-            pool=mock_pool,
-        )
-
-    assert doc_id.startswith("doc_")
-    mock_store.assert_awaited_once()
-    assert mgr.doc_count() == 2
 
 
 # =============================================================================

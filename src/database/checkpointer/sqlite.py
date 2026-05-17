@@ -59,35 +59,3 @@ class SqliteCheckpointer:
             cls._instances[current_loop] = instance
             
         return cls._instances[current_loop]
-
-    @classmethod
-    async def delete_checkpoint(cls, thread_id: str):
-        """
-        Deletes all checkpoints associated with a specific thread_id.
-        """
-        instance = await cls.get_instance()
-        
-        logger.info(f"Cleaning up checkpoints for thread_id: {thread_id}")
-        async with instance.conn.execute(
-            "DELETE FROM checkpoints WHERE thread_id = ?", (thread_id,)
-        ):
-            await instance.conn.commit()
-        
-        async with instance.conn.execute(
-            "DELETE FROM writes WHERE thread_id = ?", (thread_id,)
-        ):
-            await instance.conn.commit()
-
-    @classmethod
-    async def close_all(cls):
-        """
-        Gracefully closes all checkpointer connections.
-        """
-        for loop, cm in cls._cms.items():
-            try:
-                if not loop.is_closed():
-                    await cm.__aexit__(None, None, None)
-            except Exception as e:
-                logger.error(f"Error while closing checkpointer for loop {id(loop)}: {e}")
-        cls._instances.clear()
-        cls._cms.clear()

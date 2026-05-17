@@ -56,10 +56,6 @@ class DocumentManager:
         self._sources: List[str] = []
         self._previews: List[str] = []      # 前 _PREVIEW_LEN 字符，用于片段
 
-    @property
-    def is_loaded(self) -> bool:
-        return self._bm25 is not None
-
     def doc_count(self) -> int:
         return len(self._doc_ids)
 
@@ -153,40 +149,6 @@ class DocumentManager:
             }
             for i, score in candidates
         ]
-
-    # ------------------------------------------------------------------
-    # 文档入库（离线管线调用）
-    # ------------------------------------------------------------------
-
-    async def ingest(
-        self, content: str, metadata: Dict[str, Any], pool
-    ) -> str:
-        """写入 PostgreSQL + 增量更新内存 BM25 索引。"""
-        from src.database.retrieval_db import store_result
-
-        doc_id = _gen_doc_id(content)
-
-        payload = {**metadata, "content": content, "doc_id": doc_id}
-        await store_result(doc_id, _SESSION_SYSTEM, payload)
-
-        title = metadata.get("title", "")
-        place_name = metadata.get("place_name", "")
-        full_text = f"{title} {place_name} {content}"
-        tokens = _tokenize(full_text)
-
-        if tokens and self._bm25 is not None:
-            self._doc_ids.append(doc_id)
-            self._titles.append(title)
-            self._place_names.append(place_name)
-            self._sources.append(metadata.get("source", ""))
-            self._previews.append(content[:_PREVIEW_LEN])
-            # 重建索引（rank-bm25 不支持增量，但文档量小可接受全量重建）
-            self._corpus.append(tokens)
-            self._bm25 = BM25Okapi(self._corpus, k1=BM25_K1, b=BM25_B)
-
-        logger.info(f"DocumentManager: 入库完成 doc_id={doc_id}")
-        return doc_id
-
 
 # ------------------------------------------------------------------
 # 全局单例
