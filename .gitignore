@@ -39,9 +39,7 @@ logs/
 # IDEs
 .vscode/
 .idea/
-docs/*.md
-!docs/STASH.md
-!docs/PLAN.md
+docs/
 .github/*.md
 
 script/start_claude.ps1
