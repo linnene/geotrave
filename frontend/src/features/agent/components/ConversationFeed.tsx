@@ -29,7 +29,7 @@ export function ConversationFeed({ error, messages }: ConversationFeedProps) {
         {messages.map((message) => (
           <article
             key={message.id}
-            className={`max-w-[50%] rounded-2xl px-4 py-3 text-sm leading-6 max-sm:max-w-[85%] ${
+            className={`w-fit max-w-[50%] whitespace-pre-wrap break-words rounded-2xl px-4 py-3 text-sm leading-6 max-sm:max-w-[85%] ${
               message.role === 'user'
                 ? 'ml-auto bg-[#aeb6b2] text-white'
                 : 'bg-white/75 text-foreground'
