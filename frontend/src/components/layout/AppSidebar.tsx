@@ -43,8 +43,12 @@ export function AppSidebar({
           'flex h-full w-[280px] flex-col border-r border-border bg-[#d8dedb] transition-transform duration-300 ease-out',
           isOpen ? 'translate-x-0' : '-translate-x-full',
         )}
+        style={{
+          backgroundImage: 'radial-gradient(circle, rgba(105, 115, 110, 0.34) 1px, transparent 1px)',
+          backgroundSize: '18px 18px',
+        }}
       >
-        <div className="h-60 border-b border-border bg-[#8e9792] px-5 py-5 text-white">
+        <div className="h-60 border-b border-border bg-[#8e9792]/90 px-5 py-5 text-white">
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className="flex size-10 items-center justify-center rounded-md bg-white/20">
