@@ -49,3 +49,9 @@ script/cc-hook.ps1
 .mcp.json
 
 .playwright-mcp/
+
+# Session store (runtime data)
+database/session_store/
+
+# IDE workspace files
+*.code-workspace
