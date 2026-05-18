@@ -2,15 +2,15 @@
 
 React + TypeScript frontend scaffold for the GeoTrave multi-agent travel planning system.
 
-The current frontend is an MVP foundation, not a finished product UI. It establishes the app shell, layout boundaries, styling stack, and backend API access layer for the later chat, agent-status, recommendation, and itinerary workflows.
+The current frontend is an MVP foundation, not a finished product UI. It establishes the app shell, layout boundaries, styling stack, backend API access layer, and non-streaming Agent interaction state model.
 
 ## Current Status
 
 - Built with Vite, React, TypeScript, Tailwind CSS, and shadcn/ui-compatible primitives.
 - The left plan bar is a collapsible layout column. Opening it pushes the main workspace instead of floating above it.
 - The main workspace is split into user-input display, agent workbench, current-node status, and prompt input areas.
-- Backend API integration is only scaffolded. The UI does not yet submit prompts or render real agent responses.
-- The API client is prepared for the current FastAPI `POST /chat/` endpoint.
+- Backend API integration is wired for the planned non-streaming contract. It submits prompts, stores returned chat state, and renders reply, node status, recommendations, and plans.
+- Session list integration is wired against the planned `/sessions/` API. If the backend API is unavailable, the UI falls back to a temporary local session and shows an error.
 
 ## Architecture
 
@@ -24,6 +24,8 @@ src/
   features/
     agent/
       MainWorkspace.tsx           # Main agent interaction layout
+      types.ts                    # Agent workspace state and UI message types
+      useAgentWorkspace.ts        # Non-streaming chat/session state orchestration
       components/
         ConversationHeader.tsx    # Latest user input display and sidebar trigger
         AgentCanvas.tsx           # Agent workbench / result display area
@@ -32,7 +34,8 @@ src/
     chat/types.ts                 # Shared chat message types
   lib/
     api/client.ts                 # JSON request helper and API error type
-    api/chat.ts                   # Typed chat endpoint wrapper
+    api/chat.ts                   # Typed chat endpoint wrapper and Agent payload types
+    api/sessions.ts               # Session metadata endpoint wrapper
     config.ts                     # Runtime config from Vite env
     utils.ts                      # Shared className merge helper
   styles/
@@ -44,7 +47,7 @@ src/
 - `App.tsx` should stay thin. It may own app-level state such as sidebar visibility, but feature UI belongs under `features/`.
 - Shared, reusable UI primitives belong under `components/ui/`.
 - Layout-only shared components belong under `components/layout/`.
-- Agent-specific screens and panels belong under `features/agent/`.
+- Agent-specific screens, panels, and workspace state belong under `features/agent/`.
 - API access should stay in `lib/api/`; components should not call `fetch` directly.
 
 ## Environment Isolation
@@ -82,15 +85,20 @@ The initial API client targets:
 POST /chat/
 ```
 
-Expected response fields are currently modeled as:
+Expected chat response fields are currently modeled as:
 
 ```text
-reply, session_id, status, recommendation, plan
+reply, session_id, status, route, signs, trace, profile, recommendation, plan
+```
+
+Expected session summary fields are:
+
+```text
+session_id, title, summary, created_at, updated_at, last_message
 ```
 
 ## Next Work
 
-- Wire `PromptInputBar` to the chat API client.
-- Replace placeholder plan conversations with persisted sessions.
-- Render `route_metadata` / current node data when the backend exposes it to the frontend.
-- Add structured recommendation and itinerary panels inside `AgentCanvas`.
+- Align with ClaudeCode backend changes for `/chat/` and `/sessions/`.
+- Add richer recommendation and itinerary presentation once real payloads are stable.
+- Add history retrieval if the backend exposes persisted message history per session.

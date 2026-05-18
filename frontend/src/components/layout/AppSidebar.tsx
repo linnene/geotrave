@@ -1,23 +1,41 @@
-import { Compass, MessageSquareText, X } from 'lucide-react'
+import { Compass, MessageSquarePlus, MessageSquareText, X } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
+import type { SessionSummary } from '@/lib/api/sessions'
 import { cn } from '@/lib/utils'
-
-export type PlanConversation = {
-  id: string
-  title: string
-  summary: string
-  updatedAt: string
-  active: boolean
-}
 
 type AppSidebarProps = {
   isOpen: boolean
-  plans: PlanConversation[]
+  sessions: SessionSummary[]
+  activeSessionId: string
+  isLoading: boolean
+  onCreateSession: () => void
+  onSelectSession: (sessionId: string) => void
   onClose: () => void
 }
 
-export function AppSidebar({ isOpen, plans, onClose }: AppSidebarProps) {
+function formatDate(value: string) {
+  if (!value) {
+    return 'No activity'
+  }
+
+  return new Intl.DateTimeFormat(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(value))
+}
+
+export function AppSidebar({
+  isOpen,
+  sessions,
+  activeSessionId,
+  isLoading,
+  onCreateSession,
+  onSelectSession,
+  onClose,
+}: AppSidebarProps) {
   return (
     <div className="min-h-screen overflow-hidden">
       <aside
@@ -50,23 +68,39 @@ export function AppSidebar({ isOpen, plans, onClose }: AppSidebarProps) {
           </div>
         </div>
 
+        <div className="border-b border-border px-4 py-4">
+          <Button type="button" className="w-full" onClick={onCreateSession} disabled={isLoading}>
+            <MessageSquarePlus className="size-4" aria-hidden="true" />
+            New plan
+          </Button>
+        </div>
+
         <nav className="flex-1 space-y-2 overflow-y-auto px-4 py-5" aria-label="Plan conversations">
-          {plans.map((plan) => (
+          {sessions.length === 0 && (
+            <p className="px-3 text-sm text-muted-foreground">
+              {isLoading ? 'Loading plans...' : 'No plan conversations yet.'}
+            </p>
+          )}
+
+          {sessions.map((session) => (
             <button
-              key={plan.id}
+              key={session.session_id}
               type="button"
+              onClick={() => onSelectSession(session.session_id)}
               className={cn(
                 'flex w-full items-start gap-3 rounded-md px-3 py-3 text-left transition-colors',
-                plan.active
+                session.session_id === activeSessionId
                   ? 'bg-background text-foreground shadow-sm'
                   : 'text-muted-foreground hover:bg-background/70 hover:text-foreground',
               )}
             >
               <MessageSquareText className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
               <span className="min-w-0">
-                <span className="block truncate text-sm font-semibold">{plan.title}</span>
-                <span className="mt-1 block line-clamp-2 text-xs leading-5">{plan.summary}</span>
-                <span className="mt-2 block text-xs">{plan.updatedAt}</span>
+                <span className="block truncate text-sm font-semibold">{session.title}</span>
+                <span className="mt-1 block line-clamp-2 text-xs leading-5">
+                  {session.summary || session.last_message || 'No summary yet'}
+                </span>
+                <span className="mt-2 block text-xs">{formatDate(session.updated_at)}</span>
               </span>
             </button>
           ))}
