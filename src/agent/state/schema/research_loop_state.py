@@ -21,6 +21,6 @@ class ResearchLoopState(TypedDict):
     research_data: Annotated[ResearchManifest, _merge_research_manifest]
     focus_dimension: Optional[str]
     dimension_hints: Dict[str, str]
-    user_profile: Optional[UserProfile]
+    user_profile: Annotated[Optional[UserProfile], lambda left, right: right if right is not None else left]
     messages: List[BaseMessage]
     trace_history: Annotated[List[TraceLog], add]

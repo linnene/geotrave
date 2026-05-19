@@ -112,7 +112,6 @@ async def get_travel_app():
                     "focus_dimension": dim,
                     "dimension_hints": {dim: dim_hints.get(dim, "")},
                     "messages": parent_messages[-3:] if parent_messages else [],
-                    "user_profile": state.get("user_profile"),
                 })
                 for dim in dims
             ]
