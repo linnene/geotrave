@@ -48,7 +48,7 @@ export function AppSidebar({
           backgroundSize: '18px 18px',
         }}
       >
-        <div className="h-60 border-b border-border bg-[#8e9792]/90 px-5 py-5 text-white">
+        <div className="h-40 border-b border-border bg-[#8e9792]/90 px-5 py-5 text-white">
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className="flex size-10 items-center justify-center rounded-md bg-white/20">
