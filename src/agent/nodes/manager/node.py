@@ -179,8 +179,8 @@ async def manager_node(state: TravelState) -> Dict[str, Any]:
                 result["research_data"] = research_manifest.model_copy(
                     update={"loop_state": ResearchLoopInternal()}
                 )
-        # 若 Manager 已指定目标维度，直接注入 state 供 DimensionPlanner 短接
-        if focus_dimension:
-            result["focus_dimension"] = focus_dimension
+        # 若 Manager 已指定目标维度，注入 state 供 DimensionPlanner 短接；
+        # 否则写空字符串清除旧值，防止上轮残留维度污染下轮 DimensionPlanner 决策
+        result["focus_dimension"] = focus_dimension or ""
 
     return result
