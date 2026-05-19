@@ -1,10 +1,10 @@
-import logging
 import trafilatura
 from typing import Optional, Tuple
 
 from readability import Document
+from src.utils.logger import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger("ContentParser")
 
 class ContentParser:
     """Handles the extraction and cleaning of content from raw HTML."""

@@ -18,7 +18,7 @@ import aiosqlite
 from src.utils.config import SESSION_DB_PATH, CHECKPOINT_DB_PATH
 from src.utils.logger import get_logger
 
-_logger = get_logger("SessionStore")
+logger = get_logger("SessionStore")
 
 
 # =============================================================================
@@ -119,7 +119,7 @@ class SqliteSessionStore:
         self._conn.row_factory = aiosqlite.Row
         await self._conn.execute(DDL)
         await self._conn.commit()
-        _logger.info("Session store ready at %s", self._db_path)
+        logger.info("Session store ready at %s", self._db_path)
 
     async def create(
         self, session_id: str, title: str = "", summary: str = "",
@@ -209,9 +209,9 @@ class SqliteSessionStore:
                         (thread_id,),
                     )
                 await db.commit()
-            _logger.info("Cleaned checkpoints for thread %s", thread_id)
+            logger.info("Cleaned checkpoints for thread %s", thread_id)
         except Exception:
-            _logger.warning(
+            logger.warning(
                 "Failed to clean checkpoints for thread %s",
                 thread_id, exc_info=True,
             )
