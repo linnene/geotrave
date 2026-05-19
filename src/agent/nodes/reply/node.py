@@ -13,6 +13,7 @@ from typing import Any, Dict, Literal
 
 from langchain_core.messages import AIMessage, HumanMessage
 from src.agent.state import TravelState
+from src.utils.config import DIM_LABELS
 from src.utils.llm_factory import LLMFactory
 from src.utils.prompt import prompt
 from src.utils.logger import get_logger
@@ -22,10 +23,6 @@ from .config import TEMPERATURE, MAX_TOKENS
 logger = get_logger("ReplyNode")
 
 Scenario = Literal["block", "recommend", "guide"]
-
-DIM_LABELS = {"destination": "目的地", "accommodation": "住宿", "dining": "餐饮",
-              "attraction": "景点", "shopping": "购物", "transportation": "交通",
-              "weather": "天气", "policy": "政策", "general": "综合"}
 
 
 def _label_dim(dim: str) -> str:

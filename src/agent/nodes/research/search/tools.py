@@ -33,7 +33,7 @@ def register_tool(name: str, description: str, parameters: Dict[str, str]):
     def decorator(func):
         @functools.wraps(func)
         async def wrapper(task: SearchTask) -> RetrievalMetadata:
-            logger.info(f"Executing tool '{name}' with params: {task.parameters}")
+            logger.debug(f"Executing tool '{name}' with params: {task.parameters}")
             return await func(task)
 
         TOOL_METADATA.append({

@@ -3,8 +3,10 @@ import os
 import sys
 from typing import Optional
 from crawl4ai import AsyncWebCrawler, BrowserConfig, CrawlerRunConfig, CacheMode
-from src.utils.logger import logger
+from src.utils.logger import get_logger
 from .schema import FetchError
+
+logger = get_logger("ContentFetcher")
 
 
 class ContentFetcher:
@@ -128,14 +130,14 @@ class ContentFetcher:
             return
         self._crawler = AsyncWebCrawler(config=self._browser_config)
         await self._crawler.start()
-        logger.info("ContentFetcher: browser started (managed Chromium)")
+        logger.debug("ContentFetcher: browser started (managed Chromium)")
 
     async def close_browser(self) -> None:
         if self._crawler is None:
             return
         await self._crawler.close()
         self._crawler = None
-        logger.info("ContentFetcher: browser closed")
+        logger.debug("ContentFetcher: browser closed")
 
     # ------------------------------------------------------------------
     # Fetch

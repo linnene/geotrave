@@ -8,10 +8,10 @@ workflow runs independently on pushes and pull requests targeting `master` or
 
 | Workflow | Responsibility | Test Paths |
 |---|---|---|
-| `CI - Core Agent` | Gateway, analyst, manager, reply, graph compilation, and API schema checks | `test/unit/agent/nodes/gateway`, `test/unit/agent/nodes/analyst`, `test/unit/agent/nodes/manager`, `test/unit/agent/nodes/reply`, `test/unit/test_graph_compilation.py`, `test/unit/test_api_schemas.py` |
+| `CI - Core Agent` | Gateway, analyst, manager, reply, graph compilation, API schema checks, chat/session API endpoints | `test/unit/agent/nodes/gateway`, `test/unit/agent/nodes/analyst`, `test/unit/agent/nodes/manager`, `test/unit/agent/nodes/reply`, `test/unit/test_graph_compilation.py`, `test/unit/test_api_schemas.py`, `test/unit/api/` |
 | `CI - Research and Search` | Research loop, query generation, search tools, crawler error handling, document search, weather, and research loader | `test/unit/agent/nodes/research`, `test/unit/agent/nodes/query_generator`, `test/unit/agent/nodes/search`, `test/unit/agent/nodes/utils` |
 | `CI - Delivery` | Recommendation and itinerary delivery nodes | `test/unit/agent/nodes/recommender`, `test/unit/agent/nodes/planner` |
-| `CI - Database and Spatial` | PostGIS configuration, connection pool, retrieval DB, and live spatial integration tests when `POSTGIS_DSN` is configured | `test/unit/database`, `test/integration` |
+| `CI - Database and Spatial` | PostGIS configuration, connection pool, retrieval DB, session store, and live spatial integration tests when `POSTGIS_DSN` is configured | `test/unit/database`, `test/integration` |
 | `CI - API Newman` | FastAPI runtime and Postman/Newman API scenarios | `script/run_api_tests.py --timeout 120` |
 
 `POSTGIS_DSN` is optional in CI. When it is absent, integration tests under
@@ -25,10 +25,10 @@ validates the unit-level database layer.
 | `src/api/schema.py` | `test/unit/test_api_schemas.py` | 0 | 1 | 0 | 1 |
 | `src/database/postgis/config.py` | `test/unit/database/postgis/test_config.py` | 1 | 1 | 0 | 2 |
 | `src/database/postgis/connection.py` | `test/unit/database/postgis/test_connection.py` | 2 | 2 | 0 | 4 |
-| `src/database/retrieval_db.py` | `test/unit/database/postgis/test_retrieval_db.py` | 3 | 3 | 2 | 8 |
+| `src/database/retrieval_db.py` | `test/unit/database/postgis/test_retrieval_db.py` | 2 | 2 | 1 | 5 |
 | `src/agent/nodes/search/tools.py` | `test/unit/agent/nodes/search/test_tools.py` | 3 | 8 | 2 | 13 |
 | `src/agent/nodes/search/node.py` | `test/unit/agent/nodes/search/test_search_node.py` | 14 | 8 | 0 | 22 |
-| `src/agent/nodes/search/docs/` | `test/unit/agent/nodes/search/test_docs.py` | 16 | 1 | 0 | 17 |
+| `src/agent/nodes/search/docs/` | `test/unit/agent/nodes/search/test_docs.py` | 15 | 1 | 0 | 16 |
 | `src/agent/nodes/search/web_search.py` | `test/unit/agent/nodes/search/test_web_search.py` | 0 | 8 | 4 | 12 |
 | `src/agent/nodes/search/weather.py` | `test/unit/agent/nodes/search/test_weather.py` | 0 | 6 | 3 | 9 |
 | `src/agent/nodes/search/error_handling.py` | `test/unit/agent/nodes/search/test_error_handling.py` | 9 | 4 | 0 | 13 |
@@ -40,13 +40,16 @@ validates the unit-level database layer.
 | `src/agent/nodes/recommender/node.py` | `test/unit/agent/nodes/recommender/test_recommender.py` | 3 | 2 | 0 | 5 |
 | `src/agent/nodes/planner/node.py` | `test/unit/agent/nodes/planner/test_planner.py` | 3 | 2 | 0 | 5 |
 | `src/agent/nodes/gateway/node.py` | `test/unit/agent/nodes/gateway/test_gateway.py` | 6 | 0 | 0 | 6 |
-| `src/agent/nodes/analyst/node.py` | `test/unit/agent/nodes/analyst/test_analyst.py` | 6 | 0 | 0 | 6 |
-| `src/agent/nodes/manager/node.py` | `test/unit/agent/nodes/manager/test_manager.py` | 6 | 0 | 0 | 6 |
+| `src/agent/nodes/analyst/node.py` | `test/unit/agent/nodes/analyst/test_analyst.py` | 5 | 0 | 0 | 5 |
+| `src/agent/nodes/manager/node.py` | `test/unit/agent/nodes/manager/test_manager.py` | 5 | 0 | 0 | 5 |
 | `src/agent/nodes/reply/node.py` | `test/unit/agent/nodes/reply/test_reply.py` | 4 | 0 | 0 | 4 |
-| `src/agent/graph.py` | `test/unit/test_graph_compilation.py` | 9 | 2 | 0 | 11 |
+| `src/agent/graph.py` | `test/unit/test_graph_compilation.py` | 5 | 2 | 0 | 7 |
 | `src/agent/nodes/utils/research_loader.py` | `test/unit/agent/nodes/utils/test_research_loader.py` | 5 | 3 | 0 | 8 |
 | `src/agent/nodes/search/tools.py` | `test/integration/test_spatial_tools.py` | 4 | 0 | 0 | 4 |
-| **Total** | | **126** | **70** | **14** | **214** |
+| `src/api/chat.py` | `test/unit/api/test_chat_api.py` | 2 | 2 | 0 | 4 |
+| `src/api/session.py` | `test/unit/api/test_session_api.py` | 4 | 2 | 0 | 6 |
+| `src/database/session_store.py` | `test/unit/database/test_session_store.py` | 6 | 3 | 0 | 9 |
+| **Total** | | **132** | **76** | **13** | **225** |
 
 ## P0 — Blocker Items
 
@@ -63,47 +66,46 @@ validates the unit-level database layer.
 | 9 | `test_route_search_shortest_path` (INT) — 真实路网最短路径 | pgRouting 函数重载冲突已在 Phase 4 修复 |
 | 10 | `test_route_search_isochrone` (INT) — 等时圈可达性 | 拓扑未构建或过时将导致零节点或错误距离 |
 | 11 | `test_init_retrieval_db_executes_ddl` — 建表 DDL 正确执行 | 检索表缺失将导致 Hash 节点无法持久化结果 |
-| 12 | `test_store_result_insert` — 单条结果写入并 JSON 序列化 | 写入失败将导致检索结果不可达 |
-| 13 | `test_get_results_returns_payloads` — 按 hash_key 批量查询 | 查询失败将导致 Recommender/Planner 无法读取检索结果 |
-| 14 | `test_blacklist_filter_hit` — 黑名单命中剔除 | 黑名单失效将导致不安全内容进入 LLM |
-| 15 | `test_code_filter_unsafe_tag` — unsafe tag 剔除 | Layer 3 失效将导致违规内容通过 |
-| 16 | `test_code_filter_low_relevance` — 低相关度剔除 | 阈值失效将导致无关结果污染检索库 |
-| 17 | `test_code_filter_low_utility` — 低实用性剔除 | 无实用价值的结果浪费存储和后续计算 |
-| 18 | `test_should_continue_loop_enough_passed_and_llm_false` — 充分时退出 | 循环无法退出将导致无限迭代 |
-| 19 | `test_should_continue_loop_not_enough_passed` — 不充分时继续 | 过早退出将导致调研覆盖不足 |
-| 20 | `test_should_continue_loop_max_loops_exceeded` — 硬上限强制退出 | 无限循环保护失效将阻塞整个 Agent |
-| 21 | `test_critic_node_empty_results_skips` — 空输入跳过 | 空结果未处理将导致异常 |
-| 22 | `test_critic_node_full_pipeline` — 完整三层管线 | 端到端过滤链路断裂将导致质量问题 |
-| 23 | `test_generate_hash_key_deterministic` — hash 确定性 | 去重依赖相同输入产生相同 hash，不一致将导致重复存储 |
-| 24 | `test_generate_hash_key_different_content` — 不同内容不同 hash | hash 碰撞将导致不同结果被误判为重复 |
-| 25 | `test_persist_results_creates_mapping` — 映射正确性 | query→hashes 映射错误将导致父图无法索引检索结果 |
-| 26 | `test_hash_node_empty_skips` — 空结果跳过 | 空结果未处理导致异常 |
-| 27 | `test_hash_node_persists_and_exposes_hashes` — 持久化+暴露 | 核心链路：结果持久化失败将导致 Recommender/Planner 无数据可用 |
-| 28 | `test_generate_summary_poi_list` — POI 摘要生成 | 摘要字段是 Critic LLM 评分的输入，缺失将导致评分质量下降 |
-| 29 | `test_generate_summary_shortest_route` — 路线摘要生成 | 路线类型结果摘要错误将导致 Critic 无法正确评估 |
-| 30 | `test_generate_summary_isochrone` — 等时圈摘要生成 | 等时圈摘要字段缺失影响可达性评估 |
-| 31 | `test_execute_tasks_wraps_in_research_result` — envelope 包裹 | Search 输出必须为 ResearchResult 格式，否则 Critic 无法解析 |
-| 32 | `test_execute_tasks_handler_exception` — 工具异常不崩溃 | 单个工具失败不得中断整个搜索批次 |
-| 33 | `test_search_node_missing_research_data` — 空状态跳过 | search_node 缺少 research_data 时必须优雅跳过 |
-| 34 | `test_search_node_empty_active_queries` — 空任务跳过 | 无活跃查询时正常返回 |
-| 35 | `test_search_node_writes_to_loop_state` — loop_state 写入 | 结果写入 loop_state.query_results 是整个 Research Loop 的数据入口 |
-| 36 | `test_qg_injects_feedback_into_prompt` — Critic 反馈注入 | QueryGenerator 忽略反馈将导致 Research Loop 迭代无改进 |
-| 37 | `test_qg_injects_passed_queries_into_prompt` — 去重查询注入 | 已通过查询未去重将导致重复搜索浪费资源 |
-| 38 | `test_qg_preserves_loop_state` — model_copy 保留 loop_state | 重建 ResearchManifest 会丢弃 feedback/passed_queries，导致迭代环路断裂 |
-| 39 | `test_qg_preserves_research_hashes` — 保留 research_hashes | research_hashes 丢失将导致 Hash 节点持久化映射被清空 |
-| 40 | `test_qg_appends_research_history` — 追加调研历史 | history 错误将影响后续 LLM 节点上下文质量 |
-| 41 | `test_qg_creates_manifest_when_none` — 无数据时创建 | 首轮调研无 ResearchManifest 时必须正确初始化 |
-| 42 | `test_gen_doc_id_deterministic` — doc_id 确定性 | 相同内容必须产生相同 SHA256 doc_id，否则文档去重失效 |
-| 43 | `test_search_basic` — BM25 检索正常路径 | 文档检索核心链路，失败将导致 document_search 工具不可用 |
-| 44 | `test_search_place_filter` — 地名过滤 | 跨目的地查询时地名过滤失效将返回无关文档 |
-| 45 | `test_search_score_threshold` — 相关度阈值过滤 | BM25_SCORE_THRESHOLD 失效将导致低质文档进入结果 |
-| 46 | `test_ingest` — 文档入库+索引更新 | ingest 链路断裂将导致离线管线无法注入文档 |
-| 47 | `test_document_search_tool` — 工具注册与 handler | document_search 工具未正确注册将导致 QG 生成任务无 handler 执行 |
-| 48 | `test_document_search_missing_query` — 必填参数校验 | 空 query 调用 BM25 将导致异常 |
-| 49 | `test_search_node_splits_doc_from_non_doc` — 文档/非文档分流 | 文档结果误入 query_results 会进入 Critic 审查；非文档误入 passed_doc_ids 会跳过 Hash |
-| 50 | `test_search_node_doc_results_accumulate` — doc_ids 跨迭代累积 | passed_doc_ids 覆盖式写入将丢失前几轮检索到的文档 |
-| 51 | `test_hash_node_promotes_passed_doc_ids` — doc_ids 提升到 Manifest | Hash 节点未提升 doc_ids 将导致 matched_doc_ids 始终为空，下游无文档可用 |
-| 52 | `test_hash_node_merges_matched_doc_ids` — 跨轮合并 matched_doc_ids | 覆盖式写入 matched_doc_ids 将丢弃之前轮次的文档检索结果 |
+| 12 | `test_get_results_returns_payloads` — 按 hash_key 批量查询 | 查询失败将导致 Recommender/Planner 无法读取检索结果 |
+| 13 | `test_blacklist_filter_hit` — 黑名单命中剔除 | 黑名单失效将导致不安全内容进入 LLM |
+| 14 | `test_code_filter_unsafe_tag` — unsafe tag 剔除 | Layer 3 失效将导致违规内容通过 |
+| 15 | `test_code_filter_low_relevance` — 低相关度剔除 | 阈值失效将导致无关结果污染检索库 |
+| 16 | `test_code_filter_low_utility` — 低实用性剔除 | 无实用价值的结果浪费存储和后续计算 |
+| 17 | `test_should_continue_loop_enough_passed_and_llm_false` — 充分时退出 | 循环无法退出将导致无限迭代 |
+| 18 | `test_should_continue_loop_not_enough_passed` — 不充分时继续 | 过早退出将导致调研覆盖不足 |
+| 19 | `test_should_continue_loop_max_loops_exceeded` — 硬上限强制退出 | 无限循环保护失效将阻塞整个 Agent |
+| 20 | `test_critic_node_empty_results_skips` — 空输入跳过 | 空结果未处理将导致异常 |
+| 21 | `test_critic_node_full_pipeline` — 完整三层管线 | 端到端过滤链路断裂将导致质量问题 |
+| 22 | `test_generate_hash_key_deterministic` — hash 确定性 | 去重依赖相同输入产生相同 hash，不一致将导致重复存储 |
+| 23 | `test_generate_hash_key_different_content` — 不同内容不同 hash | hash 碰撞将导致不同结果被误判为重复 |
+| 24 | `test_persist_results_creates_mapping` — 映射正确性 | query→hashes 映射错误将导致父图无法索引检索结果 |
+| 25 | `test_hash_node_empty_skips` — 空结果跳过 | 空结果未处理导致异常 |
+| 26 | `test_hash_node_persists_and_exposes_hashes` — 持久化+暴露 | 核心链路：结果持久化失败将导致 Recommender/Planner 无数据可用 |
+| 27 | `test_generate_summary_poi_list` — POI 摘要生成 | 摘要字段是 Critic LLM 评分的输入，缺失将导致评分质量下降 |
+| 28 | `test_generate_summary_shortest_route` — 路线摘要生成 | 路线类型结果摘要错误将导致 Critic 无法正确评估 |
+| 29 | `test_generate_summary_isochrone` — 等时圈摘要生成 | 等时圈摘要字段缺失影响可达性评估 |
+| 30 | `test_execute_tasks_wraps_in_research_result` — envelope 包裹 | Search 输出必须为 ResearchResult 格式，否则 Critic 无法解析 |
+| 31 | `test_execute_tasks_handler_exception` — 工具异常不崩溃 | 单个工具失败不得中断整个搜索批次 |
+| 32 | `test_search_node_missing_research_data` — 空状态跳过 | search_node 缺少 research_data 时必须优雅跳过 |
+| 33 | `test_search_node_empty_active_queries` — 空任务跳过 | 无活跃查询时正常返回 |
+| 34 | `test_search_node_writes_to_loop_state` — loop_state 写入 | 结果写入 loop_state.query_results 是整个 Research Loop 的数据入口 |
+| 35 | `test_qg_injects_feedback_into_prompt` — Critic 反馈注入 | QueryGenerator 忽略反馈将导致 Research Loop 迭代无改进 |
+| 36 | `test_qg_injects_passed_queries_into_prompt` — 去重查询注入 | 已通过查询未去重将导致重复搜索浪费资源 |
+| 37 | `test_qg_preserves_loop_state` — model_copy 保留 loop_state | 重建 ResearchManifest 会丢弃 feedback/passed_queries，导致迭代环路断裂 |
+| 38 | `test_qg_preserves_research_hashes` — 保留 research_hashes | research_hashes 丢失将导致 Hash 节点持久化映射被清空 |
+| 39 | `test_qg_appends_research_history` — 追加调研历史 | history 错误将影响后续 LLM 节点上下文质量 |
+| 40 | `test_qg_creates_manifest_when_none` — 无数据时创建 | 首轮调研无 ResearchManifest 时必须正确初始化 |
+| 41 | `test_gen_doc_id_deterministic` — doc_id 确定性 | 相同内容必须产生相同 SHA256 doc_id，否则文档去重失效 |
+| 42 | `test_search_basic` — BM25 检索正常路径 | 文档检索核心链路，失败将导致 document_search 工具不可用 |
+| 43 | `test_search_place_filter` — 地名过滤 | 跨目的地查询时地名过滤失效将返回无关文档 |
+| 44 | `test_search_score_threshold` — 相关度阈值过滤 | BM25_SCORE_THRESHOLD 失效将导致低质文档进入结果 |
+| 45 | `test_ingest` — 文档入库+索引更新 | ingest 链路断裂将导致离线管线无法注入文档 |
+| 46 | `test_document_search_tool` — 工具注册与 handler | document_search 工具未正确注册将导致 QG 生成任务无 handler 执行 |
+| 47 | `test_document_search_missing_query` — 必填参数校验 | 空 query 调用 BM25 将导致异常 |
+| 48 | `test_search_node_splits_doc_from_non_doc` — 文档/非文档分流 | 文档结果误入 query_results 会进入 Critic 审查；非文档误入 passed_doc_ids 会跳过 Hash |
+| 49 | `test_search_node_doc_results_accumulate` — doc_ids 跨迭代累积 | passed_doc_ids 覆盖式写入将丢失前几轮检索到的文档 |
+| 50 | `test_hash_node_promotes_passed_doc_ids` — doc_ids 提升到 Manifest | Hash 节点未提升 doc_ids 将导致 matched_doc_ids 始终为空，下游无文档可用 |
+| 51 | `test_hash_node_merges_matched_doc_ids` — 跨轮合并 matched_doc_ids | 覆盖式写入 matched_doc_ids 将丢弃之前轮次的文档检索结果 |
 
 ## P1 — Critical Items
 
@@ -122,40 +124,39 @@ validates the unit-level database layer.
 | 11 | `test_geocode_by_name` | Search Tools |
 | 12 | `test_geocode_truncation` | Search Tools |
 | 13 | `test_batch_store_results` | Retrieval DB |
-| 14 | `test_cleanup_session` | Retrieval DB |
-| 15 | `test_get_results_empty_list_short_circuits` | Retrieval DB |
-| 16 | `test_blacklist_filter_all_pass` | Critic Node |
-| 17 | `test_blacklist_filter_case_insensitive` | Critic Node |
-| 18 | `test_code_filter_all_pass` | Critic Node |
-| 19 | `test_should_continue_loop_llm_wants_more` | Critic Node |
-| 20 | `test_aggregate_loop_summary` | Critic Node |
-| 21 | `test_load_blacklist_returns_list` | Critic Node |
-| 22 | `test_critic_node_llm_error_graceful` | Critic Node |
-| 23 | `test_generate_hash_key_different_query` | Hash Node |
-| 24 | `test_persist_results_empty_list` | Hash Node |
-| 25 | `test_hash_node_merges_existing_hashes` | Hash Node |
-| 26 | `test_generate_summary_poi_truncation` | Search Node |
-| 27 | `test_generate_summary_fallback_json` | Search Node |
-| 28 | `test_execute_tasks_unsupported_tool` | Search Node |
-| 29 | `test_search_node_preserves_existing_loop_state` | Search Node |
-| 30 | `test_qg_empty_feedback_and_passed_queries` | QueryGenerator Node |
-| 31 | `test_qg_llm_error_graceful` | QueryGenerator Node |
-| 32 | `test_qg_content_list_merge` | QueryGenerator Node |
-| 33 | `test_tokenize_empty` | DocumentManager |
-| 34 | `test_search_empty_index` | DocumentManager |
-| 35 | `test_search_node_empty_doc_results` | Search Node |
-| 36 | `test_search_node_only_non_doc_results` | Search Node |
-| 37 | `test_hash_node_dedup_matched_doc_ids` | Hash Node |
-| 38 | `test_build_index_empty` | DocumentManager |
-| 39 | `test_build_index_json_str_payload` | DocumentManager |
-| 40 | `test_get_document_manager_singleton` | DocumentManager |
-| 41 | `test_search_web_success` | Web Search |
-| 42 | `test_search_web_empty_results` | Web Search |
-| 43 | `test_search_web_ddgs_exception` | Web Search |
-| 44 | `test_crawl_urls_success` | Web Search |
-| 45 | `test_crawl_urls_partial_failure` | Web Search |
-| 46 | `test_web_search_tool_handler` | Web Search |
-| 47 | `test_web_search_crawl_failure` | Web Search |
+| 14 | `test_get_results_empty_list_short_circuits` | Retrieval DB |
+| 15 | `test_blacklist_filter_all_pass` | Critic Node |
+| 16 | `test_blacklist_filter_case_insensitive` | Critic Node |
+| 17 | `test_code_filter_all_pass` | Critic Node |
+| 18 | `test_should_continue_loop_llm_wants_more` | Critic Node |
+| 19 | `test_aggregate_loop_summary` | Critic Node |
+| 20 | `test_load_blacklist_returns_list` | Critic Node |
+| 21 | `test_critic_node_llm_error_graceful` | Critic Node |
+| 22 | `test_generate_hash_key_different_query` | Hash Node |
+| 23 | `test_persist_results_empty_list` | Hash Node |
+| 24 | `test_hash_node_merges_existing_hashes` | Hash Node |
+| 25 | `test_generate_summary_poi_truncation` | Search Node |
+| 26 | `test_generate_summary_fallback_json` | Search Node |
+| 27 | `test_execute_tasks_unsupported_tool` | Search Node |
+| 28 | `test_search_node_preserves_existing_loop_state` | Search Node |
+| 29 | `test_qg_empty_feedback_and_passed_queries` | QueryGenerator Node |
+| 30 | `test_qg_llm_error_graceful` | QueryGenerator Node |
+| 31 | `test_qg_content_list_merge` | QueryGenerator Node |
+| 32 | `test_tokenize_empty` | DocumentManager |
+| 33 | `test_search_empty_index` | DocumentManager |
+| 34 | `test_search_node_empty_doc_results` | Search Node |
+| 35 | `test_search_node_only_non_doc_results` | Search Node |
+| 36 | `test_hash_node_dedup_matched_doc_ids` | Hash Node |
+| 37 | `test_build_index_empty` | DocumentManager |
+| 38 | `test_build_index_json_str_payload` | DocumentManager |
+| 39 | `test_get_document_manager_singleton` | DocumentManager |
+| 40 | `test_search_web_success` | Web Search |
+| 41 | `test_search_web_empty_results` | Web Search |
+| 42 | `test_search_web_ddgs_exception` | Web Search |
+| 43 | `test_crawl_urls_success` | Web Search |
+| 44 | `test_crawl_urls_partial_failure` | Web Search |
+| 45 | `test_web_search_tool_handler` | Web Search |
+| 46 | `test_web_search_crawl_failure` | Web Search |
 
 ## P2 — Edge Case Items
 
@@ -163,18 +164,17 @@ validates the unit-level database layer.
 |---|---|---|
 | 1 | `test_spatial_search_empty_result` | Search Tools |
 | 2 | `test_get_results_partial_match` | Retrieval DB |
-| 3 | `test_store_result_overwrite` | Retrieval DB |
-| 4 | `test_aggregate_loop_summary_empty` | Critic Node |
-| 5 | `test_critic_node_accumulates_all_passed` | Critic Node |
-| 6 | `test_hash_node_dedup_same_query_same_content` | Hash Node |
-| 7 | `test_gen_doc_id_different_content` | DocumentManager |
-| 8 | `test_build_index_json_str_payload` | DocumentManager |
-| 9 | `test_build_index_empty` | DocumentManager |
-| 10 | `test_search_web_empty_query` | Web Search |
-| 11 | `test_search_web_filters_empty_entries` | Web Search |
-| 12 | `test_web_search_empty_ddg` | Web Search |
-| 13 | `test_web_search_clamps_max_results` | Web Search |
-| 14 | `test_web_search_missing_query` | Web Search |
+| 3 | `test_aggregate_loop_summary_empty` | Critic Node |
+| 4 | `test_critic_node_accumulates_all_passed` | Critic Node |
+| 5 | `test_hash_node_dedup_same_query_same_content` | Hash Node |
+| 6 | `test_gen_doc_id_different_content` | DocumentManager |
+| 7 | `test_build_index_json_str_payload` | DocumentManager |
+| 8 | `test_build_index_empty` | DocumentManager |
+| 9 | `test_search_web_empty_query` | Web Search |
+| 10 | `test_search_web_filters_empty_entries` | Web Search |
+| 11 | `test_web_search_empty_ddg` | Web Search |
+| 12 | `test_web_search_clamps_max_results` | Web Search |
+| 13 | `test_web_search_missing_query` | Web Search |
 
 ## High-Risk Evaluation Items
 

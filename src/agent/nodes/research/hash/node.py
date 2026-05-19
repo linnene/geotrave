@@ -12,11 +12,11 @@ import time
 from collections import defaultdict
 from typing import Any, Dict, List
 
-from src.agent.state import TravelState
 from src.agent.state.schema import (
     CriticResult,
     ResearchLoopInternal,
 )
+from src.agent.state.schema.research_loop_state import ResearchLoopState
 from src.database.retrieval_db import batch_store_results
 from src.agent.nodes.utils.history_tools import build_trace
 from src.utils.logger import get_logger
@@ -94,7 +94,7 @@ async def persist_results(
     return dict(mapping)
 
 
-async def hash_node(state: TravelState) -> Dict[str, Any]:
+async def hash_node(state: ResearchLoopState) -> Dict[str, Any]:
     """Hash 节点 — 持久化 + 全局状态最小暴露。
 
     流程:

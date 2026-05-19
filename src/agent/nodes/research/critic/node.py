@@ -16,7 +16,7 @@ import yaml
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
-from src.agent.state import TravelState
+from src.agent.state.schema.research_loop_state import ResearchLoopState
 from src.agent.state.schema import (
     CriticResult,
     LoopSummary,
@@ -383,7 +383,7 @@ def aggregate_loop_summary(
 # =============================================================================
 
 
-async def critic_node(state: TravelState) -> Dict[str, Any]:
+async def critic_node(state: ResearchLoopState) -> Dict[str, Any]:
     """Critic 节点 — 四层过滤管线入口。
 
     读取 research_data.loop_state.query_results，经管线处理后更新:
