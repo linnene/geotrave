@@ -70,3 +70,22 @@ REPLY_MODEL_ID = os.getenv("REPLY_MODEL_ID", GLOBAL_MODEL_ID)
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 LOG_NO_COLOR = os.getenv("LOG_NO_COLOR", "0") in ("1", "true", "True")
 LOG_FILE = os.getenv("LOG_FILE", "")
+
+# --- 搜索屏蔽城市列表 ---
+# 逗号分隔，通过环境变量 BLOCKED_CITIES 覆盖
+_DEFAULT_BLOCKED_CITIES = {"东京", "東京", "Tokyo", "大阪", "Osaka", "大阪市", "京都", "Kyoto", "名古屋", "Nagoya", "福岡", "Fukuoka"}
+_env_cities = os.getenv("BLOCKED_CITIES", "")
+BLOCKED_CITIES = set(c.strip() for c in _env_cities.split(",") if c.strip()) if _env_cities else _DEFAULT_BLOCKED_CITIES
+
+# --- 维度中文标签 ---
+DIM_LABELS = {
+    "destination": "目的地",
+    "accommodation": "住宿",
+    "dining": "餐饮",
+    "attraction": "景点",
+    "shopping": "购物",
+    "transportation": "交通",
+    "weather": "天气",
+    "policy": "政策",
+    "general": "综合",
+}

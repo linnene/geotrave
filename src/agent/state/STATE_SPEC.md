@@ -232,8 +232,8 @@ R=Read, W=Write, X=无权限
 | # | 问题 | 严重度 | 状态 |
 |---|------|--------|------|
 | S1 | `missing_fields` 在 TravelState 顶层 → 已移入 `UserProfile.all_missing_fields` | 中 | ✅ 已修复 |
-| S2 | `ResearchLoopInternal` 嵌套在全局可见的 `ResearchManifest` 中 | 高 | ⏳ 子图隔离（延后） |
-| S3 | Research Loop 子图用 `StateGraph(TravelState)` 编译 | 高 | ⏳ 子图隔离（延后） |
+| S2 | `ResearchLoopInternal` 嵌套在全局可见的 `ResearchManifest` 中 | 高 | ✅ 已解决 — `ResearchLoopState` 隔离子图字段访问 |
+| S3 | Research Loop 子图用 `StateGraph(TravelState)` 编译 | 高 | ✅ 已解决 — 子图编译为 `StateGraph(ResearchLoopState)` |
 | S4 | `needs_exit` 与 `execution_signs.is_safe` 语义重叠 | 低 | 保留两者，各有明确用途 |
 | S5 | `schema.py` 514 行混入 5 类模型 → 已拆分为 5 个子模块 | 中 | ✅ 已修复 |
 

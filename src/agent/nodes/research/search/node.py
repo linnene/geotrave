@@ -16,6 +16,7 @@ from . import tools
 from src.agent.nodes.utils import build_trace
 from src.agent.state import ResearchManifest, SearchTask
 from src.agent.state.schema import ResearchResult
+from src.agent.state.schema.research_loop_state import ResearchLoopState
 from src.utils.logger import get_logger
 
 logger = get_logger("SearchNode")
@@ -180,7 +181,7 @@ def _is_error_result(rr: ResearchResult) -> bool:
     return isinstance(rr.content, dict) and "error" in rr.content
 
 
-async def search_node(state: Dict[str, Any]) -> Dict[str, Any]:
+async def search_node(state: ResearchLoopState) -> Dict[str, Any]:
     """Search 执行节点（无 LLM）。
 
     1. 读取 research_data.loop_state.active_queries

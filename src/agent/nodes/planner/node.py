@@ -11,6 +11,7 @@ from typing import Any, Dict
 
 from src.agent.state import TravelState
 from src.agent.state.schema import ExecutionSigns, PlannerOutput
+from src.utils.config import DIM_LABELS
 from src.utils.llm_factory import LLMFactory
 from src.utils.prompt import prompt
 from src.utils.logger import get_logger
@@ -31,19 +32,19 @@ def _summarise_recommendations(state: TravelState) -> str:
     if not rec_data:
         return "暂无推荐数据"
 
-    dim_labels = {"destination": "目的地", "accommodation": "住宿", "dining": "餐饮"}
     lines = []
-    for dim, label in dim_labels.items():
-        dim_out = rec_data.get(dim)
-        if dim_out and dim_out.items:
-            lines.append(f"**{label}**:")
-            for item in dim_out.items[:5]:
-                rating = item.rating
-                stars = "★" * int(rating) + ("☆" if rating - int(rating) >= 0.5 else "")
-                lines.append(
-                    f"  - {item.name} ({stars} {rating}/5): "
-                    f"{item.reason[:120]}"
-                )
+    for dim, dim_out in rec_data.items():
+        if not dim_out or not dim_out.items:
+            continue
+        label = DIM_LABELS.get(dim, dim)
+        lines.append(f"**{label}**:")
+        for item in dim_out.items[:5]:
+            rating = item.rating
+            stars = "★" * int(rating) + ("☆" if rating - int(rating) >= 0.5 else "")
+            lines.append(
+                f"  - {item.name} ({stars} {rating}/5): "
+                f"{item.reason[:120]}"
+            )
     if not lines:
         return "推荐数据为空"
     return "\n".join(lines)

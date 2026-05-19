@@ -9,7 +9,7 @@ Dependencies: langgraph, src.agent.state, src.agent.nodes
 from langgraph.graph import StateGraph, END
 from langgraph.graph.state import CompiledStateGraph
 
-from src.agent.state.state import TravelState
+from src.agent.state.schema.research_loop_state import ResearchLoopState
 from src.utils.logger import get_logger
 from .query_generator.node import query_generator_node
 from .search.node import search_node
@@ -19,7 +19,7 @@ from .hash.node import hash_node
 _router_logger = get_logger("CriticRouter")
 
 
-def _critic_router(state: TravelState) -> str:
+def _critic_router(state: ResearchLoopState) -> str:
     research_data = state.get("research_data")
     loop_state = research_data.loop_state if research_data else None
 
@@ -40,7 +40,7 @@ def _critic_router(state: TravelState) -> str:
 
 
 def build_research_loop_subgraph() -> CompiledStateGraph:
-    subgraph = StateGraph(TravelState)
+    subgraph = StateGraph(ResearchLoopState)
 
     subgraph.add_node("query_generator", query_generator_node)
     subgraph.add_node("search", search_node)

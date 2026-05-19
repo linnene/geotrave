@@ -2,8 +2,10 @@ import time
 import json
 from typing import Dict, Any
 
-from src.agent.state import TravelState, QueryGeneratorOutput, ResearchManifest
+from src.agent.state import QueryGeneratorOutput, ResearchManifest
+from src.agent.state.schema.research_loop_state import ResearchLoopState
 from src.agent.state.schema import ResearchLoopInternal
+from src.utils.config import BLOCKED_CITIES
 from src.utils.llm_factory import LLMFactory
 from src.utils.prompt import prompt
 from src.utils.logger import get_logger
@@ -22,7 +24,6 @@ def _get_tools_documentation() -> str:
     return json.dumps(TOOL_METADATA, indent=2, ensure_ascii=False)
 
 PLACEHOLDER_VALUES = {"未指定", "未設定", "unspecified", "none", "null", ""}
-BLOCKED_CITIES = {"东京", "東京", "Tokyo", "大阪", "Osaka", "大阪市", "京都", "Kyoto", "名古屋", "Nagoya", "福岡", "Fukuoka"}
 
 
 def _first_destination(user_profile) -> str:
@@ -80,7 +81,7 @@ def _enforce_destination(tasks, destination: str):
     return new_tasks
 
 
-async def query_generator_node(state: TravelState) -> Dict[str, Any]:
+async def query_generator_node(state: ResearchLoopState) -> Dict[str, Any]:
     """Query Generator Node — 调研方案规划。
 
     从 UserProfile 和对话历史出发，生成 SearchTask 列表。
