@@ -56,7 +56,7 @@ class TravelState(TypedDict):
     messages: Annotated[List[BaseMessage], add_messages]
 
     # ── 业务数据 (Analyst 写入) ────────────────────────────
-    user_profile: UserProfile
+    user_profile: Annotated[UserProfile, lambda left, right: right]
 
     # ── 调研状态 (Research Loop 写入, Manager reset) ───────
     research_data: Annotated[ResearchManifest, _merge_research_manifest]
