@@ -45,6 +45,6 @@ async def research_merge_node(state: TravelState) -> Dict[str, Any]:
 
     return {
         "planned_dimensions": [],
-        "focus_dimension": None,
+        "focus_dimension": "",
         "trace_history": [trace],
     }

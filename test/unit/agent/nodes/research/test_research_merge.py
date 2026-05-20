@@ -18,7 +18,7 @@ from src.agent.state.schema import CriticResult, ResearchLoopInternal
 @pytest.mark.priority("P0")
 @pytest.mark.asyncio
 async def test_research_merge_clears_dimension_fields():
-    """planned_dimensions cleared, focus_dimension set to None."""
+    """planned_dimensions cleared, focus_dimension set to empty string (not None — Annotated reducer discards None)."""
     from src.agent.nodes.research.merge.node import research_merge_node
 
     manifest = ResearchManifest()
@@ -31,7 +31,7 @@ async def test_research_merge_clears_dimension_fields():
     result = await research_merge_node(state)
 
     assert result["planned_dimensions"] == []
-    assert result["focus_dimension"] is None
+    assert result["focus_dimension"] == ""
 
 
 @pytest.mark.priority("P0")
@@ -94,7 +94,7 @@ async def test_research_merge_empty_research_data():
 
     assert result["trace_history"][0].detail["total_hashes"] == 0
     assert result["planned_dimensions"] == []
-    assert result["focus_dimension"] is None
+    assert result["focus_dimension"] == ""
 
 
 # =============================================================================
