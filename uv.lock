@@ -900,7 +900,7 @@ dependencies = [
     { name = "readability-lxml" },
     { name = "trafilatura" },
     { name = "uvicorn", extra = ["standard"] },
-    { name = "win11toast" },
+    { name = "win11toast", marker = "sys_platform == 'win32'" },
 ]
 
 [package.dev-dependencies]
@@ -930,7 +930,7 @@ requires-dist = [
     { name = "readability-lxml", specifier = ">=0.8.4.1" },
     { name = "trafilatura", specifier = ">=2.0.0" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.42.0" },
-    { name = "win11toast", specifier = ">=0.36.3" },
+    { name = "win11toast", marker = "sys_platform == 'win32'", specifier = ">=0.36.3" },
 ]
 
 [package.metadata.requires-dev]
@@ -3544,18 +3544,18 @@ name = "win11toast"
 version = "0.36.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "winrt-windows-data-xml-dom" },
-    { name = "winrt-windows-foundation" },
-    { name = "winrt-windows-foundation-collections" },
-    { name = "winrt-windows-globalization" },
-    { name = "winrt-windows-graphics-imaging" },
-    { name = "winrt-windows-media-core" },
-    { name = "winrt-windows-media-ocr" },
-    { name = "winrt-windows-media-playback" },
-    { name = "winrt-windows-media-speechsynthesis" },
-    { name = "winrt-windows-storage" },
-    { name = "winrt-windows-storage-streams" },
-    { name = "winrt-windows-ui-notifications" },
+    { name = "winrt-windows-data-xml-dom", marker = "sys_platform == 'win32'" },
+    { name = "winrt-windows-foundation", marker = "sys_platform == 'win32'" },
+    { name = "winrt-windows-foundation-collections", marker = "sys_platform == 'win32'" },
+    { name = "winrt-windows-globalization", marker = "sys_platform == 'win32'" },
+    { name = "winrt-windows-graphics-imaging", marker = "sys_platform == 'win32'" },
+    { name = "winrt-windows-media-core", marker = "sys_platform == 'win32'" },
+    { name = "winrt-windows-media-ocr", marker = "sys_platform == 'win32'" },
+    { name = "winrt-windows-media-playback", marker = "sys_platform == 'win32'" },
+    { name = "winrt-windows-media-speechsynthesis", marker = "sys_platform == 'win32'" },
+    { name = "winrt-windows-storage", marker = "sys_platform == 'win32'" },
+    { name = "winrt-windows-storage-streams", marker = "sys_platform == 'win32'" },
+    { name = "winrt-windows-ui-notifications", marker = "sys_platform == 'win32'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/f5/94/7f995f872b6d6ba2cb677edb056028c455ae022d5caad54511559f2b9931/win11toast-0.36.3.tar.gz", hash = "sha256:6a9acb89165d56ca23b993cd95fcb3dbeb090f1711cbb631f539e92174fd390d", size = 10365, upload-time = "2026-01-17T22:30:35.271Z" }
 wheels = [
@@ -3567,7 +3567,7 @@ name = "winrt-runtime"
 version = "3.2.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "typing-extensions" },
+    { name = "typing-extensions", marker = "sys_platform == 'win32'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/16/dd/acdd527c1d890c8f852cc2af644aa6c160974e66631289420aa871b05e65/winrt_runtime-3.2.1.tar.gz", hash = "sha256:c8dca19e12b234ae6c3dadf1a4d0761b51e708457492c13beb666556958801ea", size = 21721, upload-time = "2025-06-06T14:40:27.593Z" }
 wheels = [
@@ -3587,7 +3587,7 @@ name = "winrt-windows-data-xml-dom"
 version = "3.2.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "winrt-runtime" },
+    { name = "winrt-runtime", marker = "sys_platform == 'win32'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/cc/11/6b1e59abf5f8f0cba1fee13447c9d077d144332b9b664bb236fdfa878558/winrt_windows_data_xml_dom-3.2.1.tar.gz", hash = "sha256:db81f5956bf63ce8c9d8bfb6d0794ab2849f26e62a6256b833af8de3d6451399", size = 50032, upload-time = "2025-06-06T14:41:15.877Z" }
 wheels = [
@@ -3607,7 +3607,7 @@ name = "winrt-windows-foundation"
 version = "3.2.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "winrt-runtime" },
+    { name = "winrt-runtime", marker = "sys_platform == 'win32'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/0c/55/098ce7ea0679efcc1298b269c48768f010b6c68f90c588f654ec874c8a74/winrt_windows_foundation-3.2.1.tar.gz", hash = "sha256:ad2f1fcaa6c34672df45527d7c533731fdf65b67c4638c2b4aca949f6eec0656", size = 30485, upload-time = "2025-06-06T14:41:53.344Z" }
 wheels = [
@@ -3627,7 +3627,7 @@ name = "winrt-windows-foundation-collections"
 version = "3.2.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "winrt-runtime" },
+    { name = "winrt-runtime", marker = "sys_platform == 'win32'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/ef/62/d21e3f1eeb8d47077887bbf0c3882c49277a84d8f98f7c12bda64d498a07/winrt_windows_foundation_collections-3.2.1.tar.gz", hash = "sha256:0eff1ad0d8d763ad17e9e7bbd0c26a62b27215016393c05b09b046d6503ae6d5", size = 16043, upload-time = "2025-06-06T14:41:53.983Z" }
 wheels = [
@@ -3647,7 +3647,7 @@ name = "winrt-windows-globalization"
 version = "3.2.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "winrt-runtime" },
+    { name = "winrt-runtime", marker = "sys_platform == 'win32'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/a8/aa/83c0bd92a9e9f0143d8698678b42956cab5c18118511d02a809b42776ed2/winrt_windows_globalization-3.2.1.tar.gz", hash = "sha256:bf81ba15b33b34d94f68c0c97a3916c57c5a624b55abf409811320dee2a4dab4", size = 25284, upload-time = "2025-06-06T14:42:01.91Z" }
 wheels = [
@@ -3667,7 +3667,7 @@ name = "winrt-windows-graphics-imaging"
 version = "3.2.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "winrt-runtime" },
+    { name = "winrt-runtime", marker = "sys_platform == 'win32'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/3c/90/14655f93d5cc4224ae6c44866c36928926b54c8fe7ae4a465b10332bd935/winrt_windows_graphics_imaging-3.2.1.tar.gz", hash = "sha256:1e0bdb08625b0ce144a2e76dd5ed86605906e41196df92d660c8f87a993a1513", size = 26786, upload-time = "2025-06-06T14:42:11.95Z" }
 wheels = [
@@ -3687,7 +3687,7 @@ name = "winrt-windows-media-core"
 version = "3.2.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "winrt-runtime" },
+    { name = "winrt-runtime", marker = "sys_platform == 'win32'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/e1/62/b0bb29c60f97351d93590490a77370b78e67caf1b61ac1a50f60396bc300/winrt_windows_media_core-3.2.1.tar.gz", hash = "sha256:a673cde3df58bb0798401a06c923e25da79dbd6f0c5486f29cdbe409f5730ed4", size = 65758, upload-time = "2025-06-06T14:42:30.581Z" }
 wheels = [
@@ -3707,7 +3707,7 @@ name = "winrt-windows-media-ocr"
 version = "3.2.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "winrt-runtime" },
+    { name = "winrt-runtime", marker = "sys_platform == 'win32'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/be/cd/43353a1ddc388cd9ae4ed9ca090d53239aa17f1210616a5dbf18957def41/winrt_windows_media_ocr-3.2.1.tar.gz", hash = "sha256:521e63c42073ee911f373aa24a67eea0f2903b3bb91febdbc34875b254f2b66e", size = 6674, upload-time = "2025-06-06T14:42:43.356Z" }
 wheels = [
@@ -3727,7 +3727,7 @@ name = "winrt-windows-media-playback"
 version = "3.2.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "winrt-runtime" },
+    { name = "winrt-runtime", marker = "sys_platform == 'win32'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/ec/5e/a498c98df1d59604c4b2f20c38a3faf6c225b22eb4ad739dca4a988d1f20/winrt_windows_media_playback-3.2.1.tar.gz", hash = "sha256:f16107755c28e23fd8827563eb3103fc4783d269402288b366b8d1a02d4948e4", size = 44488, upload-time = "2025-06-06T14:42:43.985Z" }
 wheels = [
@@ -3747,7 +3747,7 @@ name = "winrt-windows-media-speechsynthesis"
 version = "3.2.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "winrt-runtime" },
+    { name = "winrt-runtime", marker = "sys_platform == 'win32'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/37/fe/695531ded9c41fde6ce0d9aaa9279ad6489b51df8bd70559eef741c3e054/winrt_windows_media_speechsynthesis-3.2.1.tar.gz", hash = "sha256:22ee3ad568046ed51cca7d2583be9288e1274fbe4128445dde9be29dbda3c25e", size = 9534, upload-time = "2025-06-06T14:42:48.381Z" }
 wheels = [
@@ -3767,7 +3767,7 @@ name = "winrt-windows-storage"
 version = "3.2.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "winrt-runtime" },
+    { name = "winrt-runtime", marker = "sys_platform == 'win32'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/cc/a6/430d4881d214647e2e6c95bb2894bb9202c98bff5f82eca6ba5b5e5d09a1/winrt_windows_storage-3.2.1.tar.gz", hash = "sha256:c7d1c2326fd842babbf98d944d4991b7592ee8433c762af0a8b47696437fae0b", size = 48309, upload-time = "2025-06-06T14:43:17.793Z" }
 wheels = [
@@ -3787,7 +3787,7 @@ name = "winrt-windows-storage-streams"
 version = "3.2.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "winrt-runtime" },
+    { name = "winrt-runtime", marker = "sys_platform == 'win32'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/00/50/f4488b07281566e3850fcae1021f0285c9653992f60a915e15567047db63/winrt_windows_storage_streams-3.2.1.tar.gz", hash = "sha256:476f522722751eb0b571bc7802d85a82a3cae8b1cce66061e6e758f525e7b80f", size = 34335, upload-time = "2025-06-06T14:43:23.905Z" }
 wheels = [
@@ -3807,7 +3807,7 @@ name = "winrt-windows-ui-notifications"
 version = "3.2.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "winrt-runtime" },
+    { name = "winrt-runtime", marker = "sys_platform == 'win32'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/fc/f9/4798657fd6999e6dae2c84876b40e91873ccd5f056b27c40ebd7f4ff11d8/winrt_windows_ui_notifications-3.2.1.tar.gz", hash = "sha256:eb29bf1c3306f3ceabd71d092b5505d5fe73fbc0660347dcc63ebc4204d34d21", size = 28942, upload-time = "2025-06-06T14:43:54.629Z" }
 wheels = [
