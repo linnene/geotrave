@@ -39,7 +39,6 @@ logs/
 # IDEs
 .vscode/
 .idea/
-docs/
 .github/*.md
 
 script/start_claude.ps1
